@@ -1,0 +1,22 @@
+<ui:UXML>
+    <ui:VisualElement name="content-viewport" style="flex-grow:1;" />
+
+    <ui:VisualElement name="bottom-nav" class="bottom-nav" style="position: absolute; bottom: 0; left: 0; right: 0; height: 80px; flex-direction: row; align-items: flex-end;">
+        
+        <ui:Button name="btn-ar" class="nav-item">
+            <ui:VisualElement class="icon-action icon-phone" style="margin-left: 0;" />
+            <ui:Label text="AR chỉ đường" class="nav-text" />
+        </ui:Button>
+
+        <ui:Button name="BtnHistory" class="nav-item">
+            <ui:VisualElement class="icon-action icon-clock" style="margin-left: 0;" />
+            <ui:Label text="Lịch sử" class="nav-text" />
+        </ui:Button>
+
+        <ui:Button name="BtnSettings" class="nav-item">
+            <ui:VisualElement class="icon-action icon-gear" style="margin-left: 0;" />
+            <ui:Label text="Cài đặt" class="nav-text" />
+        </ui:Button>
+
+    </ui:VisualElement>
+</ui:UXML>

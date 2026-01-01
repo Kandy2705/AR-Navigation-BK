@@ -1,125 +1,37 @@
-﻿using System;
 using System.Collections;
+using System.Collections.Generic;
+using UnityEngine.UIElements; //them cai nay vao de su dung UIElements
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.SceneManagement;
 
 public class UIOnboarding : MonoBehaviour
 {
-    private VisualElement onboardingElement;
-    private VisualElement bgElement;
-    private VisualElement LoadingScreenElement;
-    private VisualElement loadingSpinner;
+    private VisualElement homeElement; //khai bao bie de doc duoc tat ca UI trog file UXML
 
-    private float spinnerAngle = 0f;
-    private float loadingDuration = 1.8f;
-    private float loadingTimer = 0f;
-
-    private Button btnStart;
-    [SerializeField] private UIRouter router;
-
+    // Start is called before the first frame update
     void Start()
     {
-        var root = GetComponent<UIDocument>()?.rootVisualElement;
-        if (root == null)
-        {
-            Debug.LogError("UIDocument or rootVisualElement not found.");
-            return;
-        }
+        VisualElement root = GetComponent<UIDocument>().rootVisualElement; //lay root element tu UIDocument
 
-        onboardingElement = root.Q<VisualElement>("Onboarding");
-        bgElement = root.Q<VisualElement>("Background");
-        loadingSpinner = root.Q<VisualElement>("LoadingSpinner");
-        LoadingScreenElement = root.Q<VisualElement>("LoadingScreen");
+        homeElement = root.Q<VisualElement>("homePlay"); //tim element co ten la "home" trong UXML
 
-        btnStart = root.Q<Button>("NextOnboardingButton");
+        homeElement.style.display = DisplayStyle.Flex; //hien thi element "homePlay" ra
 
-        //onboardingElement?.EnableInClassList("screen-visible", true);
-        //onboardingElement?.EnableInClassList("screen-hidden", false);
+        Button btnStart = homeElement.Q<Button>("NextOnboarding"); //tim button co ten la "btnStart" trong UXML
 
-        //welcomeElement?.EnableInClassList("screen-visible", false);
-        //welcomeElement?.EnableInClassList("screen-hidden", true);
-        onboardingElement.style.display = DisplayStyle.None;
-
-
-        if (btnStart != null)
-            btnStart.RegisterCallback<ClickEvent>(OnNextClicked);
+        btnStart.RegisterCallback<ClickEvent>(playgame); //dang ky su kien click cho button
 
     }
 
-    private void OnNextClicked(ClickEvent evt)
+
+    private void playgame(ClickEvent evt)
     {
-
-        btnStart?.SetEnabled(false);
-
-        if (onboardingElement != null)
-        {
-            //onboardingElement.EnableInClassList("screen-visible", false);
-            //onboardingElement.EnableInClassList("screen-hidden", true);
-            onboardingElement.style.display = DisplayStyle.None;
-        }
-
-
-        loadingTimer = 0f;
-        router.ShowWelcome();
+        SceneManager.LoadScene("ManScene"); //chuyen sang scene "ManScene" khi button duoc click
     }
 
-    private void Update()
+    // Update is called once per frame
+    void Update()
     {
-        if (loadingSpinner == null) return;
 
-        bool spinnerVisible = loadingSpinner.resolvedStyle.display != DisplayStyle.None;
-
-        if (spinnerVisible)
-            SpinLoader();
-
-        if (!spinnerVisible) return;
-
-        loadingTimer += Time.deltaTime;
-        if (loadingTimer >= loadingDuration)
-        {
-            loadingTimer = -999f;
-            GoToMainOnboarding();
-            loadingSpinner.style.display = DisplayStyle.None;
-        }
-
-        if (onboardingElement.resolvedStyle.display != DisplayStyle.None) {
-            LoadingScreenElement.style.display = DisplayStyle.None;
-            Debug.Log($"Trang thai loading: {loadingSpinner.style.display}");
-        }
-    }
-
-    private void GoToMainOnboarding()
-    {
-        if (onboardingElement != null)
-        {
-            onboardingElement.style.display = DisplayStyle.Flex;
-
-            LoadingScreenElement?.EnableInClassList("screen-visible", false);
-            LoadingScreenElement?.EnableInClassList("screen-hidden", true);
-
-            onboardingElement?.EnableInClassList("screen-visible", true);
-            onboardingElement?.EnableInClassList("screen-hidden", false);
-
-        }
-
-        if (loadingSpinner != null)
-            loadingSpinner.style.display = DisplayStyle.None;
-
-        Debug.Log("Loading complete → chuyển sang màn Onboarding");
-    }
-
-    private void SpinLoader()
-    {
-        float speed = 180f;
-        spinnerAngle += speed * Time.deltaTime;
-        if (spinnerAngle >= 360f) spinnerAngle -= 360f;
-
-        loadingSpinner.style.rotate = new Rotate(Angle.Degrees(spinnerAngle));
-    }
-
-    private void OnDestroy()
-    {
-        if (btnStart != null)
-            btnStart.UnregisterCallback<ClickEvent>(OnNextClicked);
     }
 }

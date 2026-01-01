@@ -1,0 +1,115 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Styles/UI%20History.uss?fileID=7433441132597879392&amp;guid=6231b9df5df3d5443a4da945824e4045&amp;type=3#UI History" />
+    <ui:VisualElement name="MainContainer" class="main-container" style="padding-top: 44px;">
+        <ui:VisualElement name="Header" class="header">
+            <ui:VisualElement class="header-left">
+                <ui:VisualElement class="header-section">
+                    <ui:Button name="BtnBack" class="btn-back" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/Icon%20Button.png?fileID=2800000&amp;guid=2565872aae8083f48ad792e6916f938f&amp;type=3#Icon Button&quot;); color: rgba(27, 27, 27, 0); background-color: rgba(188, 188, 188, 0); border-left-color: rgba(149, 149, 149, 0); border-right-color: rgba(149, 149, 149, 0); border-top-color: rgba(149, 149, 149, 0); border-bottom-color: rgba(149, 149, 149, 0); width: 40px; height: 40px;" />
+                </ui:VisualElement>
+                <ui:Label text="Lịch sử" class="header-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); justify-content: flex-start; -unity-text-align: middle-left;" />
+            </ui:VisualElement>
+            <ui:VisualElement class="header-right">
+                <ui:VisualElement class="icon-action icon-search" />
+                <ui:VisualElement class="icon-action icon-trash" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:ScrollView mode="Horizontal" show-horizontal-scroller="false" class="filter-scroll-view" style="margin-top: 10px;">
+            <ui:VisualElement class="filter-container" style="margin-top: 0; margin-bottom: 0;">
+                <ui:Button text="24 giờ qua" class="filter-chip" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                <ui:Button text="3 ngày qua" class="filter-chip" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                <ui:Button text="Tuần này" class="filter-chip" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                <ui:Button text="Tháng này" class="filter-chip" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+            </ui:VisualElement>
+        </ui:ScrollView>
+        <ui:ScrollView mode="Vertical" show-vertical-scroller="false" class="body-list">
+            <ui:VisualElement class="history-card">
+                <ui:Button name="BtnDelete" class="btn-delete-hidden" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/trash.png?fileID=2800000&amp;guid=13560e237257235479147e833917dd46&amp;type=3#trash&quot;);" />
+                <ui:VisualElement class="card-content">
+                    <ui:VisualElement class="card-text-group">
+                        <ui:Label text="Tòa A4" class="card-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+                        <ui:Label text="08-03-2024 | 03:23 AM" class="card-date" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                    </ui:VisualElement>
+                    <ui:Label text="›" class="card-arrow" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Styles/UI%20Onboarding.uss?fileID=2230732570650464555&amp;guid=5738ffe1d82dacf43958b3c65d70d568&amp;type=3#NotInter-Regular&quot;);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="history-card">
+                <ui:Button name="BtnDelete" class="btn-delete-hidden" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/trash.png?fileID=2800000&amp;guid=13560e237257235479147e833917dd46&amp;type=3#trash&quot;);" />
+                <ui:VisualElement class="card-content">
+                    <ui:VisualElement class="card-text-group">
+                        <ui:Label text="Thông tin về tòa OISP" class="card-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+                        <ui:Label text="08-03-2024 | 03:23 AM" class="card-date" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                    </ui:VisualElement>
+                    <ui:Label text="›" class="card-arrow" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Styles/UI%20Onboarding.uss?fileID=2230732570650464555&amp;guid=5738ffe1d82dacf43958b3c65d70d568&amp;type=3#NotInter-Regular&quot;);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="history-card">
+                <ui:Button name="BtnDelete" class="btn-delete-hidden" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/trash.png?fileID=2800000&amp;guid=13560e237257235479147e833917dd46&amp;type=3#trash&quot;);" />
+                <ui:VisualElement class="card-content">
+                    <ui:VisualElement class="card-text-group">
+                        <ui:Label text="Tòa A4" class="card-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+                        <ui:Label text="08-03-2024 | 03:23 AM" class="card-date" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                    </ui:VisualElement>
+                    <ui:Label text="›" class="card-arrow" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Styles/UI%20Onboarding.uss?fileID=2230732570650464555&amp;guid=5738ffe1d82dacf43958b3c65d70d568&amp;type=3#NotInter-Regular&quot;);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="history-card">
+                <ui:Button name="BtnDelete" class="btn-delete-hidden" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/trash.png?fileID=2800000&amp;guid=13560e237257235479147e833917dd46&amp;type=3#trash&quot;);" />
+                <ui:VisualElement class="card-content">
+                    <ui:VisualElement class="card-text-group">
+                        <ui:Label text="Tòa A4" class="card-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+                        <ui:Label text="08-03-2024 | 03:23 AM" class="card-date" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                    </ui:VisualElement>
+                    <ui:Label text="›" class="card-arrow" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Styles/UI%20Onboarding.uss?fileID=2230732570650464555&amp;guid=5738ffe1d82dacf43958b3c65d70d568&amp;type=3#NotInter-Regular&quot;);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="history-card">
+                <ui:Button name="BtnDelete" class="btn-delete-hidden" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/trash.png?fileID=2800000&amp;guid=13560e237257235479147e833917dd46&amp;type=3#trash&quot;);" />
+                <ui:VisualElement class="card-content">
+                    <ui:VisualElement class="card-text-group">
+                        <ui:Label text="Tòa A4" class="card-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+                        <ui:Label text="08-03-2024 | 03:23 AM" class="card-date" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                    </ui:VisualElement>
+                    <ui:Label text="›" class="card-arrow" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Styles/UI%20Onboarding.uss?fileID=2230732570650464555&amp;guid=5738ffe1d82dacf43958b3c65d70d568&amp;type=3#NotInter-Regular&quot;);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:ScrollView>
+        <ui:VisualElement class="bottom-nav" style="align-items: flex-end; bottom: 0; right: 0; left: -1px;">
+            <ui:Button name="btn-ar" class="nav-item">
+                <ui:VisualElement class="icon-action icon-phone" style="margin-left: 0;" />
+                <ui:Label text="AR chỉ đường" name="Label" class="nav-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); padding-left: 2px; margin-right: 2px; margin-bottom: 4px; color: rgb(142, 142, 147);" />
+            </ui:Button>
+            <ui:Button name="BtnHistory" class="nav-item nav-active">
+                <ui:VisualElement class="icon-action icon-clock" style="margin-left: 0;" />
+                <ui:Label text="Lịch sử" class="nav-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); color: rgb(72, 60, 155); -unity-font-style: normal; -unity-text-align: middle-center; padding-left: 2px; margin-right: 2px; margin-bottom: 4px;" />
+            </ui:Button>
+            <ui:Button name="BtnSettings" class="nav-item">
+                <ui:VisualElement class="icon-action icon-gear" style="margin-left: 0;" />
+                <ui:Label text="Cài đặt" class="nav-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); justify-content: flex-start; align-items: stretch; -unity-text-align: middle-center; white-space: nowrap; margin-right: 2px; margin-bottom: 4px; padding-left: 2px; color: rgb(142, 142, 147);" />
+            </ui:Button>
+        </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="DeleteModal" class="modal-overlay hidden">
+        <ui:VisualElement class="modal-box">
+            <ui:Label text="Xóa lịch sử" class="modal-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;);" />
+            <ui:Label text="Bạn có chắc chắn muốn xóa tất cả lịch sử không?" class="modal-desc" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+            <ui:VisualElement class="modal-buttons">
+                <ui:Button name="BtnCancel" text="Hủy" class="btn-cancel" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                <ui:Button name="BtnConfirm" text="Xóa" class="btn-confirm" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;); background-color: rgb(72, 60, 155);" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="SearchOverlay" class="search-overlay hidden">
+        <ui:VisualElement class="search-header">
+            <ui:Button name="BtnBackSearch" class="btn-back-search" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Styles/UI%20Onboarding.uss?fileID=2230732570650464555&amp;guid=5738ffe1d82dacf43958b3c65d70d568&amp;type=3#NotInter-Regular&quot;); width: 40px; height: 40px; background-image: url(&quot;project://database/Assets/UI/Styles/Material/Icon%20Button.png?fileID=2800000&amp;guid=2565872aae8083f48ad792e6916f938f&amp;type=3#Icon Button&quot;);" />
+            <PlaceHolder placeholder-text="Tên tiêu đề" name="InputSearch" class="InputSearch" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;); -unity-text-align: middle-center; padding-top: 0; padding-bottom: 0; padding-right: 16px; padding-left: 16px; margin-bottom: 0; margin-right: 0; flex-grow: 1;" />
+        </ui:VisualElement>
+        <ui:ScrollView class="search-results-body" />
+        <ui:VisualElement name="NotFoundState" class="hidden" style="position: relative; top: 60px; left: 0; right: 0; bottom: 0; justify-content: center; align-items: center; background-color: rgba(20, 20, 20, 0.95); height: auto;">
+            <ui:VisualElement name="VisualElement" style="width: 343px; height: 343px; background-color: rgb(44, 44, 44); border-radius: 20px; justify-content: center; align-items: center; margin-bottom: 24px;">
+                <ui:Label style="font-size: 40px; color: rgb(80, 80, 80); background-image: url(&quot;project://database/Assets/UI/Styles/Material/times-square.png?fileID=2800000&amp;guid=e35725844f81a874194b92843481e68d&amp;type=3#times-square&quot;); width: 100px; height: 100px;" />
+            </ui:VisualElement>
+            <ui:Label text="Không tìm thấy" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-SemiBold.ttf?fileID=12800000&amp;guid=061287b66ecca5f4d9da25a0991292c6&amp;type=3#Poppins-SemiBold&quot;); font-size: 24px; color: white; -unity-font-style: bold; margin-bottom: 8px;" />
+            <ui:Label text="Rất tiếc, không có tin nhắn nào khớp với tìm kiếm của bạn" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); font-size: 14px; color: rgb(255, 255, 255); white-space: normal; text-align: center; width: 80%; -unity-text-align: middle-center;" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,14 @@
+/* Container bao bọc toàn màn hình, ẩn những phần tràn ra ngoài */
+.screen-container { width: 100%; height: 100%; overflow: hidden; background-color: rgb(0, 0, 0); }
+
+/* QUAN TRỌNG: position: absolute giúp các trang chồng lên nhau thay vì xếp hàng */
+.page { position: absolute; width: 100%; height: 100%; top: 0; left: 0; transition-property: translate; transition-duration: 0.5s; transition-timing-function: ease-out-cubic; }
+
+/* Vị trí trung tâm màn hình */
+.page-center { translate: 0 0; }
+
+/* Vị trí chờ bên phải màn hình (100% chiều ngang) */
+.page-right { translate: 100% 0; }
+
+/* Vị trí đã trượt sang trái (để ẩn đi khi trang mới vào) */
+.page-left { translate: -100% 0; }

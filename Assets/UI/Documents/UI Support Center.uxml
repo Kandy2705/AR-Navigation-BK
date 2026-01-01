@@ -1,0 +1,55 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Styles/UI%20Support%20Center.uss?fileID=7433441132597879392&amp;guid=efec12a6ac6620143bab1f6d7f42ece0&amp;type=3#UI Support Center" />
+    <ui:VisualElement name="screen-support" class="screen-container" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); min-height: 812px; max-height: 1000px; background-color: rgb(25, 25, 25);">
+        <ui:VisualElement class="header-row" style="margin-top: 44px;">
+            <ui:VisualElement style="flex-direction: row;">
+                <ui:Button name="BtnBack" class="header-icon-btn back-icon" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/Icon%20Button.png?fileID=2800000&amp;guid=2565872aae8083f48ad792e6916f938f&amp;type=3#Icon Button&quot;); width: 40px; height: 40px;" />
+                <ui:Label text="Trung tâm hỗ trợ" class="header-title" style="justify-content: space-around; align-items: auto; height: 44px; width: 186px; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; -unity-text-align: middle-center;" />
+            </ui:VisualElement>
+            <ui:VisualElement style="width: 32px;" />
+        </ui:VisualElement>
+        <ui:ScrollView mode="Horizontal" show-horizontal-scroller="false" class="chip-scroll-container" style="min-height: auto; max-height: none; overflow: hidden; min-width: 150px; max-width: 800px;">
+            <ui:VisualElement class="chip-row">
+                <ui:Button text="All" class="chip-btn chip-active" style="background-color: rgb(72, 60, 155);" />
+                <ui:Button text="Account" class="chip-btn" />
+                <ui:Button text="Billing" class="chip-btn" />
+                <ui:Button text="Prompting" class="chip-btn" />
+                <ui:Button text="Privacy" class="chip-btn" />
+            </ui:VisualElement>
+        </ui:ScrollView>
+        <ui:ScrollView show-vertical-scroller="false" class="content-scroll" style="min-height: 400px; max-height: 812px;">
+            <ui:VisualElement class="faq-item">
+                <ui:VisualElement class="faq-header" style="padding-top: 20px; padding-bottom: 20px; background-color: rgb(37, 37, 39); -unity-background-image-tint-color: rgba(9, 9, 9, 0);">
+                    <ui:Label text="Can I edit a generated response?" class="faq-question" style="justify-content: space-evenly; -unity-font-style: bold; margin-right: 0; padding-right: 0; font-size: 14px;" />
+                    <ui:VisualElement class="arrow-icon arrow-right" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/chevron-right.png?fileID=2800000&amp;guid=89c2484d8338c544cb32dd033a091a02&amp;type=3#chevron-right&quot;);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="faq-item faq-item--open">
+                <ui:VisualElement class="faq-header" style="padding-top: 20px;">
+                    <ui:Label text="How do I reset my password?" class="faq-question" />
+                    <ui:VisualElement class="arrow-icon arrow-up" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/chevron-down.png?fileID=2800000&amp;guid=0260045e46cadd545a8d5209a05f5388&amp;type=3#chevron-down&quot;);" />
+                </ui:VisualElement>
+                <ui:Label text="You can reset your password by selecting “Forgot password?” on the login screen. Follow the instructions sent to your email to create a new one. If you need further assistance, contact our support team." class="faq-answer" style="background-color: rgba(0, 0, 0, 0);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="faq-item">
+                <ui:VisualElement class="faq-header" style="padding-top: 20px; padding-bottom: 20px; background-color: rgb(37, 37, 39); -unity-background-image-tint-color: rgba(255, 255, 255, 0);">
+                    <ui:Label text="Can I export my data?" class="faq-question" />
+                    <ui:VisualElement class="arrow-icon arrow-right" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/chevron-right.png?fileID=2800000&amp;guid=89c2484d8338c544cb32dd033a091a02&amp;type=3#chevron-right&quot;);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="faq-item">
+                <ui:VisualElement class="faq-header" style="padding-top: 20px; padding-bottom: 20px; background-color: rgb(37, 37, 39);">
+                    <ui:Label text="How can I delete my history?" class="faq-question" />
+                    <ui:VisualElement class="arrow-icon arrow-right" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/chevron-right.png?fileID=2800000&amp;guid=89c2484d8338c544cb32dd033a091a02&amp;type=3#chevron-right&quot;);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="faq-item">
+                <ui:VisualElement class="faq-header" style="padding-top: 20px; padding-bottom: 20px; background-color: rgb(37, 37, 39);">
+                    <ui:Label text="Are my data secure?" class="faq-question" />
+                    <ui:VisualElement class="arrow-icon arrow-right" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/chevron-right.png?fileID=2800000&amp;guid=89c2484d8338c544cb32dd033a091a02&amp;type=3#chevron-right&quot;);" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement style="height: 40px;" />
+        </ui:ScrollView>
+    </ui:VisualElement>
+</ui:UXML>

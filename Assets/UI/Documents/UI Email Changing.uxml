@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Styles/UI%20Email%20Changing.uss?fileID=7433441132597879392&amp;guid=3290707c2cfd90b48a3b7de5a555010c&amp;type=3#UI Email Changing" />
+    <ui:VisualElement name="screen-change-email" class="screen-container" style="min-height: 812px; max-height: 1000px; background-color: rgb(25, 25, 25);">
+        <ui:VisualElement name="VisualElement" class="header-row" style="margin-top: 44px; height: 60px;">
+            <ui:Button name="BtnBack" class="header-icon-btn back-icon" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/Icon%20Button%201.png?fileID=2800000&amp;guid=0b735b5902bf6684f9de9f757660f8cd&amp;type=3#Icon Button 1&quot;); height: 40px; width: 40px; overflow: visible; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-ExtraBold.ttf?fileID=12800000&amp;guid=1418c3afaec212c4b97701e2672e3ac8&amp;type=3#Poppins-ExtraBold&quot;); -unity-text-align: lower-right; white-space: pre-wrap; text-overflow: ellipsis; background-color: rgba(209, 20, 20, 0);" />
+        </ui:VisualElement>
+        <ui:ScrollView show-vertical-scroller="false" class="content-scroll" style="min-height: 400px; max-height: 812px; margin-top: 30px; background-color: rgba(46, 97, 150, 0);">
+            <ui:Label text="Thay đổi Email" name="Label" class="page-big-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-SemiBold.ttf?fileID=12800000&amp;guid=061287b66ecca5f4d9da25a0991292c6&amp;type=3#Poppins-SemiBold&quot;);" />
+            <ui:Label text="Vui lòng nhập email của bạn và chúng tôi sẽ gửi mã OTP để xác nhận Email mới của bạn." class="page-desc" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            <PlaceHolder placeholder-text="Email" class="email-input-field" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;); -unity-text-align: middle-center; padding-top: 0; padding-bottom: 0;" />
+        </ui:ScrollView>
+        <ui:VisualElement class="bottom-actions">
+            <ui:Button text="Tiếp tục" name="BtnContinue" class="action-btn" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); background-color: rgb(72, 60, 155);" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

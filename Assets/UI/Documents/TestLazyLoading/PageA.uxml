@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="Content" style="width: 100%; height: 100%; justify-content: center; align-items: center; background-color: rgb(170, 0, 0); min-height: 812px; max-height: 1000px;">
+        <ui:Label text="TRANG A" style="font-size: 30px; color: white; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-ExtraBold.ttf?fileID=12800000&amp;guid=1418c3afaec212c4b97701e2672e3ac8&amp;type=3#Poppins-ExtraBold&quot;); height: 49px;" />
+        <ui:Button name="PageA" text="Go To Page B" style="width: 200px; height: 50px; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;); background-color: rgb(236, 236, 236); justify-content: center; align-items: flex-start; -unity-text-align: middle-center;" />
+    </ui:VisualElement>
+</ui:UXML>
