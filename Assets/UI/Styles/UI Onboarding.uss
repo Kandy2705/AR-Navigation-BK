@@ -1,0 +1,85 @@
+﻿@import url("unity-theme://default");
+
+.anh-theo-chieu-ngang {
+    /* Bắt buộc chiều ngang luôn chiếm hết 100% khung cha */
+    width: 100%;
+
+    /* Chiều cao để tự động (Auto) -> Unity sẽ tự tính dựa trên tỉ lệ ảnh */
+    height: auto;
+
+    /* Quan trọng: Giữ nguyên tỉ lệ ảnh, không kéo giãn méo mó */
+    -unity-background-scale-mode: scale-to-fit;
+    
+    /* Đảm bảo ảnh nền nằm giữa (nếu chiều cao khung cha lớn hơn ảnh) */
+    -unity-background-image-tint-color: white; 
+}
+
+#Welcome{
+    display: block;
+    padding-left: 16px;
+    padding-right: 16px;
+
+    flex-direction: column;  
+}
+
+#Onboarding, #Background {
+    display: block;
+    flex-direction: column;  
+}
+
+#LoadingScreen {
+    display: block;
+    flex-direction: column;  
+}
+
+#Onboarding,
+#Welcome {
+    transition-property: opacity, translate;
+    transition-duration: 0.25s;
+    transition-timing-function: ease-in-out;
+}
+
+.screen-visible {
+    opacity: 1;
+    translate: 0px 0px;
+}
+
+.screen-hidden {
+    opacity: 0;
+    translate: 0px 20px;
+    pointer-events: none;
+}
+
+
+#ImgWelcome {
+    height: 100%;
+    aspect-ratio: 1;
+    -unity-background-scale-mode: scale-to-fit;
+    margin-top: 50px;
+}
+
+#LoginButton:hover {
+    -unity-button-background-color: #5A9BD5;
+    background-color: rgb(90, 155, 213);
+}
+
+#NextOnboardingButton:hover {
+    -unity-button-background-color: #5A9BD5;
+    background-color: rgb(90, 155, 213);
+}
+
+#LabelNameApp {
+    font-weight: 800;
+}
+
+#LoadingSpinner {
+    transform-origin: center center;
+
+    -unity-background-scale-mode: scale-to-fit;
+
+    pointer-events: none;
+}
+
+
+.fade-in { opacity: 1; transition: opacity .3s; }
+.fade-out { opacity: 0; transition: opacity .3s; }

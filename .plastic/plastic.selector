@@ -1,0 +1,3 @@
+repository "TestARMultiSet/TestARMultiSet@18967531932830@cloud"
+  path "/"
+    smartbranch "/main/UI-Man" 
