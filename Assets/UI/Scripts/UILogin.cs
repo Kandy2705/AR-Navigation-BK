@@ -231,7 +231,6 @@ public class UILogin : MonoBehaviour
         {
             passwordToggleIcon.UnregisterCallback<ClickEvent>(OnPasswordToggleClicked);
             passwordToggleIcon.RegisterCallback<ClickEvent>(OnPasswordToggleClicked);
-            passwordToggleIcon.style.cursor = new StyleCursor((StyleKeyword)MouseCursor.Link);
             UpdateToggleIcon(passwordToggleIcon, isPasswordVisible);
         }
 
@@ -239,7 +238,6 @@ public class UILogin : MonoBehaviour
         {
             newPasswordToggleIcon.UnregisterCallback<ClickEvent>(OnNewPasswordToggleClicked);
             newPasswordToggleIcon.RegisterCallback<ClickEvent>(OnNewPasswordToggleClicked);
-            newPasswordToggleIcon.style.cursor = new StyleCursor((StyleKeyword)MouseCursor.Link);
             UpdateToggleIcon(newPasswordToggleIcon, isNewPasswordVisible);
         }
 
@@ -247,7 +245,6 @@ public class UILogin : MonoBehaviour
         {
             confirmPasswordToggleIcon.UnregisterCallback<ClickEvent>(OnConfirmPasswordToggleClicked);
             confirmPasswordToggleIcon.RegisterCallback<ClickEvent>(OnConfirmPasswordToggleClicked);
-            confirmPasswordToggleIcon.style.cursor = new StyleCursor((StyleKeyword)MouseCursor.Link);
             UpdateToggleIcon(confirmPasswordToggleIcon, isConfirmPasswordVisible);
         }
 
