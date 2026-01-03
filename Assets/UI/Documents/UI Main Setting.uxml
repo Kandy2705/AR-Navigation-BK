@@ -1,0 +1,50 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Styles/UI%20Main%20Setting.uss?fileID=7433441132597879392&amp;guid=63334e33e1b97e445a1d64cdd812b543&amp;type=3#UI Main Setting" />
+    <ui:VisualElement name="screen-container" class="screen-container" style="min-height: auto; max-height: none; background-color: rgb(25, 25, 25);">
+        <ui:Label text="Cài đặt" name="Label" class="header-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;); font-size: 20px; padding-top: 16px; padding-right: 12px; padding-bottom: 60px; padding-left: 24px; margin-top: 44px; margin-bottom: 0; margin-left: 0; margin-right: 0;" />
+        <ui:ScrollView class="content-area" style="min-height: 895px; max-height: 1000px; padding-left: 24px;">
+            <ui:Label text="Về tài khoản" class="section-header" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;); margin-left: 0; margin-top: 12px; margin-right: 0; margin-bottom: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+            <ui:Button name="BtnProfile" class="menu-item" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 40px; padding-right: 0; padding-bottom: 0; padding-left: 0;">
+                <ui:VisualElement class="menu-icon user-icon" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Styles/UI%20Onboarding.uss?fileID=2230732570650464555&amp;guid=5738ffe1d82dacf43958b3c65d70d568&amp;type=3#NotInter-Regular&quot;); background-image: url(&quot;project://database/Assets/UI/Styles/Material/user.png?fileID=2800000&amp;guid=58180581092aad44894d10941664eea6&amp;type=3#user&quot;);" />
+                <ui:Label text="Thông tin cá nhân" class="menu-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            </ui:Button>
+            <ui:Label text="Về chúng tôi" name="Label" class="section-header" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 40px; padding-right: 0; padding-bottom: 0; padding-left: 0; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+            <ui:Button name="BtnSupportCenter" class="menu-item" style="padding-top: 40px; padding-right: 0; padding-bottom: 0; padding-left: 0; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0;">
+                <ui:VisualElement class="menu-icon support-icon" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Styles/UI%20Onboarding.uss?fileID=2230732570650464555&amp;guid=5738ffe1d82dacf43958b3c65d70d568&amp;type=3#NotInter-Regular&quot;); background-image: url(&quot;project://database/Assets/UI/Styles/Material/question-circle.png?fileID=2800000&amp;guid=7e2903e1b5659274fa497b63551febda&amp;type=3#question-circle&quot;);" />
+                <ui:Label text="Trung tâm hỗ trợ" class="menu-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            </ui:Button>
+            <ui:Button name="BtnContact" class="menu-item" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 40px; padding-right: 0; padding-bottom: 0; padding-left: 0;">
+                <ui:VisualElement class="menu-icon contact-icon" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Styles/UI%20Onboarding.uss?fileID=2230732570650464555&amp;guid=5738ffe1d82dacf43958b3c65d70d568&amp;type=3#NotInter-Regular&quot;); background-image: url(&quot;project://database/Assets/UI/Styles/Material/file.png?fileID=2800000&amp;guid=aac37a977def81f47882c4f25fafc290&amp;type=3#file&quot;);" />
+                <ui:Label text="Thông tin liên hệ" class="menu-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            </ui:Button>
+            <ui:Button name="BtnLogout" class="menu-item logout-item" style="padding-top: 40px; padding-right: 0; padding-bottom: 0; padding-left: 0; margin-left: 0; margin-bottom: 0; margin-right: 0; margin-top: 0;">
+                <ui:VisualElement class="menu-icon logout-icon" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Styles/UI%20Onboarding.uss?fileID=2230732570650464555&amp;guid=5738ffe1d82dacf43958b3c65d70d568&amp;type=3#NotInter-Regular&quot;); background-image: url(&quot;project://database/Assets/UI/Styles/Material/log-out.png?fileID=2800000&amp;guid=6f36e220197ed614ebc1e16dc3d151c0&amp;type=3#log-out&quot;);" />
+                <ui:Label text="Logout" class="menu-text logout-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); color: rgb(255, 102, 102);" />
+            </ui:Button>
+        </ui:ScrollView>
+        <ui:VisualElement name="bottom-nav" class="bottom-nav" style="bottom: 2px; right: 0; left: 3px; background-color: rgb(25, 25, 25);">
+            <ui:Button name="btn-ar" class="nav-item">
+                <ui:VisualElement class="nav-icon ar-icon" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/file.png?fileID=2800000&amp;guid=aac37a977def81f47882c4f25fafc290&amp;type=3#file&quot;);" />
+                <ui:Label text="AR chỉ đường" class="nav-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); padding-left: 2px; margin-right: 2px; margin-bottom: 4px; font-size: 11px;" />
+            </ui:Button>
+            <ui:Button name="BtnHistory" class="nav-item">
+                <ui:VisualElement class="nav-icon history-icon" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/clock%201.png?fileID=2800000&amp;guid=7588edd7624655944a557d1d8915b832&amp;type=3#clock 1&quot;);" />
+                <ui:Label text="Lịch sử" class="nav-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); font-size: 11px; padding-left: 2px; margin-right: 2px; margin-bottom: 4px;" />
+            </ui:Button>
+            <ui:Button name="BtnSettings" class="nav-item active">
+                <ui:VisualElement class="nav-icon settings-icon" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/settings%201.png?fileID=2800000&amp;guid=08d72887e4aff824b8f449786981ea43&amp;type=3#settings 1&quot;);" />
+                <ui:Label text="Cài đặt" class="nav-text active-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); margin-right: 2px; margin-bottom: 4px; padding-left: 2px; font-size: 11px; color: rgb(57, 48, 140);" />
+            </ui:Button>
+        </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="logout-overlay" class="logout-overlay">
+        <ui:VisualElement name="bottom-sheet" class="bottom-sheet">
+            <ui:Label text="Đăng xuất" class="sheet-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;); color: rgb(255, 102, 102);" />
+            <ui:Label text="Bạn có chắc chắn muốn đăng xuất ra khỏi tài khoản này" class="sheet-desc" style="-unity-text-align: upper-center; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            <ui:VisualElement class="sheet-actions">
+                <ui:Button name="btn-cancel" text="Hủy" class="sheet-btn btn-cancel" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+                <ui:Button name="btn-confirm" text="Đăng xuất" class="sheet-btn btn-confirm" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); background-color: rgb(72, 60, 155);" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

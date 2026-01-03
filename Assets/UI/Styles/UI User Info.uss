@@ -1,0 +1,195 @@
+.screen-container {
+    flex-grow: 1;
+    background-color: rgb(18, 18, 18);
+    color: white;
+    font-size: 14px;
+}
+
+.content-scroll {
+    flex-grow: 1;
+    padding: 0 20px;
+}
+
+.header-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    padding-top: 10px;
+    margin-bottom: 10px;
+}
+
+.header-title {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: white;
+}
+
+.header-icon-btn {
+    width: 40px;
+    height: 40px;
+    background-color: transparent;
+    border-width: 0;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.back-icon {
+    background-image: url('project://database/Assets/UI/Icons/arrow-left-white.png');
+}
+
+.check-icon {
+    background-image: url('project://database/Assets/UI/Icons/check-circle-purple.png');
+    tint-color: rgb(94, 92, 230);
+}
+
+.title-section {
+    margin-bottom: 30px;
+    margin-top: 10px;
+}
+
+.page-big-title {
+    font-size: 32px;
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+    color: white;
+}
+
+.page-desc {
+    font-size: 14px;
+    color: rgb(142, 142, 147);
+    white-space: normal;
+    line-height: 20px;
+}
+
+.avatar-section {
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.avatar-wrapper {
+    width: 110px;
+    height: 110px;
+    position: relative;
+}
+
+.avatar-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 20px;
+    background-color: rgb(44, 44, 46);
+    -unity-background-scale-mode: scale-and-crop;
+    border-width: 2px;
+    border-color: rgb(28, 28, 30);
+}
+
+.avatar-edit-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    background-color: rgb(94, 92, 230);
+    background-image: url('project://database/Assets/UI/Icons/edit-pencil.png');
+   
+}
+
+.form-container {
+    margin-bottom: 20px;
+}
+
+.custom-input {
+    background-color: rgb(28, 28, 30);
+    border-radius: 12px;
+    padding: 10px 16px;
+    border-width: 0;
+    justify-content: center;
+}
+
+.custom-input > .unity-label {
+    color: rgb(142, 142, 147);
+    font-size: 12px;
+    margin-bottom: 2px;
+    padding: 0;
+    -unity-font-style: normal;
+}
+
+.custom-input > .unity-base-field__input {
+    background-color: transparent;
+    border-width: 0;
+    padding: 0;
+    margin: 0;
+    font-size: 15px;
+    color: white;
+    -unity-text-align: middle-left;
+    height: 24px;
+}
+
+.custom-input > .unity-base-field__input:focus {
+    border-width: 0;
+}
+
+.dropdown-style {
+    height: 64px;
+    justify-content: center;
+}
+
+.input-label-fake {
+    color: rgb(142, 142, 147);
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.dropdown-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.input-value-fake {
+    color: white;
+    font-size: 15px;
+}
+
+.arrow-down-icon {
+    width: 20px;
+    height: 20px;
+    margin: 10px 16px 10px 16px;
+    background-image: url('project://database/Assets/UI/Icons/chevron-down.png');
+    -unity-background-image-tint-color: rgb(142, 142, 147);
+}
+
+.bottom-actions {
+    margin-top: 10px;
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+}
+
+.action-btn {
+    -unity-text-align: middle-center;
+    height: 52px;
+    width: 85%;
+    border-radius: 26px;
+    background-color: rgb(94, 92, 230);
+    color: white;
+    font-size: 16px;
+    -unity-font-style: bold;
+    border-width: 0;
+    transition: scale 0.1s;
+}
+
+.action-btn:active {
+    scale: 0.96;
+    opacity: 0.9;
+}
+
+.grouped-section {
+    background-color: rgb(28, 28, 30);
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: rgb(44, 44, 46);
+    overflow: hidden;
+    margin-bottom: 20px;
+}

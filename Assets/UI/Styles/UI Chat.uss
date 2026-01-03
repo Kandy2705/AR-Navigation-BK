@@ -1,0 +1,77 @@
+/* 1. MÀN HÌNH CHÍNH: Full size, nền đen */
+.chat-screen {  background-color: #121212; flex-direction: column; width: 100%; height: 100%; }
+
+/* 2. HEADER: Căn chỉnh lại padding cho cân đối */
+.chat-header { height: 60px; flex-direction: row; align-items: center; padding-left: 16px; margin-top: 44px; border-bottom-width: 1px; border-bottom-color: #2C2C2E; flex-shrink: 0; }
+.btn-back-icon { width: 40px; height: 40px; background-color: transparent; border-width: 0; color: white; font-size: 28px; -unity-text-align: middle-center; margin-right: 8px; }
+.header-title { color: white; font-size: 18px; -unity-font-style: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
+
+/* 3. BODY: ScrollView */
+.chat-body { flex-grow: 1; padding: 16px; background-color: #121212; flex-basis: 1; flex-shrink: 1;}
+
+/* 4. CẤU TRÚC TIN NHẮN (Container bọc ngoài) */
+.msg-container { max-width: 75%; margin-bottom: 12px; border-radius: 20px; padding: 12px 16px; flex-direction: row; }
+
+/* Style User (Phải - Tím) */
+.msg-right { align-self: flex-end; background-color: #584CF4; border-bottom-right-radius: 4px; justify-content: flex-end; }
+
+/* Style Bot (Trái - Xám) */
+.msg-left { align-self: flex-start; background-color: #2C2C2E; border-bottom-left-radius: 4px; justify-content: flex-start; }
+
+/* Style Text bên trong */
+.msg-text { color: white; font-size: 15px; white-space: normal; -unity-text-align: middle-left; padding: 0; margin: 0; }
+
+/* 5. FOOTER & INPUT */
+.chat-footer { height: 90px; flex-direction: row; align-items: flex-start; padding: 12px 16px; background-color: #121212; flex-shrink: 0; }
+
+/* 1. Vỏ ngoài ô nhập */
+.chat-input {
+    flex-grow: 1;
+    /* padding-top: 20px;
+    padding-bottom: 20px; */
+    height: 50px;
+    border-radius: 25px;
+    margin-right: 12px;
+    background-color: transparent; /* Nền trong suốt để thấy bo tròn của con */
+    border-width: 0;
+    
+    /* Font chữ chung cho cả ô */
+    -unity-font-definition: url("project://database/Assets/UI/Styles/UI%20Onboarding.uss?fileID=2230732570650464555&guid=5738ffe1d82dacf43958b3c65d70d568&type=3#NotInter-Regular");
+}
+
+/* 2. Cái lõi bên trong (Nơi chứa chữ thật) */
+.chat-input > #unity-text-input {
+    height: 100%; /* Bắt buộc cao bằng vỏ */
+    border-radius: 25px;
+    background-color: #1C1C1E;
+    border-width: 0;
+    color: white;
+    font-size: 15px;
+    padding-left: 20px; /* Cách lề trái */
+    padding-top: 20px;
+    padding-bottom: 20px;
+    -unity-text-align: middle-left; 
+}
+
+.email-input-field {-unity-text-align: middle-left; margin-top: 0; height: 56px; justify-content: center; border-radius: 12px; border-width: 1px; border-color: #2C2C2E; padding: 0 16px; margin-bottom: 20px; }
+
+.email-input-field > .unity-base-text-field__input { background-color: transparent; border-width: 0; font-size: 16px; color: white; padding: 0; margin: 0; height: 56px; -unity-text-align: middle-left; }
+
+.email-input-field > .unity-base-text-field__input--placeholder { color: #666666; }
+
+.chat-input > #unity-text-input > .unity-text-element--placeholder {
+    color: #666666;
+}
+
+.placeholder-label { color: #8E8E93;  position: absolute; left: 10px; top: 0; bottom: 0; right: 0; -unity-text-align: middle-left; margin: 0; padding-left: 4px;}
+.placeholder-hidden { display: none; }
+
+.unity-base-text-field__input {
+    justify-content: center; 
+    -unity-text-align: middle-left; 
+    flex-grow: 1; 
+    color: #8E8E93; 
+}
+
+/* Nút Gửi */
+.btn-send { width: 50px; height: 50px; border-radius: 25px; background-color: #584CF4; color: white; font-size: 20px; border-width: 0; -unity-text-align: middle-center; flex-shrink: 0; }

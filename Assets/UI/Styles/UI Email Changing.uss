@@ -1,0 +1,63 @@
+/* Layout chính */
+.screen-container { flex-grow: 1; background-color: #121212; color: white; font-size: 14px; }
+.content-scroll { flex-grow: 1; padding: 0 20px; width: 100%; }
+
+/* Header */
+.header-row { height: 60px; justify-content: center; padding-left: 20px; padding-top: 10px; margin-bottom: 10px; }
+.header-icon-btn { width: 32px; height: 32px; background-color: transparent; border-width: 0; -unity-background-scale-mode: scale-to-fit; }
+
+
+/* Text Styles */
+.page-big-title { font-size: 28px; -unity-font-style: bold; margin-bottom: 12px; color: white; }
+.page-desc { font-size: 14px; color: #EBEBF5; margin-bottom: 32px; white-space: normal; opacity: 0.8; }
+
+/* Input Field Style (Hộp nhập liệu) */
+.email-input-field {-unity-text-align: middle-left; margin-top: 0; height: 56px; justify-content: center; border-radius: 12px; border-width: 1px; border-color: #2C2C2E; padding: 0 16px; margin-bottom: 20px;}
+
+/* 1. Input Text bên trong (Lưu ý: dùng đúng class unity-base-text-field__input) */
+.email-input-field > .unity-base-text-field__input { background-color: transparent; border-width: 0; font-size: 16px; color: white; padding: 0; margin: 0; height: 56px; -unity-text-align: middle-left; }
+
+/* 2. Placeholder (Đây là class Unity tự add khi ô trống, dùng đúng tên class này mới nhận) */
+.email-input-field > .unity-base-text-field__input--placeholder { color: #8E8E93; }
+
+/* Bottom Action (Nút dính đáy) */
+.bottom-actions { padding: 20px 24px 40px 24px; background-color: #121212; position: absolute; bottom: 20px; left: 0; right: 0; }
+.action-btn { height: 52px; border-radius: 26px; background-color: #5E5CE6; color: white; font-size: 16px; -unity-font-style: bold; border-width: 0; transition: scale 0.1s; -unity-text-align: middle-center; }
+.action-btn:active { scale: 0.96; opacity: 0.9; }
+
+
+/* Password */
+
+/* Container gom nhóm các ô input: Bo góc, nền tối, cắt phần thừa */
+.grouped-section { border-radius: 12px; overflow: hidden; margin-bottom: 24px; border-width: 1px; border-color: #2C2C2E; }
+
+/* Từng dòng input: Xếp ngang (Text + Icon), có gạch chân ngăn cách */
+.password-row { flex-direction: row; align-items: center; height: 56px; border-bottom-width: 1px; border-bottom-color: #2C2C2E; padding-right: 16px; padding-left: 16px; }
+
+/* Input sạch (Clean Input): Trong suốt, chiếm hết chỗ trống, bỏ viền */
+.clean-input { flex-grow: 1; background-color: transparent; border-width: 0; margin: 0; padding: 0; height: 100%; justify-content: center; }
+
+
+/* Chỉnh Text bên trong input */
+.clean-input > .unity-base-text-field__input { background-color: transparent; border-width: 0; font-size: 15px; left: 12px; color: white; -unity-text-align: middle-left; padding: 0; }
+
+/* Placeholder màu xám */
+.clean-input > .unity-base-text-field__input--placeholder { color: #8E8E93; }
+
+/* Icon con mắt (Show/Hide pass) */
+.eye-icon { width: 20px; height: 20px; background-color: transparent; border-width: 0; -unity-background-image-tint-color: #5E5CE6; -unity-background-scale-mode: scale-to-fit; }
+
+/* Nút Quên mật khẩu (Text Link style) */
+.link-btn { background-color: transparent; border-width: 0; color: #5E5CE6; font-size: 14px; -unity-font-style: bold; align-self: center; margin-top: 10px; }
+.link-btn:hover { opacity: 0.8; }
+
+
+.placeholder-label { color: #8E8E93;  position: absolute; left: 10px; top: 0; bottom: 0; right: 0; -unity-text-align: middle-left; margin: 0; padding-left: 4px;}
+.placeholder-hidden { display: none; }
+
+.unity-base-text-field__input {
+    justify-content: center; 
+    -unity-text-align: middle-left; 
+    flex-grow: 1; 
+    color: #8E8E93; 
+}

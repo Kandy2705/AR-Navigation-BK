@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Documents/TestLazyLoading/Style.uss?fileID=7433441132597879392&amp;guid=afa2cedffe47b8b4683062f70bc33717&amp;type=3#Style" />
+    <ui:VisualElement name="RootContainer" class="screen-container" style="min-height: 812px; max-height: 1000px;" />
+</ui:UXML>

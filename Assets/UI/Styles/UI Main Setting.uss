@@ -1,0 +1,157 @@
+
+/* Cấu trúc chính */
+.screen-container {
+    flex-grow: 1;
+    height: 100%;
+    background-color: #121212;
+    /* padding: 15px 20px; */
+    color: white;
+    font-size: 14px;
+}
+
+/* Status Bar */
+.status-bar {
+    flex-direction: row;
+    justify-content: space-between;
+    height: 30px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.status-text {
+    -unity-font-style: bold;
+}
+
+.status-icons {
+    flex-direction: row;
+}
+
+/* Header */
+.header-title {
+    font-size: 28px;
+    -unity-font-style: bold;
+    margin-bottom: 30px;
+    margin-left: 5px;
+}
+
+/* Section Header */
+.section-header {
+    color: #8E8E93;
+    font-size: 13px;
+    /* margin-top: 20px;
+    margin-bottom: 10px;
+    margin-left: 5px; */
+}
+
+/* Menu Items */
+.menu-item {
+    flex-direction: row;
+    align-items: center;
+    background-color: transparent;
+    border-width: 0;
+    padding: 12px 5px;
+    margin-bottom: 5px;
+}
+
+.menu-item:hover {
+    background-color: #1A1A1A;
+}
+
+.menu-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 15px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.menu-text {
+    font-size: 16px;
+    color: white;
+}
+
+/* Logout Style */
+.logout-item {
+    margin-top: 10px;
+}
+
+.logout-text {
+    color: #FF453A;
+}
+
+.logout-icon {
+    border-color: #FF453A;
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+    flex-direction: row;
+    justify-content: space-around;
+    padding-top: 15px;
+    padding-bottom: 10px;
+    border-top-width: 1px;
+    border-top-color: #2C2C2E;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #191919;
+}
+
+.nav-item {
+    align-items: center;
+    width: 30%;
+}
+
+.nav-icon {
+    width: 24px;
+    height: 24px;
+    margin-bottom: 4px;
+}
+
+.nav-text {
+    font-size: 10px;
+    color: #8E8E93;
+}
+
+.nav-item.active .nav-icon {
+    border-color: #5E5CE6;
+}
+
+.active-text {
+    color: #5E5CE6;
+}
+
+.logout-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); justify-content: flex-end; opacity: 0; transition: opacity 0.3s ease-out; picking-mode: ignore; display: none; }
+
+/* Class này được add bằng C# để hiện Overlay */
+.logout-overlay--show { opacity: 1; picking-mode: position; display: flex; }
+
+/* Bảng thông báo (Bottom Sheet): Mặc định bị đẩy xuống dưới (translate 100%) */
+.bottom-sheet { background-color: #1C1C1E; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 30px 24px 50px 24px; align-items: center; translate: 0 100%; transition: translate 0.4s cubic-bezier(0.22, 1, 0.36, 1); width: 100%; }
+
+/* Class này được add bằng C# để trồi bảng lên */
+.bottom-sheet--up { translate: 0 0; }
+
+/* Text Styles */
+.sheet-title { color: #FF453A; font-size: 20px; -unity-font-style: bold; margin-bottom: 12px; }
+.sheet-desc { color: #FFFFFF; font-size: 14px; text-align: center; margin-bottom: 32px; white-space: normal; opacity: 0.8; }
+
+/* Button Styles */
+.sheet-actions { flex-direction: row; justify-content: space-between; width: 100%; gap: 16px; }
+.sheet-btn { width: 150px; height: 50px; border-radius: 25px; border-width: 0; font-size: 16px; -unity-font-style: bold; color: white; justify-content: center; align-items: center; -unity-text-align: middle-center }
+.btn-cancel { background-color: #2C2C2E; }
+.btn-confirm { background-color: #5E5CE6; }
+
+/* Reset giao diện Button để nó trông như VisualElement cũ */
+.nav-item { 
+    background-color: transparent; 
+    border-width: 0; 
+    margin: 0; 
+    padding: 0; 
+    border-radius: 0; 
+    align-items: center; /* Căn giữa nội dung bên trong */
+    justify-content: center; 
+}
+
+/* (Tùy chọn) Thêm hiệu ứng khi di chuột vào để người dùng biết là bấm được */
+.nav-item:active { opacity: 0.7; }

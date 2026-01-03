@@ -1,0 +1,165 @@
+.main-container {width: 100%; height: 100%; background-color: #191919; padding-top: 40px; padding-bottom: 10px; }
+.header { flex-direction: row; justify-content: space-between; align-items: center; padding: 16px; height: 60px;}
+.header-left { flex-direction: row; align-items: center; }
+.header-right { flex-direction: row; align-items: center; }
+.icon-back { color: white; font-size: 28px; margin-right: 10px; }
+.header-title { color: white; font-size: 22px; -unity-font-style: bold; }
+.icon-action { width: 24px; height: 24px; margin-left: 15px; -unity-background-scale-mode: scale-to-fit; -unity-background-image-tint-color: white; }
+.filter-scroll-view { height: 60px; margin-bottom: 10px; padding-left: 16px;}
+.filter-container { flex-direction: row; align-items: center; }
+.filter-chip { background-color: rgba(0,0,0,0); border-width: 1px; border-color: #555555; border-radius: 20px; color: #AAAAAA; padding: 10px 18px; margin-right: 10px; font-size: 14px; -unity-text-align: middle-center; white-space: nowrap; flex-shrink: 0; }
+.body-list {height: 550px; padding-left: 16px; padding-right: 16px; gap: 8px; background-color: #191919;}
+.history-card { overflow: hidden; position: relative; background-color: #2B2B2B; border-radius: 16px; flex-direction: row; border-radius:16px; justify-content: space-between; align-items: center; padding: 20px; margin-bottom: 12px; flex-shrink: 0; height: 94px;}
+/* .card-content { flex-direction: column;} */
+.card-title { color: white; font-size: 16px; -unity-font-style: bold; white-space: normal; -unity-font-definition: url("project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&guid=f1f7c436755b83142926c04250f56572&type=3#Poppins-Regular");}
+.card-date { color: #888888; font-size: 12px; margin-top: 6px; -unity-font-definition: url("project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&guid=4d644c01b0cefd744a0bca86e9c81347&type=3#Poppins-Light");}
+.card-arrow { color: #888888; font-size: 24px; -unity-font-style: bold; -unity-font-definition: url("project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&guid=4d644c01b0cefd744a0bca86e9c81347&type=3#Poppins-Light");}
+
+.nav-active { opacity: 1; }
+.nav-active .nav-text { color: #6C5DD3; }
+.nav-active .nav-icon { color: #6C5DD3; }
+.nav-text { color: white; font-size: 11px; margin-top: 4px; }
+.nav-icon { font-size: 24px; color: white; margin-bottom: 2px; }
+.icon-search { background-image: url("project://database/Assets/UI/Styles/Material/search.png"); }
+.icon-trash { background-image: url("project://database/Assets/UI/Styles/Material/trash.png"); }
+.icon-phone { background-image: url("project://database/Assets/UI/Styles/Material/mobile.png"); }
+.icon-clock { background-image: url("project://database/Assets/UI/Styles/Material/clock.png"); }
+.icon-gear { background-image: url("project://database/Assets/UI/Styles/Material/settings.png"); }
+
+
+.modal-overlay {
+    position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+    background-color: rgba(0, 0, 0, 0.8); 
+    justify-content: center; align-items: center;
+}
+
+/* Reset style cho Button để nó trong suốt và không có viền */
+.nav-item { background-color: rgba(0,0,0,0); border-width: 0; border-radius: 0; margin: 0; padding: 0; align-items: center; justify-content: center; }
+
+/* (Tùy chọn) Hiệu ứng nhấp nháy nhẹ khi bấm vào */
+.nav-item:active { opacity: 0.7; }
+
+/* 1. OVERLAY: Đẩy nội dung xuống đáy (Bottom Sheet Style) */
+.modal-overlay { position: absolute; top: 0; left: 0; bottom: 0; right: 0; background-color: rgba(0, 0, 0, 0.7); justify-content: flex-end; align-items: center; padding-bottom: 0; opacity: 1; transition: opacity 0.2s; }
+
+/* Class ẩn */
+.hidden { display: none; opacity: 0; }
+
+.InputSearch {-unity-text-align: middle-left; margin-top: 0; height: 56px; justify-content: center; border-radius: 12px; border-width: 1px; border-color: #2C2C2E; padding: 0 16px; margin-bottom: 20px; }
+
+.InputSearch > .unity-base-text-field__input { background-color: transparent; border-width: 0; font-size: 16px; color: white; padding: 0; margin: 0; height: 56px; -unity-text-align: middle-left; }
+
+.InputSearch > .unity-base-text-field__input--placeholder { color: #666666; }
+
+.chat-input > #unity-text-input > .unity-text-element--placeholder {
+    color: #666666;
+}
+
+.placeholder-label { color: #8E8E93;  position: absolute; left: 10px; top: 0; bottom: 0; right: 0; -unity-text-align: middle-left; margin: 0; padding-left: 4px;}
+.placeholder-hidden { display: none; }
+
+.unity-base-text-field__input {
+    justify-content: center; 
+    -unity-text-align: middle-left; 
+    flex-grow: 1; 
+    color: #8E8E93; 
+}
+
+.not-found-container { position: relative; flex-grow: 1; justify-content: center; align-items: center; background-color: rgba(0,0,0,0.9); display: flex; }
+.not-found-icon-box { width: 100px; height: 100px; background-color: #2C2C2C; border-radius: 16px; justify-content: center; align-items: center; margin-bottom: 20px; }
+.not-found-title { font-size: 20px; color: white; -unity-font-style: bold; margin-bottom: 8px; }
+.not-found-desc { font-size: 14px; color: #888888; text-align: center; white-space: normal; width: 80%; }
+
+.modal-box { width: 100%; background-color: #1C1C1E;  padding: 24px; align-items: center; padding-bottom: 40px;}
+
+
+.modal-title { font-size: 20px; color: white; -unity-font-style: bold; margin-bottom: 12px; -unity-text-align: middle-center; padding-bottom: 30px;}
+.modal-desc { font-size: 16px; color: #8C8C8C; white-space: normal; -unity-text-align: middle-center; margin-bottom: 24px; line-height: 20px; }
+
+.modal-buttons { flex-direction: row; width: 100%; justify-content: space-between; gap: 16px; }
+.btn-cancel { -unity-text-align: middle-center; width: 160px; height: 48px; border-radius: 20px; background-color: #2C2C2E; color: white; border-width: 0; font-size: 16px; -unity-font-style: bold; }
+.btn-confirm { -unity-text-align: middle-center; width: 160px; height: 48px; border-radius: 20px; background-color: #5D4CD6; color: white; border-width: 0; font-size: 16px; -unity-font-style: bold; }
+
+.btn-delete-hidden {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 80px; 
+    background-color: #FF4757;
+    border-width: 0;
+    border-radius: 0 16px 16px 0;
+    -unity-background-scale-mode: scale-to-fit;
+    width: 80px;
+
+    background-size: 24px 24px;
+    background-repeat: no-repeat;
+    background-position: center center;
+}
+
+
+.bottom-nav {
+    flex-direction: row;
+    justify-content: space-around;
+    padding-top: 15px;
+    padding-bottom: 10px;
+    border-top-width: 1px;
+    border-top-color: #2C2C2E;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #191919;
+}
+
+
+.card-content{
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%; 
+    background-color: #2B2B2B;
+    border-radius: 14px; padding: 20px; 
+    border-width: 2px;       
+    border-color: #2B2B2B;  
+    -unity-font-definition: url("project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&guid=f1f7c436755b83142926c04250f56572&type=3#Poppins-Regular");
+    flex-direction: row; 
+    justify-content: space-between; 
+    align-items: center; 
+    
+    /* Animation */
+    transition-property: translate; transition-duration: 0.5s; transition-timing-function: ease-out-cubic;
+}
+
+/* 4. GROUP CHỨA CHỮ (Mới thêm) */
+.card-text-group { 
+    flex-direction: column; /* Xếp chồng Title và Date */
+    justify-content: center; 
+    align-items: flex-start; /* Căn lề trái cho chữ */
+}
+
+/* 1. OVERLAY SEARCH: Phủ kín màn hình, màu nền đen đặc */
+.search-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #121212; padding: 16px; flex-direction: column; }
+
+/* 2. HEADER: Chứa nút Back và Ô input */
+.search-header { flex-direction: row; align-items: center; margin-top: 40px; margin-bottom: 20px; gap: 12px; }
+
+/* 3. NÚT BACK: Mũi tên trắng */
+.btn-back-search { width: 30px; height: 30px; background-color: rgba(0,0,0,0); border-width: 0; color: white; font-size: 28px; -unity-text-align: middle-center; margin: 0; padding: 0; }
+
+/* 4. Ô NHẬP LIỆU (Vỏ ngoài) */
+.search-input { flex-grow: 1; height: 44px; margin: 0; border-width: 0; background-color: transparent; }
+
+/* 5. STYLE SÂU VÀO INPUT CỦA UNITY (Quan trọng để giống Design) */
+/* Selector này chỉnh cái ruột của TextField */
+.search-input > #unity-text-input { 
+    height: 100%; 
+    background-color: #1C1C1E; /* Màu nền xám đậm */
+    border-radius: 12px; 
+    border-width: 0; 
+    color: white; 
+    padding-left: 16px; 
+    font-size: 16px;
+    -unity-text-align: middle-left;
+}
+
+/* Chỉnh màu chữ Placeholder (Text mờ) */
+.search-input > #unity-text-input > .unity-text-element--placeholder { color: #666666; }
+
+/* 6. CLASS TRƯỢT */
+.card-swiped { translate: -80px 0; }

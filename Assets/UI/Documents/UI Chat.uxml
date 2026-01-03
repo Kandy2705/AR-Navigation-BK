@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Styles/UI%20Chat.uss?fileID=7433441132597879392&amp;guid=4136b33f39128654cb7c0513ffa5eff7&amp;type=3#UI Chat" />
+    <ui:VisualElement name="ChatScreen" class="chat-screen" style="background-color: rgb(25, 25, 25);">
+        <ui:VisualElement class="chat-header">
+            <ui:Button name="BtnBack" class="header-icon-btn back-icon" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/Icon%20Button.png?fileID=2800000&amp;guid=2565872aae8083f48ad792e6916f938f&amp;type=3#Icon Button&quot;); width: 40px; height: 40px; color: rgb(27, 27, 27); background-color: rgba(188, 188, 188, 0); border-left-color: rgba(149, 149, 149, 0); border-right-color: rgba(149, 149, 149, 0); border-top-color: rgba(149, 149, 149, 0); border-bottom-color: rgba(149, 149, 149, 0);" />
+            <ui:Label name="HeaderTitle" text="Tòa A4" class="header-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-SemiBold.ttf?fileID=12800000&amp;guid=061287b66ecca5f4d9da25a0991292c6&amp;type=3#Poppins-SemiBold&quot;);" />
+        </ui:VisualElement>
+        <ui:ScrollView name="MessageList" show-vertical-scroller="false" class="chat-body" style="flex-basis: 650px; background-color: rgb(25, 25, 25);">
+            <ui:VisualElement class="msg-container msg-right" style="background-color: rgb(72, 60, 155);">
+                <ui:Label text="Lịch sử hình thành của tòa B4 đi." class="msg-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="msg-container msg-left" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);">
+                <ui:Label text="Đây là dữ liệu mà tôi biết và sau đây là câu trả lời..." class="msg-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="msg-container msg-left" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);">
+                <ui:Label text="Đây là dữ liệu mà tôi biết và sau đây là câu trả lời..." class="msg-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="msg-container msg-right" style="background-color: rgb(72, 60, 155);">
+                <ui:Label text="Thông tin này có chính xác không?" class="msg-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="msg-container msg-left">
+                <ui:Label text="Dữ liệu được cập nhật từ hệ thống quản lý tòa nhà OISP." class="msg-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            </ui:VisualElement>
+        </ui:ScrollView>
+        <ui:VisualElement class="chat-footer" style="background-color: rgb(25, 25, 25);">
+            <PlaceHolder placeholder-text="Ask me anything..." name="PlaceHolder" class="email-input-field" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;); -unity-text-align: middle-center; padding-top: 0; padding-bottom: 0; flex-grow: 1; margin-right: 20px;" />
+            <ui:Button name="BtnSend" class="btn-send" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Bold.ttf?fileID=12800000&amp;guid=186ae81ec0232ae43bae4a062b2d8fbc&amp;type=3#Poppins-Bold&quot;); background-color: rgb(72, 60, 155); background-image: url(&quot;project://database/Assets/UI/Styles/Material/Icon%20Button%203.png?fileID=2800000&amp;guid=595cc13e80095634980454621f62cf6c&amp;type=3#Icon Button 3&quot;);" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

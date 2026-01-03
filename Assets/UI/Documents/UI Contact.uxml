@@ -1,0 +1,40 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Styles/UI%20Contact.uss?fileID=7433441132597879392&amp;guid=8e00a8df436a9974b910540aff97efc3&amp;type=3#UI Contact" />
+    <ui:VisualElement class="screen-container" style="min-height: 1000px; max-height: 1000px; background-color: rgb(25, 25, 25);">
+        <ui:VisualElement class="header-section">
+            <ui:Button name="BtnBack" text="←" class="btn-back" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/Icon%20Button.png?fileID=2800000&amp;guid=2565872aae8083f48ad792e6916f938f&amp;type=3#Icon Button&quot;);" />
+        </ui:VisualElement>
+        <ui:Label text="Thông tin liên hệ" class="h1-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-SemiBold.ttf?fileID=12800000&amp;guid=061287b66ecca5f4d9da25a0991292c6&amp;type=3#Poppins-SemiBold&quot;); margin-left: 4px;" />
+        <ui:VisualElement class="info-row">
+            <ui:VisualElement class="icon-container">
+                <ui:VisualElement class="icon-img icon-address" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/map-pin.png?fileID=2800000&amp;guid=46f4b7f1893d64643a0a5de34dd6f5c6&amp;type=3#map-pin&quot;); background-color: rgba(130, 100, 255, 0);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="text-group">
+                <ui:Label text="Địa chỉ" class="label-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                <ui:Label text="Trường đại học Bách Khoa TP.HCM" class="label-value" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="separator" style="width: 100%; margin-left: 0;" />
+        <ui:VisualElement class="info-row">
+            <ui:VisualElement class="icon-container">
+                <ui:VisualElement class="icon-img icon-phone" style="background-color: rgba(130, 100, 255, 0); background-image: url(&quot;project://database/Assets/UI/Styles/Material/phone.png?fileID=2800000&amp;guid=ae473795026a5a64dae9779b5deea74f&amp;type=3#phone&quot;);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="text-group">
+                <ui:Label text="Số điện thoại" class="label-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                <ui:Label text="0123 456 789" class="label-value" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="separator" style="margin-left: 0;" />
+        <ui:VisualElement class="info-row">
+            <ui:VisualElement class="icon-container">
+                <ui:VisualElement class="icon-img icon-email" style="background-color: rgba(130, 100, 255, 0); background-image: url(&quot;project://database/Assets/UI/Styles/Material/inbox.png?fileID=2800000&amp;guid=e546fb51c01e53d4d85117138ba916e6&amp;type=3#inbox&quot;);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="text-group">
+                <ui:Label text="Email" class="label-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+                <ui:Label text="contact@example.com" class="label-value" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="separator" style="width: 100%; margin-left: 0;" />
+        <ui:Button name="BtnSendEmail" text="Gửi Email" class="btn-primary" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); -unity-text-align: middle-center;" />
+    </ui:VisualElement>
+</ui:UXML>
