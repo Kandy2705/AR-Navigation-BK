@@ -5960,6 +5960,7 @@ GameObject:
   - component: {fileID: 1388562751}
   - component: {fileID: 1388562752}
   - component: {fileID: 1388562753}
+  - component: {fileID: 1388562754}
   m_Layer: 0
   m_Name: UI Signup
   m_TagString: Untagged
@@ -6016,6 +6017,18 @@ MonoBehaviour:
   eyeTexture: {fileID: 2800000, guid: 6fbd4e110cb5ef84799c867428e86b08, type: 3}
   eyeSlashTexture: {fileID: 2800000, guid: abe7b7c2adf1ad14fb75c5ab08aa1ea2, type: 3}
   router: {fileID: 219913788}
+--- !u!114 &1388562754
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1388562750}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab6b29c39b6a50546a9e19fb96e23ffa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1402030787
 GameObject:
   m_ObjectHideFlags: 0
