@@ -23,11 +23,11 @@
                 <ui:TextField value="Kandy" name="input-name" class="custom-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
                 <ui:TextField value="04384983483" name="input-phone" class="custom-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
                 <ui:VisualElement style="flex-direction: row; justify-content: space-between; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); align-items: center;">
-                    <ui:TextField value="Nữ" class="custom-input" />
+                    <ui:TextField value="Nữ" name="input-gender" class="custom-input" />
                     <ui:VisualElement class="arrow-down-icon" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/chevron-down.png?fileID=2800000&amp;guid=0260045e46cadd545a8d5209a05f5388&amp;type=3#chevron-down&quot;);" />
                 </ui:VisualElement>
                 <ui:VisualElement style="flex-direction: row; justify-content: space-between; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); align-items: center;">
-                    <ui:TextField value="27/05/2004" class="custom-input" />
+                    <ui:TextField value="27/05/2004" name="input-birthday" class="custom-input" />
                     <ui:VisualElement class="arrow-down-icon" style="background-image: url(&quot;project://database/Assets/UI/Styles/Material/chevron-down.png?fileID=2800000&amp;guid=0260045e46cadd545a8d5209a05f5388&amp;type=3#chevron-down&quot;);" />
                 </ui:VisualElement>
             </ui:VisualElement>

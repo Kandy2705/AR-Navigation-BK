@@ -9,7 +9,7 @@ public class HistoryController : MonoBehaviour
 
     // [THAY ĐỔI 1] Thay vì giữ template, ta tham chiếu đến script Chat đã gắn trên Scene
     [Header("Kết Nối")]
-    public ChatDetailController chatController; // <--- Kéo GameObject ChatManager vào đây
+    public ChatDetailController chatController;
 
     // --- CÁC BIẾN CŨ (GIỮ NGUYÊN) ---
     private VisualElement _deleteModal;

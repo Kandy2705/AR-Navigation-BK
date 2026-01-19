@@ -20,6 +20,7 @@ public class Routing : MonoBehaviour
     [Header("Layout Configuration")]
     public VisualTreeAsset mainLayoutAsset; 
     private const string ContentContainerName = "content-viewport";
+    private IDisposable _currentController;
 
     private Dictionary<PageID, VisualTreeAsset> pageDict;
 
@@ -111,17 +112,19 @@ public class Routing : MonoBehaviour
             currentPage = newPage;
 
         }).ExecuteLater(10);
+
+        _currentController = ControllerFactory.CreateController(pageID, newPage);
+
         Debug.Log("Navigating Navi");
+        Debug.Log($"Page Id hiện tại là {pageID}");
         switch(pageID)
         {
             case PageID.HistoryPage:
                 Debug.Log("Navigating to History Page");
                 new HistoryManager(newPage, (chatTitle) => {
                 
-                // 1. Lưu dữ liệu
                 Routing.CurrentChatTitle = chatTitle;
                 
-                // 2. Chuyển trang sang Chatbox
                 Navigate(PageID.Chatbox); 
             });
                 BindButton(newPage, "BtnChatbox", PageID.Chatbox, false);
@@ -179,15 +182,12 @@ public class Routing : MonoBehaviour
         } 
 
         if (_cancelBtn != null) _cancelBtn.clicked += () => HideLogoutModal(_overlay, _bottomSheet);
-
-        // if (_overlay != null) _overlay.RegisterCallback<ClickEvent>(OnOverlayClick);
-
-        // if (_confirmBtn != null) _confirmBtn.clicked += OnLogoutConfirmed;
     }
 
     public void LogoutButton(VisualElement container, string buttonName)
     {
-         var btn = container.Q<Button>(buttonName);
+        var btn = container.Q<Button>(buttonName);
+        if(btn == null) {Debug.Log("Không có nút Logout"); return;}
         if(buttonName == "BtnLogout")
         {
             btn.clicked += () => LogOutNotification();
@@ -245,24 +245,12 @@ public class Routing : MonoBehaviour
         var inputField = root.Q<PlaceHolder>(inputName);
         var toggleBtn = root.Q<Button>(btnName);
 
-        // if (inputField == null || toggleBtn == null) 
-        // {
-        //     //Debug.LogError($"Không tìm thấy {inputName} hoặc {btnName}");
-        //     return;
-        // }
-
         inputField.isPasswordField = true;
     
         toggleBtn.clicked += () => 
         {
-            // Đảo ngược trạng thái mật khẩu
             inputField.isPasswordField = !inputField.isPasswordField;
-            
-            // (Tùy chọn) Đổi hình con mắt bằng cách đổi class
-            // Bạn cần tạo class .eye-open trong USS có ảnh mắt mở
             toggleBtn.ToggleInClassList("eye-open"); 
-            
-            // Focus lại vào input để gõ tiếp
             inputField.Q("unity-text-input").Focus();
         };
     }

@@ -37,6 +37,7 @@ public class UIRouter : MonoBehaviour
 
     public void ShowHomePage()
     {
+        Debug.Log("vao home page duoc roi ne");
         SetOnly(uiHomePage);
     }
 

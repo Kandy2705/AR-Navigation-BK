@@ -361,15 +361,17 @@ public class UILogin : MonoBehaviour
 
     private IEnumerator LoginProcess()
     {
+        //Debug.Log("YYYYeeeeeehhhhh vào Login Process rồi");
         yield return new WaitForSeconds(2.0f);
 
         HideLoadingOverlay();
         loginSubmitButton?.SetEnabled(true);
 
         ShowPage(Page.Login);
-
-        if (router != null)
+        Debug.Log($"giá trị router {router}");
+        if (router != null){
             router.ShowHomePage();
+        } 
         else
             Debug.LogError("UIRouter is null. Assign it in Inspector.");
     }
