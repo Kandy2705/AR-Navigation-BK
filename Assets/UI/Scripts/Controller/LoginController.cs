@@ -8,6 +8,7 @@ public class LoginController : MonoBehaviour
     private string BASE_API = "https://arnavbk-avbcg7hecgacc5bg.malaysiawest-01.azurewebsites.net/users/login";
     private TextField _emailInput;
     private TextField _passswordInput;
+    
     private Button _btnLogin;
 
     private void OnEnable()

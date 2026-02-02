@@ -83,10 +83,6 @@ public class ProfileController : IPageController
             .Then(res => 
             {
                 Debug.Log("Controller: Đã nhận dữ liệu, đang update UI");
-                // if (_userName != null) _userName.value = res.name;
-                // if (_userPhone != null) _userPhone.value = res.phone;
-                // if (_userGender != null) _userGender.value = res.gender;
-                // if (_userBirthday != null) _userBirthday.value = res.birthday;
                 UpdateUI(res);
                 string jsonToSave = JsonUtility.ToJson(res); 
                 
