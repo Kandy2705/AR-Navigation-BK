@@ -98,59 +98,15 @@ public class NavigationManager : MonoBehaviour
     public void BindButton(VisualElement container, string buttonName, PageID targetPage, bool leftSlide)
     {
         var btn = container.Q<Button>(buttonName);
-        if(buttonName == "BtnLogout")
-        {
-            btn.clicked += () => LogOutNotification();
-            return;
-        }
+        // if(buttonName == "BtnLogout")
+        // {
+        //     btn.clicked += () => LogOutNotification();
+        //     return;
+        // }
         if (btn != null)
         {
             btn.clicked += () => Navigate(targetPage, leftSlide);
         }
-    }
-
-    public void LogoutButton(VisualElement container, string buttonName)
-    {
-        var btn = container.Q<Button>(buttonName);
-        if(btn == null) {Debug.Log("Không có nút Logout"); return;}
-        if(buttonName == "BtnLogout")
-        {
-            btn.clicked += () => LogOutNotification();
-            return;
-        }
-    }
-
-    public void LogOutNotification()
-    {
-        Debug.Log("Ditmemay");
-        var root = mainDocument.rootVisualElement;
-
-        Button _logoutBtnOpen = root.Q<Button>(className: "logout-item"); 
-        
-        // Tìm các thành phần Modal vừa thêm
-        VisualElement _overlay = root.Q<VisualElement>("logout-overlay");
-        VisualElement _bottomSheet = root.Q<VisualElement>("bottom-sheet");
-        Button _cancelBtn = root.Q<Button>("btn-cancel");
-        Button _confirmBtn = root.Q<Button>("btn-confirm");
-
-        if (_logoutBtnOpen != null)
-        {
-            _logoutBtnOpen.clicked += () => ShowLogoutModal(_overlay, _bottomSheet);
-        } 
-
-        if (_cancelBtn != null) _cancelBtn.clicked += () => HideLogoutModal(_overlay, _bottomSheet);
-    }
-
-    private void ShowLogoutModal(VisualElement overlay, VisualElement bottomSheet)
-    {
-        overlay.AddToClassList("logout-overlay--show");
-        bottomSheet.AddToClassList("bottom-sheet--up");
-    }
-
-    private void HideLogoutModal(VisualElement overlay, VisualElement bottomSheet)
-    {
-        overlay.RemoveFromClassList("logout-overlay--show");
-        bottomSheet.RemoveFromClassList("bottom-sheet--up");
     }
 
     public void ShowPasswordButton()

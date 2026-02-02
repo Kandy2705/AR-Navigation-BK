@@ -13,7 +13,7 @@ public class ProfileController : IPageController
     private TextField _userGender;
     private TextField _userBirthday;
 
-    private string cacheKey = "PROFILE_CACHE";
+    private string cacheKey = AppConst.KEY_CACHE;
 
     // Hàm Initialize từ interface IPageController
     public void Initialize(VisualElement root, NavigationManager navigator)
@@ -38,12 +38,6 @@ public class ProfileController : IPageController
             };
         }
         
-        // if (btnBack != null)
-        // {
-        //      btnBack.clicked += () => navigator.GoBack();
-        // }
-
-        // 3. Gọi Service lấy dữ liệu (Controller chỉ ra lệnh)
         LoadProfileData();
         navigator.BindButton(root, "BtnBack", PageID.MainSettings, true);
         navigator.BindButton(root, "BtnEmailChange", PageID.EmailChange, false);
