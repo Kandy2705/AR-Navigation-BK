@@ -779,6 +779,7 @@ GameObject:
   - component: {fileID: 244831225}
   - component: {fileID: 244831224}
   - component: {fileID: 244831223}
+  - component: {fileID: 244831227}
   m_Layer: 0
   m_Name: MainScreen
   m_TagString: Untagged
@@ -805,7 +806,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 244831222}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: af61272330b8190489a016af72ad2ad5, type: 3}
   m_Name: 
@@ -863,6 +864,36 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &244831227
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 244831222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aff4ea0c5dd90214eb5e2ceac67597be, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mainDocument: {fileID: 244831225}
+  pages:
+  - id: 5
+    asset: {fileID: 9197481963319205126, guid: 2695283b79c7c4c4b829f3bce9bdc70b, type: 3}
+  - id: 6
+    asset: {fileID: 9197481963319205126, guid: c2d9d17f8f78106499b05641622b1991, type: 3}
+  - id: 7
+    asset: {fileID: 9197481963319205126, guid: 8b2bb55943a2a494b89c86dae84253f2, type: 3}
+  - id: 8
+    asset: {fileID: 9197481963319205126, guid: 7d3ad1a3fa5d8b649b560caff355422b, type: 3}
+  - id: 9
+    asset: {fileID: 9197481963319205126, guid: 94a5d5f5947edfa4ba97e63c262f7c1d, type: 3}
+  - id: 10
+    asset: {fileID: 9197481963319205126, guid: 6abb2d3b0e1e3eb4a8849359efde7b3b, type: 3}
+  - id: 3
+    asset: {fileID: 9197481963319205126, guid: bc2bb7f734cf30a49a6ba7ee1ce20fd4, type: 3}
+  - id: 4
+    asset: {fileID: 9197481963319205126, guid: cc187d9d597c86b42af26e571912dd31, type: 3}
 --- !u!1 &273795098
 GameObject:
   m_ObjectHideFlags: 0

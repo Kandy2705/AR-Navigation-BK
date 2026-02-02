@@ -3,11 +3,11 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using System;
 
-[System.Serializable]
-public struct PageRoute{
-    public PageID id;
-    public VisualTreeAsset asset;
-}
+// [System.Serializable]
+// public struct PageRoute{
+//     public PageID id;
+//     public VisualTreeAsset asset;
+// }
 
 public class Routing : MonoBehaviour
 {
@@ -56,6 +56,7 @@ public class Routing : MonoBehaviour
         rootContainer = root.Q<VisualElement>("RootContainer");
 
         Navigate(PageID.MainSettings);
+        //Navigate(PageID.Onboarding);
     }
 
     public void Navigate(PageID pageID, bool back = false)
@@ -108,7 +109,6 @@ public class Routing : MonoBehaviour
             newPage.RemoveFromClassList(RemoveDirection);
             newPage.AddToClassList("page-center");
 
-            // Cập nhật biến theo dõi
             currentPage = newPage;
 
         }).ExecuteLater(10);
@@ -159,6 +159,9 @@ public class Routing : MonoBehaviour
             case PageID.Chatbox:
                 BindButton(newPage, "BtnBack", PageID.HistoryPage, true);
                 break;
+            case PageID.Onboarding:
+                BindButton(newPage, "NextOnboardingButton", PageID.Login, true);
+                break;
         }
 
     }
@@ -197,7 +200,6 @@ public class Routing : MonoBehaviour
 
     public void BindButton(VisualElement container, string buttonName, PageID targetPage, bool leftSlide)
     {
-        // Debug.Log("Button have been activated");
         var btn = container.Q<Button>(buttonName);
         if(buttonName == "BtnLogout")
         {
@@ -206,8 +208,6 @@ public class Routing : MonoBehaviour
         }
         if (btn != null)
         {
-            //bool back = buttonName == "BtnBack" ? true : false;
-           
             btn.clicked += () => Navigate(targetPage, leftSlide);
         }
     }
@@ -215,14 +215,10 @@ public class Routing : MonoBehaviour
     public void ShowPasswordButton()
     {
         var root = GetComponent<UIDocument>().rootVisualElement;
-
-        // --- Cặp 1: Mật khẩu cũ ---
         SetupPasswordToggle(root, "old-password", "btn-toggle-old");
 
-        // --- Cặp 2: Mật khẩu mới ---
         SetupPasswordToggle(root, "new-password", "btn-toggle-new");
 
-        // --- Cặp 3: Nhập lại mật khẩu ---
         SetupPasswordToggle(root, "confirm-password", "btn-toggle-re");
     }
 
@@ -234,7 +230,6 @@ public class Routing : MonoBehaviour
 
     private void HideLogoutModal(VisualElement overlay, VisualElement bottomSheet)
     {
-        // Gỡ class để nó tự động chạy transition ngược lại (mờ đi và trượt xuống)
         overlay.RemoveFromClassList("logout-overlay--show");
         bottomSheet.RemoveFromClassList("bottom-sheet--up");
     }

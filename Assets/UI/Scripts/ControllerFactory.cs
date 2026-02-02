@@ -16,9 +16,9 @@ public static class ControllerFactory
             // case "Register": 
             //     return new RegisterController(root);
 
-            case PageID.Profile: 
-                Debug.Log("Đang truyền controller script vào trang Profile");
-                return new ProfileController(root);
+            // case PageID.Profile: 
+            //     Debug.Log("Đang truyền controller script vào trang Profile");
+            //     //return new ProfileController(root);
 
             // --- CÁC TRANG PHỤ (Dựa trên hình Inspector cũ của bạn) ---
             // case "Email Change": 

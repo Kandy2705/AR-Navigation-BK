@@ -11,5 +11,6 @@ public enum PageID
     PasswordChange,
     SupportCenter,
     Contact,
-    ARPage
+    ARPage,
+    Onboarding
 }

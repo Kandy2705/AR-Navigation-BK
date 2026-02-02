@@ -5,7 +5,7 @@ using Proyecto26; // Thư viện API
 public class RegisterController : MonoBehaviour
 {
     // Biến để hứng các ô nhập liệu
-    private string BASE_API = "https://arnavbk-avbcg7hecgacc5bg.malaysiawest-01.azurewebsites.net/users/register";
+    private string BASE_API = "https://arnavbk-avbcg7hecgacc5bg.malaysiawest-01.azurewebsites.net/users/create-customer";
     private TextField _emailInput;
     private TextField _phoneNumberInput;
     private TextField _genderInput;

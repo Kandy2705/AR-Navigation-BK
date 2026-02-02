@@ -1,108 +1,77 @@
-using System;
 using UnityEngine;
 using UnityEngine.UIElements;
-using Proyecto26; // Thư viện API
+using Proyecto26; // Cần import để catch lỗi Exception của thư viện này
 
-public class ProfileController : IDisposable
+public class ProfileController : IPageController
 {
-    // URL API lấy profile (Thay bằng link thật của bạn)
-    private const string BASE_URL = "https://arnavbk-avbcg7hecgacc5bg.malaysiawest-01.azurewebsites.net/users/me";
-
-    private VisualElement _root;
+    // Inject Service vào
+    private readonly ProfileService Service = new ProfileService();
     
-    // Các UI Element để hiển thị thông tin
+    // UI Elements
     private TextField _userName;
     private TextField _userPhone;
     private TextField _userGender;
     private TextField _userBirthday;
-    private Button _btnLogout;
 
-    // --- 1. KHỞI TẠO ---
-    public ProfileController(VisualElement root)
+    // Hàm Initialize từ interface IPageController
+    public void Initialize(VisualElement root, NavigationManager navigator)
     {
-        _root = root;
-        InitUI();
-        FetchProfileData(); // Tự động gọi API ngay khi vào màn hình
-    }
+        // 1. Ánh xạ UI (Binding)
+        _userName = root.Q<TextField>("input-name");   
+        _userPhone = root.Q<TextField>("input-phone"); 
+        _userGender = root.Q<TextField>("input-gender"); 
+        _userBirthday = root.Q<TextField>("input-birthday");
 
-    private void InitUI()
-    {
-        _userName = _root.Q<TextField>("input-name");   
-        _userPhone = _root.Q<TextField>("input-phone"); 
-        _userGender = _root.Q<TextField>("input-gender"); 
-        _userBirthday = _root.Q<TextField>("input-birthday");
+        var btnLogout = root.Q<Button>("LogoutButton");
+        var btnBack = root.Q<Button>("BtnBack");
 
-        _btnLogout = _root.Q<Button>("LogoutButton");
-        if (_btnLogout != null) _btnLogout.clicked += OnLogout;
-    }
-
-    // --- 2. GỌI API ---
-    private void FetchProfileData()
-    {
-        string token = PlayerPrefs.GetString("ACCESS_TOKEN", "");
-
-        // if (string.IsNullOrEmpty(token))
+        // 2. Gán sự kiện nút bấm
+        if (btnLogout != null) 
+        {
+            btnLogout.clicked += () => 
+            {
+                Service.Logout();
+                // Điều hướng về trang Login hoặc Home sau khi logout
+                Debug.Log("Đã đăng xuất");
+                // navigator.Navigate(PageID.Login); // Ví dụ
+            };
+        }
+        
+        // if (btnBack != null)
         // {
-        //     Debug.LogWarning("Không tìm thấy Token! Về trang Login.");
-        //     ControllerRouting.Instance.GoToPage(PageID.Login);
-        //     return;
+        //      btnBack.clicked += () => navigator.GoBack();
         // }
 
-        RestClient.DefaultRequestHeaders["Authorization"] = "Bearer " + token;
+        // 3. Gọi Service lấy dữ liệu (Controller chỉ ra lệnh)
+        LoadProfileData();
+        navigator.BindButton(root, "BtnBack", PageID.MainSettings, true);
+        navigator.BindButton(root, "BtnEmailChange", PageID.EmailChange, false);
+        navigator.BindButton(root, "BtnPasswordChange", PageID.PasswordChange, false);
+    }
 
-        Debug.Log("Đang gọi API lấy Profile...");
+    private void LoadProfileData()
+    {
+        Debug.Log("Controller: Đang yêu cầu Service lấy dữ liệu...");
 
-        // D. Gọi GET
-        RestClient.Get<RegisterRes>(BASE_URL)
-        .Then(res => 
-        {
-            Debug.Log("Lấy data thành công: " + res.email);
-            UpdateUI(res);
-        })
-        .Catch(err => 
-        {
-            var reqErr = err as RequestException;
-            Debug.LogError("Lỗi API Profile: " + err.Message);
-
-            // Nếu lỗi 401 (Unauthorized) -> Token hết hạn -> Bắt đăng nhập lại
-            if (reqErr != null && reqErr.StatusCode == 401)
+        Service.GetUserProfile()
+            .Then(res => 
             {
-                OnLogout();
-            }
-        });
-    }
-
-    // --- 3. CẬP NHẬT GIAO DIỆN ---
-    private void UpdateUI(RegisterRes data)
-    {
-        if (_userName != null) _userName.value = data.name;
-        if (_userPhone != null) _userPhone.value = data.phone;
-        if (_userGender != null) _userGender.value = data.gender;
-        if (_userBirthday != null) _userBirthday.value = data.birthday;
-    }
-
-    // --- 4. CHỨC NĂNG ĐĂNG XUẤT ---
-    private void OnLogout()
-    {
-        // Xóa token đi
-        PlayerPrefs.DeleteKey("ACCESS_TOKEN");
-        PlayerPrefs.DeleteKey("REFRESH_TOKEN"); // Nếu có dùng
-        PlayerPrefs.Save();
-    }
-
-    private void OnDelete()
-    {
-        // Xóa token đi
-        Debug.Log($"Kiểm tra accessToken hiện tại");
-        PlayerPrefs.DeleteKey("ACCESS_TOKEN");
-        PlayerPrefs.DeleteKey("REFRESH_TOKEN"); // Nếu có dùng
-        PlayerPrefs.Save();
-    }
-
-    // --- 5. DỌN DẸP ---
-    public void Dispose()
-    {
-        if (_btnLogout != null) _btnLogout.clicked -= OnLogout;
-        Debug.Log("Đóng trang Profile -> Dọn dẹp bộ nhớ.");
+                Debug.Log("Controller: Đã nhận dữ liệu, đang update UI");
+                if (_userName != null) _userName.value = res.name;
+                if (_userPhone != null) _userPhone.value = res.phone;
+                if (_userGender != null) _userGender.value = res.gender;
+                if (_userBirthday != null) _userBirthday.value = res.birthday;
+            })
+            .Catch(err => 
+            {
+                // 5. Xử lý lỗi (Thất bại)
+                Debug.LogError("Controller: Lỗi khi lấy profile: " + err.Message);
+                
+                var reqErr = err as RequestException;
+                if (reqErr != null && reqErr.StatusCode == 401)
+                {
+                    Service.Logout();
+                }
+            });
     }
 }
