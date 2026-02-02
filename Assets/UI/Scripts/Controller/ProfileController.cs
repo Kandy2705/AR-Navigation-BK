@@ -13,6 +13,8 @@ public class ProfileController : IPageController
     private TextField _userGender;
     private TextField _userBirthday;
 
+    private string cacheKey = "PROFILE_CACHE";
+
     // Hàm Initialize từ interface IPageController
     public void Initialize(VisualElement root, NavigationManager navigator)
     {
@@ -31,7 +33,6 @@ public class ProfileController : IPageController
             btnLogout.clicked += () => 
             {
                 Service.Logout();
-                // Điều hướng về trang Login hoặc Home sau khi logout
                 Debug.Log("Đã đăng xuất");
                 // navigator.Navigate(PageID.Login); // Ví dụ
             };
@@ -49,22 +50,51 @@ public class ProfileController : IPageController
         navigator.BindButton(root, "BtnPasswordChange", PageID.PasswordChange, false);
     }
 
+    private void UpdateUI(RegisterRes data){
+        if (_userName != null) _userName.value = data.name;
+        if (_userPhone != null) _userPhone.value = data.phone;
+        if (_userGender != null) _userGender.value = data.gender;
+        if (_userBirthday != null) _userBirthday.value = data.birthday;
+    }
+
     private void LoadProfileData()
     {
+
+        if (PlayerPrefs.HasKey(cacheKey))
+        {
+            string jsonString = PlayerPrefs.GetString(cacheKey); // 1. Lấy chuỗi JSON
+            try 
+            {
+                RegisterRes cachedRes = JsonUtility.FromJson<RegisterRes>(jsonString);
+                Debug.Log($"Cache Res có dạng: {cachedRes}");
+                UpdateUI(cachedRes); 
+                Debug.Log("Controller: Đã load dữ liệu từ Cache (Offline)");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("Lỗi đọc cache cũ: " + ex.Message);
+            }
+        }
+
+
         Debug.Log("Controller: Đang yêu cầu Service lấy dữ liệu...");
 
         Service.GetUserProfile()
             .Then(res => 
             {
                 Debug.Log("Controller: Đã nhận dữ liệu, đang update UI");
-                if (_userName != null) _userName.value = res.name;
-                if (_userPhone != null) _userPhone.value = res.phone;
-                if (_userGender != null) _userGender.value = res.gender;
-                if (_userBirthday != null) _userBirthday.value = res.birthday;
+                // if (_userName != null) _userName.value = res.name;
+                // if (_userPhone != null) _userPhone.value = res.phone;
+                // if (_userGender != null) _userGender.value = res.gender;
+                // if (_userBirthday != null) _userBirthday.value = res.birthday;
+                UpdateUI(res);
+                string jsonToSave = JsonUtility.ToJson(res); 
+                
+                PlayerPrefs.SetString(cacheKey, jsonToSave);
+                PlayerPrefs.Save();
             })
             .Catch(err => 
             {
-                // 5. Xử lý lỗi (Thất bại)
                 Debug.LogError("Controller: Lỗi khi lấy profile: " + err.Message);
                 
                 var reqErr = err as RequestException;
