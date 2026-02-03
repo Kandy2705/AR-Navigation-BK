@@ -18,6 +18,7 @@ public class DefaultPageController : IPageController
 // 3. Factory để quyết định trang nào dùng logic nào
 public static class PageFactory
 {
+
     public static IPageController GetController(PageID id)
     {
         switch (id)
@@ -33,6 +34,7 @@ public static class PageFactory
             case PageID.SupportCenter: return new SupportCenterController();
             case PageID.Contact: return new ContactController();
             case PageID.Chatbox: return new ChatboxController();
+            case PageID.Login: return new LoginPageController();
             // case PageID.Onboarding: 
             // case PageID.PasswordChange: return new PasswordChangeController();
             // Thêm các trang khác tại đây

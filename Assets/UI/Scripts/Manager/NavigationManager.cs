@@ -13,6 +13,8 @@ public class NavigationManager : MonoBehaviour
     [Header("Dependencies")]
     public UIDocument mainDocument;
     public List<PageRoute> pages;
+    public GameObject loginPageObject;
+    
 
     public static string CurrentChatTitle = "";
 
@@ -54,10 +56,14 @@ public class NavigationManager : MonoBehaviour
         
         SetupPageLayout(newPage, isBack);
 
-        // 3. Inject Logic (Dependency Injection via Method)
-        // Đây là điểm mấu chốt: Nhờ Factory lấy logic tương ứng gắn vào UI vừa tạo
         IPageController controller = PageFactory.GetController(pageID);
         controller.Initialize(newPage, this);
+
+        if(pageID == PageID.Login)
+        {
+            Debug.Log("Chuyển sang trang Login đi nè");
+            return;
+        }
 
         rootContainer.Add(newPage);
         HandleTransition(newPage, isBack);

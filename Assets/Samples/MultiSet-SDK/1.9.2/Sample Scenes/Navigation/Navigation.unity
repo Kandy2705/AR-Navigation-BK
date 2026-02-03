@@ -894,6 +894,9 @@ MonoBehaviour:
     asset: {fileID: 9197481963319205126, guid: bc2bb7f734cf30a49a6ba7ee1ce20fd4, type: 3}
   - id: 4
     asset: {fileID: 9197481963319205126, guid: cc187d9d597c86b42af26e571912dd31, type: 3}
+  - id: 0
+    asset: {fileID: 9197481963319205126, guid: eafe01174a0a7824e8eaa91a6bdb4cdc, type: 3}
+  loginPageObject: {fileID: 2048430195}
 --- !u!1 &273795098
 GameObject:
   m_ObjectHideFlags: 0
