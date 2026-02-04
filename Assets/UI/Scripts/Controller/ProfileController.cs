@@ -56,7 +56,7 @@ public class ProfileController : IPageController
 
         if (PlayerPrefs.HasKey(cacheKey))
         {
-            string jsonString = PlayerPrefs.GetString(cacheKey); // 1. Lấy chuỗi JSON
+            string jsonString = PlayerPrefs.GetString(cacheKey); 
             try 
             {
                 RegisterRes cachedRes = JsonUtility.FromJson<RegisterRes>(jsonString);
@@ -70,28 +70,32 @@ public class ProfileController : IPageController
             }
         }
 
-
         Debug.Log("Controller: Đang yêu cầu Service lấy dữ liệu...");
 
-        Service.GetUserProfile()
-            .Then(res => 
-            {
-                Debug.Log("Controller: Đã nhận dữ liệu, đang update UI");
-                UpdateUI(res);
-                string jsonToSave = JsonUtility.ToJson(res); 
+        RegisterRes res = JsonUtility.FromJson<RegisterRes>(PlayerPrefs.GetString(cacheKey, "Không có dữ liệu"));
+        UpdateUI(res);
+
+        // Service.GetUserProfile()
+        //     .Then(res => 
+        //     {
+        //         Debug.Log("Controller: Đã nhận dữ liệu, đang update UI");
+        //         UpdateUI(res);
+        //     })
+        //     .Catch(err => 
+        //     {
+        //         Debug.LogError("Controller: Lỗi khi lấy profile: " + err.Message);
                 
-                PlayerPrefs.SetString(cacheKey, jsonToSave);
-                PlayerPrefs.Save();
-            })
-            .Catch(err => 
-            {
-                Debug.LogError("Controller: Lỗi khi lấy profile: " + err.Message);
-                
-                var reqErr = err as RequestException;
-                if (reqErr != null && reqErr.StatusCode == 401)
-                {
-                    Service.Logout();
-                }
-            });
+        //         var reqErr = err as RequestException;
+        //         if (reqErr != null && reqErr.StatusCode == 401)
+        //         {
+        //             Service.Logout();
+        //         }
+        //     });
     }
+
+
+    // public string getCache()
+    // {
+        
+    // }
 }

@@ -6,6 +6,6 @@ public class PasswordChangeController : IPageController
     public void Initialize(VisualElement root, NavigationManager navigator)
     {
         navigator.BindButton(root, "BtnBack", PageID.Profile, true);
-        navigator.ShowPasswordButton();
+        navigator.ShowPasswordButton(root);
     }
 }

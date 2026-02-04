@@ -13,6 +13,9 @@ public class LoginController : MonoBehaviour
     private const string KEY_EMAIL = "KEY_USER_EMAIL";
     private const string KEY_PASS = "KEY_USER_PASS";
     private const string KEY_REMEMBER = "KEY_IS_REMEMBER";
+
+    private readonly ProfileService Service = new ProfileService();
+    private const string cacheKey = AppConst.KEY_CACHE;
     
     private Button _btnLogin;
 
@@ -64,7 +67,6 @@ public class LoginController : MonoBehaviour
                 RestClient.DefaultRequestHeaders["Authorization"] = "Bearer " + resData.accessToken;
                 PlayerPrefs.SetString("REFRESH_TOKEN", resData.refreshToken);
                 PlayerPrefs.SetString("ACCESS_TOKEN", resData.accessToken);
-                PlayerPrefs.Save();
             }
             else
             {
@@ -75,6 +77,25 @@ public class LoginController : MonoBehaviour
         .Catch(error => 
         {
             Debug.LogError("Lỗi: " + error.Message);
+        });
+
+        Service.GetUserProfile()
+        .Then(res => 
+        {
+            PlayerPrefs.SetString(cacheKey, JsonUtility.ToJson(res));
+            PlayerPrefs.Save();
+            string testString = PlayerPrefs.GetString(cacheKey, "Không có dữ liệu");
+            Debug.Log($"Đã lưu dữ liệu người dùng vào bộ nhớ đệm {testString}");
+        })
+        .Catch(err => 
+        {
+            Debug.LogError("Controller: Lỗi khi lấy profile: " + err.Message);
+            
+            var reqErr = err as RequestException;
+            if (reqErr != null && reqErr.StatusCode == 401)
+            {
+                Service.Logout();
+            }
         });
 
 
@@ -94,12 +115,10 @@ public class LoginController : MonoBehaviour
 
     private void LoadSavedCredentials()
     {
-        // Kiểm tra xem lần trước có chọn Ghi nhớ không (Mặc định là 0 - False)
         int isRemember = PlayerPrefs.GetInt(KEY_REMEMBER, 0);
 
         if (isRemember == 1)
         {
-            // Nếu có -> Lấy dữ liệu điền tự động vào
             if (_emailInput != null) 
                 _emailInput.value = PlayerPrefs.GetString(KEY_EMAIL);
             

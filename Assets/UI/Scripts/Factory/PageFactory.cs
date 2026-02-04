@@ -11,7 +11,6 @@ public class DefaultPageController : IPageController
     public void Initialize(VisualElement root, NavigationManager navigator) 
     {
         var btnBack = root.Q<Button>("BtnBack");
-        //if (btnBack != null) btnBack.clicked += () => navigator.GoBack();
     }
 }
 
@@ -23,9 +22,6 @@ public static class PageFactory
     {
         switch (id)
         {
-            // case PageID.Onboarding: return new OnboardingController();
-            // case PageID.Login: return new LoginController();
-            // case PageID.Register: return new RegisterController();
             case PageID.HistoryPage: return new HistoryPageController();
             case PageID.MainSettings: return new MainSettingController();
             case PageID.Profile: return new ProfileController();
@@ -35,9 +31,6 @@ public static class PageFactory
             case PageID.Contact: return new ContactController();
             case PageID.Chatbox: return new ChatboxController();
             case PageID.Login: return new LoginPageController();
-            // case PageID.Onboarding: 
-            // case PageID.PasswordChange: return new PasswordChangeController();
-            // Thêm các trang khác tại đây
             default: return new DefaultPageController();
         }
     }

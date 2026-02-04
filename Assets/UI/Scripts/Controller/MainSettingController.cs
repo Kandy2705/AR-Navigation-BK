@@ -6,6 +6,7 @@ public class MainSettingController : IPageController
     private NavigationManager mainNavigator;
     public void Initialize(VisualElement root, NavigationManager navigator)
     {
+        
         mainNavigator = navigator; 
         navigator.BindButton(root, "BtnProfile", PageID.Profile, false);
         navigator.BindButton(root, "BtnSupportCenter", PageID.SupportCenter, false);

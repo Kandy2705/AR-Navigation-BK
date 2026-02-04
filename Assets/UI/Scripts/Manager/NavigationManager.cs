@@ -59,6 +59,8 @@ public class NavigationManager : MonoBehaviour
         IPageController controller = PageFactory.GetController(pageID);
         controller.Initialize(newPage, this);
 
+        Debug.Log("Đi đến trang: " + pageID.ToString());
+
         if(pageID == PageID.Login)
         {
             Debug.Log("Chuyển sang trang Login đi nè");
@@ -115,9 +117,9 @@ public class NavigationManager : MonoBehaviour
         }
     }
 
-    public void ShowPasswordButton()
+    public void ShowPasswordButton(VisualElement root)
     {
-        var root = GetComponent<UIDocument>().rootVisualElement;
+        //var root = GetComponent<UIDocument>().rootVisualElement;
         SetupPasswordToggle(root, "old-password", "btn-toggle-old");
 
         SetupPasswordToggle(root, "new-password", "btn-toggle-new");
@@ -128,8 +130,10 @@ public class NavigationManager : MonoBehaviour
     private void SetupPasswordToggle(VisualElement root, string inputName, string btnName)
     {
         // 1. Tìm Input và Nút bằng tên đã đặt trong UXML
+
         var inputField = root.Q<PlaceHolder>(inputName);
         var toggleBtn = root.Q<Button>(btnName);
+        Debug.Log($"Input field: {inputName}, Toggle button: {btnName}");
 
         inputField.isPasswordField = true;
     
