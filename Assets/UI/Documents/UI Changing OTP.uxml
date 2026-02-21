@@ -1,0 +1,18 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Styles/UI%20Email%20Changing%20OTP.uss?fileID=7433441132597879392&amp;guid=b854521fcad8e514e868bf41c2b388a1&amp;type=3#UI Email Changing OTP" />
+    <ui:VisualElement class="container">
+        <ui:VisualElement class="header">
+            <ui:Label text="←" class="icon-back" />
+        </ui:VisualElement>
+        <ui:Label text="Nhập mã OTP" class="title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;);" />
+        <ui:Label text="Chúng tôi đã gửi mã OTP đến email của bạn là *****ley@yourdomoincom. Nhập mã OTP bên dưới để xác minh." class="subtitle" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+        <ui:VisualElement class="otp-container">
+            <ui:TextField name="OTP1" value="4" max-length="1" class="otp-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;);" />
+            <ui:TextField name="OTP2" value="4" max-length="1" class="otp-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;);" />
+            <ui:TextField name="OTP3" value="4" max-length="1" class="otp-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;);" />
+            <ui:TextField name="OTP4" max-length="1" class="otp-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;);" />
+        </ui:VisualElement>
+        <ui:VisualElement class="flex-spacer" />
+        <ui:Button text="Xác nhận" class="btn-confirm" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;);" />
+    </ui:VisualElement>
+</ui:UXML>

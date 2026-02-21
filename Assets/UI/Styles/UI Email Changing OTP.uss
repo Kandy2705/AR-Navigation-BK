@@ -1,0 +1,13 @@
+.container { flex-grow: 1; background-color: #1A1A1A; padding: 10px; display: flex; flex-direction: column; }
+.header { margin-top: 30px; margin-bottom: 30px; }
+.icon-back { color: #FFFFFF; font-size: 28px; -unity-font-style: bold; }
+.title { color: #FFFFFF; font-size: 28px; -unity-font-style: bold; margin-bottom: 16px; white-space: normal; }
+.subtitle { color: #C0C0C0; font-size: 14px; white-space: normal; line-height: 22px; margin-bottom: 40px; }
+.otp-container { flex-direction: row; justify-content: space-between; margin-bottom: 20px; padding-left: 8px; padding-right: 8px; }
+.otp-input { width: 70px; height: 70px; background-color: #131313; border-color: #222222; border-width: 1px; border-radius: 12px; }
+.otp-input > .unity-base-field__input { background-color: transparent; border-width: 0; color: #FFFFFF; font-size: 24px; -unity-font-style: bold; -unity-text-align: middle-center; padding: 0; margin: 0; }
+.otp-input:focus > .unity-base-field__input { border-color: #403285; border-width: 1px; border-radius: 12px; }
+.flex-spacer { flex-grow: 1; }
+.btn-confirm { background-color: #403285; color: #FFFFFF; font-size: 16px; -unity-font-style: bold; border-radius: 26px; height: 52px; border-width: 0; margin-bottom: 20px; transition-property: background-color; transition-duration: 0.2s; }
+.btn-confirm:hover { background-color: #4C3C9E; }
+.btn-confirm:active { background-color: #2D235C; }
