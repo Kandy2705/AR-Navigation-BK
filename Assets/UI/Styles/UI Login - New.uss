@@ -1,4 +1,5 @@
 .container { width: 100%; height: 100%; flex-grow: 1; background-color: #1A1A1A; padding: 10px; display: flex; flex-direction: column; }
+.btn-back { width: 40px; height: 40px; background-color: rgba(0,0,0,0); border-width: 0; color: white; font-size: 30px; padding-top: 60px; padding-bottom: 30px; margin: 0; }
 .header { margin-top: 30px; margin-bottom: 30px; flex-shrink: 0; }
 .icon-back { color: #FFFFFF; font-size: 28px; -unity-font-style: bold; }
 .title { color: #FFFFFF; font-size: 28px; -unity-font-style: bold; margin-bottom: 16px; white-space: normal; flex-shrink: 0; }
@@ -20,3 +21,35 @@
 .btn-submit { flex-shrink: 0; background-color: #403285; color: #FFFFFF; font-size: 16px; -unity-font-style: bold; border-radius: 26px; height: 52px; border-width: 0; margin-bottom: 20px; transition-property: background-color; transition-duration: 0.2s; }
 .btn-submit:hover { background-color: #4C3C9E; }
 .btn-submit:active { background-color: #2D235C; }
+
+.login-loading {
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.loading-card {
+  position: relative;
+
+  padding: 28px 16px;
+  border-radius: 14px;
+
+  background-color: rgba(25, 25, 25, 1);
+
+  border-width: 1px;
+  border-color: rgba(25, 25, 25, 1);
+
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  z-index: 1000;
+}
+
+.loading-text {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 16px;
+  font-weight: 500;
+  text-align: center;
+}

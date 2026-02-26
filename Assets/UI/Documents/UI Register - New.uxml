@@ -1,8 +1,8 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <Style src="project://database/Assets/UI/Styles/UI%20Register%20-%20New.uss?fileID=7433441132597879392&amp;guid=7f853588a533f994a8b11d29dfa8a312&amp;type=3#UI Register - New" />
     <ui:VisualElement class="container">
-        <ui:VisualElement class="header">
-            <ui:Label text="←" class="icon-back" />
+        <ui:VisualElement class="header-section">
+            <ui:Button name="BtnBack" text="←" class="btn-back" />
         </ui:VisualElement>
         <ui:Label text="Hoàn thiện hồ sơ của bạn!" class="title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;);" />
         <ui:Label text="Để được tham gia thì bạn hãy hoàn thiện hồ sơ bên dưới." class="subtitle" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
@@ -38,6 +38,6 @@
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement class="flex-spacer" />
-        <ui:Button text="Tiếp tục" class="btn-submit" />
+        <ui:Button text="Tiếp tục" class="btn-submit" name="ContinueButton" />
     </ui:VisualElement>
 </ui:UXML>

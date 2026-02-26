@@ -1,8 +1,8 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <Style src="project://database/Assets/UI/Styles/UI%20Login%20-%20New.uss?fileID=7433441132597879392&amp;guid=d7edddbd9cd6e154baf48df2edd91f6a&amp;type=3#UI Login - New" />
     <ui:VisualElement class="container">
-        <ui:VisualElement class="header">
-            <ui:Label text="←" class="icon-back" />
+        <ui:VisualElement class="header-section">
+            <ui:Button name="BtnBack" text="←" class="btn-back" />
         </ui:VisualElement>
         <ui:Label text="Chào mừng trở lại" class="title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;);" />
         <ui:Label text="Vui lòng nhập email và mật khẩu của bạn để đăng nhập" class="subtitle" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
@@ -18,12 +18,20 @@
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement class="remember-row">
-            <ui:VisualElement name="RememberCheckbox" class="checkbox-circle" />
-            <ui:Label text="Ghi nhớ tôi" class="remember-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+            <ui:Toggle name="RememberToggle" style="margin-right: 0; color: rgb(59, 49, 137); border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px; border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; border-left-color: rgb(59, 49, 137); border-right-color: rgb(59, 49, 137); border-top-color: rgb(59, 49, 137); border-bottom-color: rgb(59, 49, 137); margin-top: 0; margin-bottom: 0; margin-left: 0; background-color: rgba(0, 0, 0, 0); -unity-background-image-tint-color: rgb(255, 255, 255); background-image: none; width: 20px; height: 20px; -unity-text-outline-color: rgba(0, 0, 0, 0);" />
+            <ui:Label name="RememberLabel" text="Ghi nhớ tôi" style="color: rgb(243, 243, 243); font-size: 14px; font-weight: 800; margin-top: 0; -unity-font-style: normal; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; margin-bottom: 0; margin-left: 14px; margin-right: 0; -unity-text-align: middle-center;" />
         </ui:VisualElement>
         <ui:VisualElement class="divider-main" style="-unity-text-outline-color: rgba(255, 255, 255, 0); color: rgb(255, 255, 255);" />
         <ui:Label text="Quên mật khẩu ?" class="forgot-password" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
         <ui:VisualElement class="flex-spacer" />
-        <ui:Button text="Đăng nhập" class="btn-submit" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+        <ui:Button name="LoginSubmitButton" text="Đăng nhập" class="btn-submit" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+    </ui:VisualElement>
+    <ui:VisualElement name="LoginLoading" class="login-loading" style="display: none; background-color: rgba(7, 6, 7, 0.6);">
+        <ui:VisualElement name="VisualElement" class="loading-card" style="align-items: center; width: 90%; margin-right: 16px; margin-left: 16px;">
+            <ui:VisualElement name="LogoSucces" style="flex-grow: 1; background-image: url(&quot;project://database/Assets/UI/Images/check-circle.png?fileID=2800000&amp;guid=98ec86bfa97264b49b3d01f806842c6f&amp;type=3#check-circle&quot;); width: 120px; height: 120px; margin-top: 18px;" />
+            <ui:Label text="Đăng nhập thành công!" name="LoadingTitleLabel" class="loading-text" style="-unity-font-style: bold; font-size: 20px; color: rgba(93, 76, 214, 0.92); margin-top: 46px; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; margin-right: 0; margin-left: 0; margin-bottom: 12px;" />
+            <ui:Label text="Vui lòng chờ....&#10;Bạn sẽ được chuyển qua trang chủ." name="LoadingMessageLabel" class="loading-text" style="-unity-font-style: normal; font-size: 16px; color: rgba(186, 186, 186, 0.92); margin-top: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; margin-right: 0; margin-left: 0; margin-bottom: 0; -unity-text-align: upper-center; -unity-paragraph-spacing: 9px; flex-wrap: wrap; white-space: normal;" />
+            <ui:VisualElement name="IconSucces" style="flex-grow: 1; background-image: url(&quot;project://database/Assets/UI/Images/Loader.png?fileID=2800000&amp;guid=16426ad52bfd8f242ac8111c9f166511&amp;type=3#Loader&quot;); width: 68px; height: 68px; margin-top: 38px;" />
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

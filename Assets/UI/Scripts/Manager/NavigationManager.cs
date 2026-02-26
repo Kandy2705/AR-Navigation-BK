@@ -14,12 +14,11 @@ public class NavigationManager : MonoBehaviour
     public UIDocument mainDocument;
     public List<PageRoute> pages;
     public GameObject loginPageObject;
-    
+    private VisualElement rootContainer;
 
     public static string CurrentChatTitle = "";
-
+    public PageID firstPage;
     private Dictionary<PageID, VisualTreeAsset> pageDict;
-    private VisualElement rootContainer;
     private VisualElement currentPageElement;
 
     private readonly List<PageID> tabPages = new List<PageID> { 
@@ -39,7 +38,7 @@ public class NavigationManager : MonoBehaviour
     {
         if(mainDocument == null) return;
         rootContainer = mainDocument.rootVisualElement.Q<VisualElement>("RootContainer");
-        Navigate(PageID.MainSettings);
+        Navigate(firstPage);
     }
 
     public void Navigate(PageID pageID, bool isBack = false)
@@ -60,12 +59,6 @@ public class NavigationManager : MonoBehaviour
         controller.Initialize(newPage, this);
 
         Debug.Log("Đi đến trang: " + pageID.ToString());
-
-        if(pageID == PageID.Login)
-        {
-            Debug.Log("Chuyển sang trang Login đi nè");
-            return;
-        }
 
         rootContainer.Add(newPage);
         HandleTransition(newPage, isBack);
@@ -106,11 +99,6 @@ public class NavigationManager : MonoBehaviour
     public void BindButton(VisualElement container, string buttonName, PageID targetPage, bool leftSlide)
     {
         var btn = container.Q<Button>(buttonName);
-        // if(buttonName == "BtnLogout")
-        // {
-        //     btn.clicked += () => LogOutNotification();
-        //     return;
-        // }
         if (btn != null)
         {
             btn.clicked += () => Navigate(targetPage, leftSlide);
@@ -119,7 +107,6 @@ public class NavigationManager : MonoBehaviour
 
     public void ShowPasswordButton(VisualElement root)
     {
-        //var root = GetComponent<UIDocument>().rootVisualElement;
         SetupPasswordToggle(root, "old-password", "btn-toggle-old");
 
         SetupPasswordToggle(root, "new-password", "btn-toggle-new");
@@ -129,8 +116,6 @@ public class NavigationManager : MonoBehaviour
 
     private void SetupPasswordToggle(VisualElement root, string inputName, string btnName)
     {
-        // 1. Tìm Input và Nút bằng tên đã đặt trong UXML
-
         var inputField = root.Q<PlaceHolder>(inputName);
         var toggleBtn = root.Q<Button>(btnName);
         Debug.Log($"Input field: {inputName}, Toggle button: {btnName}");

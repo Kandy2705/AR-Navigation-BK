@@ -402,7 +402,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &164472386
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -415,7 +415,7 @@ MonoBehaviour:
   m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_PanelSettings: {fileID: 11400000, guid: c65c54a280b8c9540923bfed0064680f, type: 2}
+  m_PanelSettings: {fileID: 11400000, guid: f08a03133a89491418cc41588e0a9015, type: 2}
   m_ParentUI: {fileID: 0}
   sourceAsset: {fileID: 9197481963319205126, guid: a34fdb97eb632d44bad96d13f0528045, type: 3}
   m_SortingOrder: 0
@@ -814,7 +814,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   uiOnboarding: {fileID: 1257369667}
-  uiWelcome: {fileID: 1820935989}
+  uiWelcome: {fileID: 244831222}
   uiLogin: {fileID: 2048430195}
   uiSignUp: {fileID: 1388562750}
   uiHomePage: {fileID: 660434321}
@@ -828,7 +828,6 @@ GameObject:
   m_Component:
   - component: {fileID: 244831226}
   - component: {fileID: 244831225}
-  - component: {fileID: 244831224}
   - component: {fileID: 244831223}
   - component: {fileID: 244831227}
   m_Layer: 0
@@ -850,37 +849,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49ccc9778a2c9a640837d7ea817ce78b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &244831224
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 244831222}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af61272330b8190489a016af72ad2ad5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mainDocument: {fileID: 244831225}
-  pages:
-  - id: 5
-    asset: {fileID: 9197481963319205126, guid: 2695283b79c7c4c4b829f3bce9bdc70b, type: 3}
-  - id: 6
-    asset: {fileID: 9197481963319205126, guid: c2d9d17f8f78106499b05641622b1991, type: 3}
-  - id: 7
-    asset: {fileID: 9197481963319205126, guid: 8b2bb55943a2a494b89c86dae84253f2, type: 3}
-  - id: 8
-    asset: {fileID: 9197481963319205126, guid: 7d3ad1a3fa5d8b649b560caff355422b, type: 3}
-  - id: 9
-    asset: {fileID: 9197481963319205126, guid: 94a5d5f5947edfa4ba97e63c262f7c1d, type: 3}
-  - id: 10
-    asset: {fileID: 9197481963319205126, guid: 6abb2d3b0e1e3eb4a8849359efde7b3b, type: 3}
-  - id: 3
-    asset: {fileID: 9197481963319205126, guid: bc2bb7f734cf30a49a6ba7ee1ce20fd4, type: 3}
-  - id: 4
-    asset: {fileID: 9197481963319205126, guid: cc187d9d597c86b42af26e571912dd31, type: 3}
-  mainLayoutAsset: {fileID: 0}
 --- !u!114 &244831225
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -946,8 +914,21 @@ MonoBehaviour:
   - id: 4
     asset: {fileID: 9197481963319205126, guid: cc187d9d597c86b42af26e571912dd31, type: 3}
   - id: 0
-    asset: {fileID: 9197481963319205126, guid: eafe01174a0a7824e8eaa91a6bdb4cdc, type: 3}
+    asset: {fileID: 9197481963319205126, guid: a8c554eaa122c8d42b198c0b1f92602e, type: 3}
+  - id: 1
+    asset: {fileID: 9197481963319205126, guid: a34fdb97eb632d44bad96d13f0528045, type: 3}
+  - id: 15
+    asset: {fileID: 9197481963319205126, guid: fb8bdc5af4312db47a977df12b8f6500, type: 3}
+  - id: 13
+    asset: {fileID: 9197481963319205126, guid: 7dc7172f6bf8e5345aa967c03cd55421, type: 3}
+  - id: 14
+    asset: {fileID: 9197481963319205126, guid: c957e044cb961a7498e5c1e7504edba3, type: 3}
+  - id: 12
+    asset: {fileID: 9197481963319205126, guid: 14f80055df91aea4fb224f4bedfe994b, type: 3}
+  - id: 15
+    asset: {fileID: 9197481963319205126, guid: fb8bdc5af4312db47a977df12b8f6500, type: 3}
   loginPageObject: {fileID: 2048430195}
+  firstPage: 15
 --- !u!1 &273795098
 GameObject:
   m_ObjectHideFlags: 0
@@ -1752,7 +1733,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &581240305
 Transform:
   m_ObjectHideFlags: 0
@@ -5240,7 +5221,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1257369668
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5287,6 +5268,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a861da60f4f27e7409f640aecc9fef94, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  routerManager: {fileID: 581240304}
   router: {fileID: 219913788}
 --- !u!4 &1258585432 stripped
 Transform:
