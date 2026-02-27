@@ -14,15 +14,15 @@
             <ui:VisualElement class="divider" />
             <ui:VisualElement class="input-row">
                 <ui:TextField name="PasswordInput" placeholder-text="Mật khẩu" password="true" class="custom-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
-                <ui:Button class="eye-icon" style="width: 19px; height: 15px;" />
+                <ui:Button name="ToggleEyeIcon" class="icon-eye-closed" style="width: 19px; height: 15px;" />
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement class="remember-row">
-            <ui:Toggle name="RememberToggle" style="margin-right: 0; color: rgb(59, 49, 137); border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px; border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; border-left-color: rgb(59, 49, 137); border-right-color: rgb(59, 49, 137); border-top-color: rgb(59, 49, 137); border-bottom-color: rgb(59, 49, 137); margin-top: 0; margin-bottom: 0; margin-left: 0; background-color: rgba(0, 0, 0, 0); -unity-background-image-tint-color: rgb(255, 255, 255); background-image: none; width: 20px; height: 20px; -unity-text-outline-color: rgba(0, 0, 0, 0);" />
-            <ui:Label name="RememberLabel" text="Ghi nhớ tôi" style="color: rgb(243, 243, 243); font-size: 14px; font-weight: 800; margin-top: 0; -unity-font-style: normal; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; margin-bottom: 0; margin-left: 14px; margin-right: 0; -unity-text-align: middle-center;" />
+            <ui:Toggle name="RememberToggle" class="checkbox-circle" />
+            <ui:Label name="RememberLabel" text="Ghi nhớ tôi" style="color: rgb(243, 243, 243); font-size: 14px; font-weight: 800; margin-top: 0; -unity-font-style: normal; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; margin-bottom: 0; margin-left: 14px; margin-right: 0; -unity-text-align: middle-center; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
         </ui:VisualElement>
         <ui:VisualElement class="divider-main" style="-unity-text-outline-color: rgba(255, 255, 255, 0); color: rgb(255, 255, 255);" />
-        <ui:Label text="Quên mật khẩu ?" class="forgot-password" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
+        <ui:Button name="ForgotPasswordButton" text="Quên mật khẩu ?" class="forgot-password" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
         <ui:VisualElement class="flex-spacer" />
         <ui:Button name="LoginSubmitButton" text="Đăng nhập" class="btn-submit" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
     </ui:VisualElement>

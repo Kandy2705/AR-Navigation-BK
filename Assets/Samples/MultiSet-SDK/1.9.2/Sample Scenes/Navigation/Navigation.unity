@@ -927,6 +927,8 @@ MonoBehaviour:
     asset: {fileID: 9197481963319205126, guid: 14f80055df91aea4fb224f4bedfe994b, type: 3}
   - id: 15
     asset: {fileID: 9197481963319205126, guid: fb8bdc5af4312db47a977df12b8f6500, type: 3}
+  - id: 16
+    asset: {fileID: 9197481963319205126, guid: 7803b9b6792b3064bae24e2b67c35c5b, type: 3}
   loginPageObject: {fileID: 2048430195}
   firstPage: 15
 --- !u!1 &273795098

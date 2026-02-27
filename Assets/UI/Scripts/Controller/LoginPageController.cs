@@ -10,13 +10,11 @@ public class LoginPageController : IPageController
     private TextField _passwordInput;
     private Toggle _rememberToggle;
     private Button _btnLogin;
-
     private NavigationManager navigatorManager;
-
     private VisualElement loginLoading;
     private Label loadingTitleLabel;
     private Label loadingMessageLabel;
-
+    private VisualElement toggleEyeIcon;     
     private VisualElement iconSuccess;
     private float iconSuccessAngle = 0f;
     private const string KEY_EMAIL = "KEY_USER_EMAIL";
@@ -33,6 +31,7 @@ public class LoginPageController : IPageController
         _emailInput = root.Q<TextField>("EmailInput");
         _passwordInput = root.Q<TextField>("PasswordInput");
         _rememberToggle = root.Q<Toggle>("RememberToggle");
+        toggleEyeIcon = root.Q<VisualElement>("ToggleEyeIcon");
 
         loginLoading = root.Q<VisualElement>("LoginLoading");
         loadingTitleLabel = root.Q<Label>("LoadingTitleLabel");
@@ -44,6 +43,11 @@ public class LoginPageController : IPageController
         {
             _btnLogin.clicked += HandleLogin;
         }
+
+        if (toggleEyeIcon != null)
+        {
+            toggleEyeIcon.RegisterCallback<ClickEvent>(OnTogglePasswordClick);
+        }
     }
 
     public void Initialize(VisualElement root, NavigationManager navigator)
@@ -52,6 +56,7 @@ public class LoginPageController : IPageController
         Start(root);
         navigatorManager = navigator;
         navigator.BindButton(root, "BtnBack", PageID.WelcomePage, true);
+        navigator.BindButton(root, "ForgotPasswordButton", PageID.EmailChangeForm, false);
     }
 
     private void HandleLogin()
@@ -173,12 +178,8 @@ public class LoginPageController : IPageController
 
         if (iconSuccess != null) iconSuccess.style.display = DisplayStyle.None;
     }
-
-
     private async void OnLoginClicked()
     {
-        //loginSubmitButton?.SetEnabled(false);
-
         ShowLoadingOverlay(
             "Đăng nhập thành công!",
             "Vui lòng chờ...\nBạn sẽ được chuyển qua trang chủ."
@@ -188,24 +189,49 @@ public class LoginPageController : IPageController
 
     private async Task LoginProcess()
     {
-        await Task.Delay(2000); 
+        float waitTime = 2f; 
+        float timer = 0f;
+
+        while (timer < waitTime)
+        {
+            loginLogoRotate();
+            timer += Time.deltaTime; 
+            await Task.Yield();
+        }
+
         HideLoadingOverlay();
         navigatorManager.Navigate(PageID.MainSettings, false);
-        // Logic chuyển scene hoặc xử lý tiếp theo...
     }
 
-    // private void UpdateToggleIcon(VisualElement toggleIcon, bool visible)
-    // {
-    //     if (toggleIcon == null) return;
+    private void loginLogoRotate()
+    {
+        if (iconSuccess != null && iconSuccess.resolvedStyle.display != DisplayStyle.None)
+        {
+            float speed = 180f;
+            iconSuccessAngle += speed * Time.deltaTime;
+            if (iconSuccessAngle >= 360f) iconSuccessAngle -= 360f;
+            iconSuccess.style.rotate = new Rotate(Angle.Degrees(iconSuccessAngle));
+        }
+    }
 
-    //     var tex = visible ? eyeTexture : eyeSlashTexture;
-    //     if (tex == null)
-    //     {
-    //         toggleIcon.EnableInClassList("eye-visible", visible);
-    //         toggleIcon.EnableInClassList("eye-hidden", !visible);
-    //         return;
-    //     }
+    private void OnTogglePasswordClick(ClickEvent evt)
+    {
+        isPasswordVisible = !isPasswordVisible;
+        _passwordInput.isPasswordField = !isPasswordVisible;
+        UpdateEyeIcon();
+    }
 
-    //     toggleIcon.style.backgroundImage = new StyleBackground(tex);
-    // }
+    private void UpdateEyeIcon()
+    {
+        if (isPasswordVisible)
+        {
+            toggleEyeIcon.RemoveFromClassList("icon-eye-closed");
+            toggleEyeIcon.AddToClassList("icon-eye-open");
+        }
+        else
+        {
+            toggleEyeIcon.RemoveFromClassList("icon-eye-open");
+            toggleEyeIcon.AddToClassList("icon-eye-closed");
+        }
+    }
 }

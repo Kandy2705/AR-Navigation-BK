@@ -2,15 +2,15 @@
     <Style src="project://database/Assets/UI/Styles/UI%20Email%20Changing%20Form.uss?fileID=7433441132597879392&amp;guid=f5192bd041962d043a7555425f43d329&amp;type=3#UI Email Changing Form" />
     <ui:VisualElement class="container">
         <ui:VisualElement name="VisualElement" class="header">
-            <ui:Label text="←" class="icon-back" />
+            <ui:Label text="←" class="icon-back" name="Btn-Back"/>
         </ui:VisualElement>
         <ui:Label text="Thay đổi mật khẩu" class="title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-SemiBold.ttf?fileID=12800000&amp;guid=061287b66ecca5f4d9da25a0991292c6&amp;type=3#Poppins-SemiBold&quot;);" />
         <ui:Label text="Vui lòng nhập email của bạn và chúng tôi sẽ gửi mã OTP ở bước tiếp theo để đặt lại mật khẩu cho bạn." class="subtitle" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
         <ui:VisualElement class="input-group">
             <ui:TextField name="EmailInput" value="Email" class="email-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
-            <ui:Label text="✉" class="icon-mail" style="background-image: url(&quot;project://database/Assets/UI/Images/EmailIcon.png?fileID=2800000&amp;guid=d43b02b8963e7ca4891fce25bbe92d25&amp;type=3#EmailIcon&quot;); width: 19px; height: 15px;" />
+            <ui:Label class="icon-mail" style="background-image: url(&quot;project://database/Assets/UI/Images/EmailIcon.png?fileID=2800000&amp;guid=d43b02b8963e7ca4891fce25bbe92d25&amp;type=3#EmailIcon&quot;); width: 19px; height: 15px;" />
         </ui:VisualElement>
         <ui:VisualElement class="flex-spacer" />
-        <ui:Button text="Tiếp tục" class="btn-continue" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;); background-color: rgb(64, 50, 133);" />
+        <ui:Button name="Btn-Continue" text="Tiếp tục" class="btn-continue" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;); background-color: rgb(64, 50, 133);" />
     </ui:VisualElement>
 </ui:UXML>
