@@ -16,6 +16,7 @@ public enum PageID
     EmailChangeForm,
     PasswordChangeForm,
     WelcomePage,
-    OTPPage
+    OTPPage,
+    PasswordConfirm
 
 }

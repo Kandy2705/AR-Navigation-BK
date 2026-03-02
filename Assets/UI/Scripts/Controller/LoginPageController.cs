@@ -152,7 +152,7 @@ public class LoginPageController : IPageController
         }
     }
 
-    private void ShowLoadingOverlay(string title, string message)
+    private void ShowLoadingOverlay(VisualElement loginLoading, string title, string message)
     {
         if (loginLoading == null) return;
 
@@ -181,6 +181,7 @@ public class LoginPageController : IPageController
     private async void OnLoginClicked()
     {
         ShowLoadingOverlay(
+            loginLoading,
             "Đăng nhập thành công!",
             "Vui lòng chờ...\nBạn sẽ được chuyển qua trang chủ."
         );

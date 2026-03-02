@@ -12,6 +12,7 @@ public class EmailChangeController : IPageController
         
         navigator.Navigate(PageID.Chatbox); 
     });
-        navigator.BindButton(root, "BtnBack", PageID.Profile, true);
+        navigator.BindButton(root, "Btn-Back", navigator.PreviousPage(), true);
+        navigator.BindButton(root, "Btn-Continue", PageID.OTPPage, false);
     }
 }

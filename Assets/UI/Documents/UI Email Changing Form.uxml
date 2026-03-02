@@ -1,8 +1,8 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <Style src="project://database/Assets/UI/Styles/UI%20Email%20Changing%20Form.uss?fileID=7433441132597879392&amp;guid=f5192bd041962d043a7555425f43d329&amp;type=3#UI Email Changing Form" />
     <ui:VisualElement class="container">
-        <ui:VisualElement name="VisualElement" class="header">
-            <ui:Label text="←" class="icon-back" name="Btn-Back"/>
+        <ui:VisualElement class="header-section">
+            <ui:Button name="Btn-Back" text="←" class="btn-back" />
         </ui:VisualElement>
         <ui:Label text="Thay đổi mật khẩu" class="title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-SemiBold.ttf?fileID=12800000&amp;guid=061287b66ecca5f4d9da25a0991292c6&amp;type=3#Poppins-SemiBold&quot;);" />
         <ui:Label text="Vui lòng nhập email của bạn và chúng tôi sẽ gửi mã OTP ở bước tiếp theo để đặt lại mật khẩu cho bạn." class="subtitle" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />

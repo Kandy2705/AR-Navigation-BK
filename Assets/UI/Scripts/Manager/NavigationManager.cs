@@ -20,10 +20,13 @@ public class NavigationManager : MonoBehaviour
     public PageID firstPage;
     private Dictionary<PageID, VisualTreeAsset> pageDict;
     private VisualElement currentPageElement;
+    public static Stack<PageID> pageHistory = new Stack<PageID>();
 
     private readonly List<PageID> tabPages = new List<PageID> { 
         PageID.MainSettings, PageID.HistoryPage, PageID.ARPage 
     };
+
+
 
     void Awake()
     {
@@ -41,6 +44,20 @@ public class NavigationManager : MonoBehaviour
         Navigate(firstPage);
     }
 
+    public PageID PreviousPage()
+    {
+        if (pageHistory.Count > 1)
+        {
+            PageID currentPage = pageHistory.Peek();
+            pageHistory.Pop();
+            PageID previousPage = pageHistory.Peek();
+            pageHistory.Push(currentPage);
+            return previousPage;
+        }
+        else if(pageHistory.Count == 1) return pageHistory.Peek();
+        else return PageID.None;
+    }
+
     public void Navigate(PageID pageID, bool isBack = false)
     {
         if (!pageDict.ContainsKey(pageID))
@@ -55,11 +72,21 @@ public class NavigationManager : MonoBehaviour
         
         SetupPageLayout(newPage, isBack);
 
+        if(isBack){
+            pageHistory.Pop();
+        }
+        else
+        {
+            pageHistory.Push(pageID);
+        }
+
         IPageController controller = PageFactory.GetController(pageID);
         controller.Initialize(newPage, this);
 
-        Debug.Log("Đi đến trang: " + pageID.ToString());
-
+        Debug.Log($"Trang trước đó: {PreviousPage()}");
+        if (pageHistory.Count >= 1) Debug.Log($"Đang mở trang: {pageHistory.Peek()}");
+        else Debug.Log("Không có trang để hiển thị nữa");
+        
         rootContainer.Add(newPage);
         HandleTransition(newPage, isBack);
     }
@@ -130,4 +157,25 @@ public class NavigationManager : MonoBehaviour
         };
     }
 
+    public void OnTogglePasswordClick(ClickEvent evt, TextField Input, VisualElement eyeIcon, ref bool checkVisible)
+    {
+        //Debug.Log($"Check hien tai bien visible: {checkVisible}");
+        checkVisible = !checkVisible;
+        Input.isPasswordField = !checkVisible;
+        UpdateEyeIcon(eyeIcon, checkVisible);
+    }
+
+    private void UpdateEyeIcon(VisualElement eyeIcon, bool isPasswordVisible)
+    {
+        if (isPasswordVisible)
+        {
+            eyeIcon.RemoveFromClassList("icon-eye-closed");
+            eyeIcon.AddToClassList("icon-eye-open");
+        }
+        else
+        {
+            eyeIcon.RemoveFromClassList("icon-eye-open");
+            eyeIcon.AddToClassList("icon-eye-closed");
+        }
+    }
 }

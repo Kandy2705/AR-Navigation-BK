@@ -10,7 +10,7 @@
 .input-group { background-color: #1C1C1E; border-color: #2C2C2E; border-width: 1px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
 .input-row { flex-direction: row; align-items: center; justify-content: space-between; height: 52px; padding-left: 16px; padding-right: 16px; flex-shrink: 0; }
 .custom-input { flex-grow: 1; margin: 0; padding: 0; }
-.custom-input > .unity-base-field__input { background-color: transparent; border-width: 0; color: #FFFFFF; font-size: 14px; padding: 0; margin: 0; }
+.custom-input > .unity-base-field__input { background-color: transparent; border-width: 0; color: #888888; font-size: 14px; padding: 0; margin: 0; }
 .custom-input > .unity-base-field__input--placeholder { color: #888888; }
 .divider { height: 1px; background-color: #2C2C2E; width: 100%; margin: 0; flex-shrink: 0; }
 .dropdown-row { cursor: text; }
