@@ -79,24 +79,7 @@ public class LoginController : MonoBehaviour
             Debug.LogError("Lỗi: " + error.Message);
         });
 
-        Service.GetUserProfile()
-        .Then(res => 
-        {
-            PlayerPrefs.SetString(cacheKey, JsonUtility.ToJson(res));
-            PlayerPrefs.Save();
-            string testString = PlayerPrefs.GetString(cacheKey, "Không có dữ liệu");
-            Debug.Log($"Đã lưu dữ liệu người dùng vào bộ nhớ đệm {testString}");
-        })
-        .Catch(err => 
-        {
-            Debug.LogError("Controller: Lỗi khi lấy profile: " + err.Message);
-            
-            var reqErr = err as RequestException;
-            if (reqErr != null && reqErr.StatusCode == 401)
-            {
-                Service.Logout();
-            }
-        });
+    
 
 
         if (_rememberToggle.value == true)

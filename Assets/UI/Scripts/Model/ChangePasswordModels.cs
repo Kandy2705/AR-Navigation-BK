@@ -1,14 +1,12 @@
-using System;
-
-[Serializable]
-public class ChangePassReq
-{
+[System.Serializable]
+public class RequestOtpBody {
     public string email;
-    public string oldPassword;
-    public string newPassword;
-    public string OTP;
 }
 
-
-
-
+[System.Serializable]
+public class ChangePasswordBody {
+    public string email;
+    public string newPassword;
+    public string oldPassword;
+    public string otpCode;
+}

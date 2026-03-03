@@ -7,9 +7,9 @@
         <ui:Label text="Nhập mã OTP" class="title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;);" />
         <ui:Label text="Chúng tôi đã gửi mã OTP đến email của bạn là *****ley@yourdomoincom. Nhập mã OTP bên dưới để xác minh." class="subtitle" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
         <ui:VisualElement class="otp-container">
-            <ui:TextField name="OTP1" value="4" max-length="1" class="otp-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Bold.ttf?fileID=12800000&amp;guid=186ae81ec0232ae43bae4a062b2d8fbc&amp;type=3#Poppins-Bold&quot;);" />
-            <ui:TextField name="OTP2" value="4" max-length="1" class="otp-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Bold.ttf?fileID=12800000&amp;guid=186ae81ec0232ae43bae4a062b2d8fbc&amp;type=3#Poppins-Bold&quot;);" />
-            <ui:TextField name="OTP3" value="4" max-length="1" class="otp-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Bold.ttf?fileID=12800000&amp;guid=186ae81ec0232ae43bae4a062b2d8fbc&amp;type=3#Poppins-Bold&quot;);" />
+            <ui:TextField name="OTP1" max-length="1" class="otp-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Bold.ttf?fileID=12800000&amp;guid=186ae81ec0232ae43bae4a062b2d8fbc&amp;type=3#Poppins-Bold&quot;);" />
+            <ui:TextField name="OTP2" max-length="1" class="otp-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Bold.ttf?fileID=12800000&amp;guid=186ae81ec0232ae43bae4a062b2d8fbc&amp;type=3#Poppins-Bold&quot;);" />
+            <ui:TextField name="OTP3" max-length="1" class="otp-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Bold.ttf?fileID=12800000&amp;guid=186ae81ec0232ae43bae4a062b2d8fbc&amp;type=3#Poppins-Bold&quot;);" />
             <ui:TextField name="OTP4" max-length="1" class="otp-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Bold.ttf?fileID=12800000&amp;guid=186ae81ec0232ae43bae4a062b2d8fbc&amp;type=3#Poppins-Bold&quot;);" />
         </ui:VisualElement>
         <ui:VisualElement class="flex-spacer" />

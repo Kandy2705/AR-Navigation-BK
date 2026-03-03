@@ -27,6 +27,7 @@ public class LoginPageController : IPageController
     public void Start(VisualElement root)
     {
         Debug.Log("Hàm Login mới đang bắt đầu hoạt động");
+        Debug.Log("Du lieu hien tai cua Cache: " + PlayerPrefs.GetString(cacheKey, "Không có dữ liệu"));
 
         _emailInput = root.Q<TextField>("EmailInput");
         _passwordInput = root.Q<TextField>("PasswordInput");
@@ -76,6 +77,7 @@ public class LoginPageController : IPageController
         LoadSavedCredentials();
 
         Debug.Log("Đang đăng nhập: " + myData.email);
+        //string access_token = "";
     
         RestClient.Post(BASE_API, myData)
         .Then(response => 
@@ -88,6 +90,11 @@ public class LoginPageController : IPageController
                 RestClient.DefaultRequestHeaders["Authorization"] = "Bearer " + resData.accessToken;
                 PlayerPrefs.SetString("REFRESH_TOKEN", resData.refreshToken);
                 PlayerPrefs.SetString("ACCESS_TOKEN", resData.accessToken);
+
+                PlayerPrefs.Save();
+                
+                Debug.Log($"Chuẩn bị đăng nhap, dữ liệu ACCESS_TOKEN: {PlayerPrefs.GetString("ACCESS_TOKEN", "Không có dữ liệu")}");
+                getUserProfileData(resData.accessToken);
             }
             else
             {
@@ -101,7 +108,23 @@ public class LoginPageController : IPageController
             Debug.LogError("Lỗi: " + error.Message);
         });
 
-        Service.GetUserProfile()
+        if (_rememberToggle.value == true)
+        {
+            PlayerPrefs.SetString(KEY_EMAIL, myData.email);
+            PlayerPrefs.SetString(KEY_PASS, myData.password);
+            PlayerPrefs.SetInt(KEY_REMEMBER, 1);
+        }
+        else
+        {
+            PlayerPrefs.DeleteKey(KEY_EMAIL);
+            PlayerPrefs.DeleteKey(KEY_PASS);
+            PlayerPrefs.SetInt(KEY_REMEMBER, 0);
+        }
+    }
+
+    private void getUserProfileData(string access_token)
+    {
+        Service.GetUserProfile(access_token)
         .Then(res => 
         {
             PlayerPrefs.SetString(cacheKey, JsonUtility.ToJson(res));
@@ -119,20 +142,6 @@ public class LoginPageController : IPageController
                 Service.Logout();
             }
         });
-
-
-        if (_rememberToggle.value == true)
-        {
-            PlayerPrefs.SetString(KEY_EMAIL, myData.email);
-            PlayerPrefs.SetString(KEY_PASS, myData.password);
-            PlayerPrefs.SetInt(KEY_REMEMBER, 1);
-        }
-        else
-        {
-            PlayerPrefs.DeleteKey(KEY_EMAIL);
-            PlayerPrefs.DeleteKey(KEY_PASS);
-            PlayerPrefs.SetInt(KEY_REMEMBER, 0);
-        }
     }
 
     private void LoadSavedCredentials()

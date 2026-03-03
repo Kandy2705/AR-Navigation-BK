@@ -60,10 +60,16 @@ public class MainSettingController : IPageController
 
     private void Logout()
     {
-        mainNavigator.Navigate(PageID.Login, true);
+        
         Debug.Log($"Chuẩn bị đăng xuất, dữ liệu KEY_CACHE: {PlayerPrefs.GetString(AppConst.KEY_CACHE, "Không có dữ liệu")}");
         PlayerPrefs.DeleteKey(AppConst.KEY_CACHE);
+        // PlayerPrefs.DeleteKey("ACCESS_TOKEN");
+        // PlayerPrefs.DeleteKey("REFRESH_TOKEN");
+        PlayerPrefs.Save();
         Debug.Log("Đăng xuất thành công");
+        Debug.Log("Du lieu cua cache sau khi da dang xuat: " + PlayerPrefs.GetString(AppConst.KEY_CACHE, "Không có dữ liệu"));
+        mainNavigator.Navigate(PageID.Login, true);
+
     }
 
 
