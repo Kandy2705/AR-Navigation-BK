@@ -12,6 +12,7 @@ public class MainSettingController : IPageController
         navigator.BindButton(root, "BtnSupportCenter", PageID.SupportCenter, false);
         navigator.BindButton(root, "BtnContact", PageID.Contact, false);
         navigator.BindButton(root, "BtnHistory", PageID.HistoryPage, true);
+        navigator.BindButton(root, "btn-ar", PageID.ARPage, false);
         LogoutButton(root, "BtnLogout");
     }
 

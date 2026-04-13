@@ -50,7 +50,7 @@
     background-color: rgb(45, 35, 92);
 }
 
-/* Password */
+.error-text {color: #5E42A6; font-size: 14px; white-space: normal; line-height: 22px; margin-bottom: 40px; flex-shrink: 0; display: flex}
 
 /* Container gom nhóm các ô input: Bo góc, nền tối, cắt phần thừa */
 .grouped-section { border-radius: 12px; overflow: hidden; margin-bottom: 24px; border-width: 1px; border-color: #2C2C2E; }

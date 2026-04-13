@@ -1,6 +1,11 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 
+public enum OTPFlowType
+{
+    ChangePassword,
+    Register
+}
 public class EmailChangingOTPController : IPageController
 {
     private Button ConfirmBtn;
@@ -8,9 +13,8 @@ public class EmailChangingOTPController : IPageController
     private TextField OTP2;
     private TextField OTP3;
     private TextField OTP4;
-
     private NavigationManager navigationManager;
-
+    public static OTPFlowType CurrentFlow = OTPFlowType.ChangePassword;
     private ChangePasswordService service = new ChangePasswordService();
     private ProfileService logout = new ProfileService();
 
@@ -24,12 +28,7 @@ public class EmailChangingOTPController : IPageController
 
         if (ConfirmBtn != null)
         {
-            ConfirmBtn.clicked += () => OnClickConfirmChange(
-                ChangePasswordService.cacheChangePasswordData.email,
-                ChangePasswordService.cacheChangePasswordData.oldPassword,
-                ChangePasswordService.cacheChangePasswordData.newPassword,
-                OTP1.value + OTP2.value + OTP3.value + OTP4.value
-            );
+            ConfirmBtn.clicked += HandleConfirmOTP;
         }
     }
     
@@ -44,6 +43,27 @@ public class EmailChangingOTPController : IPageController
 
     }
 
+    private void HandleConfirmOTP()
+    {
+        string fullOTP = OTP1.value + OTP2.value + OTP3.value + OTP4.value;
+
+        if (CurrentFlow == OTPFlowType.ChangePassword)
+        {
+            OnClickConfirmChange(
+                ChangePasswordService.cacheChangePasswordData.email,
+                ChangePasswordService.cacheChangePasswordData.oldPassword,
+                ChangePasswordService.cacheChangePasswordData.newPassword,
+                fullOTP
+            );
+        }
+        else if (CurrentFlow == OTPFlowType.Register)
+        {
+            OnClickConfirmRegister(fullOTP);
+        }
+
+        
+    }
+
     public void OnClickConfirmChange(string email, string oldP, string newP, string otpCode)
     {
         service.VerifyAndChangePassword(email, oldP, newP, otpCode)
@@ -56,5 +76,17 @@ public class EmailChangingOTPController : IPageController
         .Catch(err => {
             Debug.LogError("Lỗi xác nhận: " + err.Message);
         });
+    }
+
+    private void OnClickConfirmRegister(string otpCode)
+    {
+        // TODO: Viết logic gọi API xác nhận OTP cho đăng ký tại đây
+        Debug.Log("Đang xử lý OTP cho luồng đăng ký với mã: " + otpCode);
+
+        navigationManager.Navigate(PageID.PasswordConfirm, false);
+        
+        // Ví dụ:
+        // var dataToSubmit = RegistrationSession.CurrentData;
+        // RestClient.Post(REGISTER_VERIFY_URL, dataToSubmit, otpCode)...
     }
 }

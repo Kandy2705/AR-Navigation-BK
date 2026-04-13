@@ -17,6 +17,7 @@
                 <ui:Button name="ToggleEyeIcon" class="icon-eye-closed" style="width: 19px; height: 15px;" />
             </ui:VisualElement>
         </ui:VisualElement>
+        <ui:Label name="ErrorLabel" text="Tài khoản hoặc mật khẩu không chính xác, vui lòng nhập lại" class="error-text" style="height: 10px; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-MediumItalic.ttf?fileID=12800000&amp;guid=555fd9576a34fa946892ea4ff9365516&amp;type=3#Poppins-MediumItalic&quot;);" />
         <ui:VisualElement class="remember-row">
             <ui:Toggle name="RememberToggle" class="checkbox-circle" />
             <ui:Label name="RememberLabel" text="Ghi nhớ tôi" style="color: rgb(243, 243, 243); font-size: 14px; font-weight: 800; margin-top: 0; -unity-font-style: normal; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; margin-bottom: 0; margin-left: 14px; margin-right: 0; -unity-text-align: middle-center; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />

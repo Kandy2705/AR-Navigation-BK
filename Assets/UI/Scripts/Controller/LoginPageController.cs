@@ -12,6 +12,7 @@ public class LoginPageController : IPageController
     private Button _btnLogin;
     private NavigationManager navigatorManager;
     private VisualElement loginLoading;
+    private Label errorLabel;
     private Label loadingTitleLabel;
     private Label loadingMessageLabel;
     private VisualElement toggleEyeIcon;     
@@ -35,6 +36,7 @@ public class LoginPageController : IPageController
         toggleEyeIcon = root.Q<VisualElement>("ToggleEyeIcon");
 
         loginLoading = root.Q<VisualElement>("LoginLoading");
+        errorLabel = root.Q<Label>("ErrorLabel");
         loadingTitleLabel = root.Q<Label>("LoadingTitleLabel");
         loadingMessageLabel = root.Q<Label>("LoadingMessageLabel");
         iconSuccess = root.Q<VisualElement>("IconSuccess") ?? root.Q<VisualElement>("IconSucces");
@@ -43,6 +45,11 @@ public class LoginPageController : IPageController
         if (_btnLogin != null)
         {
             _btnLogin.clicked += HandleLogin;
+        }
+
+        if(errorLabel != null)
+        {
+            errorLabel.style.display = DisplayStyle.None;
         }
 
         if (toggleEyeIcon != null)
@@ -82,6 +89,12 @@ public class LoginPageController : IPageController
         RestClient.Post(BASE_API, myData)
         .Then(response => 
         {
+            PlayerPrefs.SetString("PASSWORD", myData.password);
+            if(errorLabel != null)
+            {
+                errorLabel.style.display = DisplayStyle.None;
+            }
+
             var resData = JsonUtility.FromJson<LoginRes>(response.Text);
 
             if(resData != null && !string.IsNullOrEmpty(resData.accessToken))
@@ -105,6 +118,10 @@ public class LoginPageController : IPageController
         })
         .Catch(error => 
         {
+            if(errorLabel != null)
+            {
+                errorLabel.style.display = DisplayStyle.Flex;
+            }
             Debug.LogError("Lỗi: " + error.Message);
         });
 

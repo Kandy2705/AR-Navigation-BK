@@ -13,7 +13,7 @@ public class NavigationManager : MonoBehaviour
     [Header("Dependencies")]
     public UIDocument mainDocument;
     public List<PageRoute> pages;
-    public GameObject loginPageObject;
+    public GameObject ARPageObject;
     private VisualElement rootContainer;
 
     public static string CurrentChatTitle = "";
@@ -73,7 +73,8 @@ public class NavigationManager : MonoBehaviour
         SetupPageLayout(newPage, isBack);
 
         if(isBack){
-            pageHistory.Pop();
+            if(pageID == PageID.HistoryPage) pageHistory.Push(pageID);
+            else pageHistory.Pop();
         }
         else
         {
@@ -99,6 +100,15 @@ public class NavigationManager : MonoBehaviour
         page.style.flexGrow = 1;
         page.style.width = Length.Percent(100);
         page.style.height = Length.Percent(100);
+    }
+
+    public void SwitchObject()
+    {
+        if (ARPageObject != null)
+        {
+            ARPageObject.SetActive(true); 
+        }
+        gameObject.SetActive(false);
     }
 
     private void HandleTransition(VisualElement newPage, bool isBack)
@@ -128,6 +138,7 @@ public class NavigationManager : MonoBehaviour
         var btn = container.Q<Button>(buttonName);
         if (btn != null)
         {
+            if(targetPage == PageID.ARPage) btn.clicked += () => SwitchObject();
             btn.clicked += () => Navigate(targetPage, leftSlide);
         }
     }

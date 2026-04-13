@@ -79,9 +79,6 @@ public class LoginController : MonoBehaviour
             Debug.LogError("Lỗi: " + error.Message);
         });
 
-    
-
-
         if (_rememberToggle.value == true)
         {
             PlayerPrefs.SetString(KEY_EMAIL, myData.email);

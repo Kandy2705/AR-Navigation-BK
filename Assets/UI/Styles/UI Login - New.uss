@@ -11,6 +11,7 @@
 .custom-input > .unity-base-field__input--placeholder { color: #888888; }
 .divider { height: 1px; background-color: #333333; width: 100%; margin: 0; flex-shrink: 0; }
 .icon-mail { color: #888888; font-size: 18px; flex-shrink: 0; }
+.error-text {color: #5E42A6; font-size: 14px; white-space: normal; line-height: 22px; margin-bottom: 40px; flex-shrink: 0;}
 .icon-eye-closed { width: 24px; height: 24px; background-color: transparent; border-width: 0; background-image: url("project://database/Assets/UI/Images/eye-slash.png"); -unity-background-scale-mode: scale-to-fit; flex-shrink: 0; }
 .icon-eye-open { width: 24px; height: 24px; background-color: transparent; border-width: 0; background-image: url("project://database/Assets/UI/Images/eye.png"); -unity-background-scale-mode: scale-to-fit; flex-shrink: 0; }
 .remember-row { flex-direction: row; align-items: center; margin-top: 24px; margin-bottom: 24px; flex-shrink: 0; }

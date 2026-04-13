@@ -14,6 +14,7 @@ public class PasswordChangeController : IPageController
     private VisualElement newToggleEyeIcon;
     private VisualElement confirmToggleEyeIcon;
     private NavigationManager navigationManager;
+    private Label errorText;
     private string cacheKey = AppConst.KEY_CACHE;
     private ChangePasswordService _service = new ChangePasswordService();
 
@@ -29,6 +30,7 @@ public class PasswordChangeController : IPageController
 
         _btnSubmit = root.Q<Button>("Btn-Confirm");
 
+        errorText = root.Q<Label>("ErrorLabel");
         oldToggleEyeIcon = root.Q<VisualElement>("OldToggleEyeIcon");
         newToggleEyeIcon = root.Q<VisualElement>("NewToggleEyeIcon");
         confirmToggleEyeIcon = root.Q<VisualElement>("ConfirmToggleEyeIcon");
@@ -50,7 +52,8 @@ public class PasswordChangeController : IPageController
         {
             _btnSubmit.clicked += OTPRequest;
         }
-        //CheckAndStartTimer(root);
+
+         if(errorText != null) errorText.style.display = DisplayStyle.None;
     }
 
     public void Initialize(VisualElement root, NavigationManager navigator)
@@ -59,8 +62,6 @@ public class PasswordChangeController : IPageController
 
         Start(root);
         navigator.BindButton(root, "Btn-Back", navigator.PreviousPage(), true);
-        //navigator.BindButton(root, "Btn-Confirm", PageID.OTPPage, false);
-        //navigator.ShowPasswordButton(root);
     }
 
     private void OTPRequest()
@@ -68,26 +69,42 @@ public class PasswordChangeController : IPageController
         if(PlayerPrefs.HasKey(cacheKey))
         {
             string jsonString = PlayerPrefs.GetString(cacheKey);
+            
+            bool hasError = false;
             Debug.Log("Dữ liệu cache đã được tải: " + jsonString);
             RegisterRes cachedRes = JsonUtility.FromJson<RegisterRes>(jsonString);
             Debug.Log("Dữ liệu email: " + cachedRes.email);
             ChangePasswordService.cacheChangePasswordData.email = cachedRes.email;
 
+           
+             if(string.IsNullOrEmpty(_oldpasswordInput.value) || string.IsNullOrEmpty(_newpasswordInput.value) || string.IsNullOrEmpty(_confirmNewPasswordInput.value))
+            {
+                errorText.text = "Vui lòng điền đầy đủ thông tin mật khẩu!";
+                hasError = true;
+            }
+
+            if (_oldpasswordInput.value != PlayerPrefs.GetString("PASSWORD", "no pass"))
+            {
+                errorText.text = "Mật khẩu cũ không chính xác, vui lòng nhập lại!";
+                hasError = true;
+            }
+
             if(_newpasswordInput.value != _confirmNewPasswordInput.value)
             {
-                Debug.LogWarning("Mật khẩu mới và xác nhận mật khẩu không khớp!");
-                return;
+                errorText.text = "Mật khẩu mới và xác nhận mật khẩu không khớp!";
+                hasError = true;
             }
 
             if(_oldpasswordInput.value == _newpasswordInput.value)
             {
-                Debug.LogWarning("Mật khẩu mới không được trùng với mật khẩu cũ!");
-                return;
+                errorText.text = "Mật khẩu mới không được trùng với mật khẩu cũ!";
+                hasError = true;
             }
 
-            if(string.IsNullOrEmpty(_oldpasswordInput.value) || string.IsNullOrEmpty(_newpasswordInput.value) || string.IsNullOrEmpty(_confirmNewPasswordInput.value))
+            if(hasError == true)
             {
-                Debug.LogWarning("Vui lòng điền đầy đủ thông tin mật khẩu!");
+                Debug.LogWarning(errorText.text);
+                errorText.style.display = DisplayStyle.Flex;
                 return;
             }
 
@@ -107,7 +124,6 @@ public class PasswordChangeController : IPageController
         {
             Debug.Log("Không có dữ liệu cache để tải.");
         }
-
        
     }
 

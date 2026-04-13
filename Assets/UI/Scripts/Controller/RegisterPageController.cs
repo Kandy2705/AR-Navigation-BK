@@ -3,11 +3,13 @@ using UnityEngine.UIElements;
 using Proyecto26;
 public class RegisterPageController : IPageController
 {
+    public static RegisterReq CurrentData;
     private NavigationManager navigationManager;
     private TextField _emailInput;
     private TextField _phoneNumberInput;
     private TextField _genderInput;
     private TextField _birthdayInput;
+    private Label errorText;
     //private TextField _passInput;
     private TextField _nameInput;
     private Button _basicInfoCompleteButton;
@@ -29,6 +31,8 @@ public class RegisterPageController : IPageController
     {
         Debug.Log("Hàm Register đang bắt đầu hoạt động bình thường");
 
+        CurrentData = new RegisterReq();
+
         _emailInput = root.Q<TextField>("EmailInput");
         _phoneNumberInput = root.Q<TextField>("PhoneInput");
         _genderInput = root.Q<TextField>("GenderInput");
@@ -42,25 +46,50 @@ public class RegisterPageController : IPageController
         if (_basicInfoCompleteButton != null)
         {
             _basicInfoCompleteButton.clicked += HandleRegister;
-            navigationManager.BindButton(root, "ContinueButton", PageID.OTPPage, false);
         }
     }
-
     private void HandleRegister()
     {
         // A. Gom dữ liệu
-        var myData = new RegisterReq();
+        bool isFailed = false;
+
+        var myData = CurrentData;
         myData.gender = _genderInput.value;
         myData.birthday = ConvertToBackendDate(_birthdayInput.value);
         myData.phone = _phoneNumberInput.value;
         myData.email = _emailInput.value;
-        //myData.password = _passInput.value;
         myData.name = _nameInput.value;
-        // Các trường khác lấy tương tự...
 
-        // Debug.Log("Đang gửi: " + myData.email);
-        // Debug.Log("Dữ liệu hiện tại " + myData.Data);
+        Debug.Log("Đang gửi: " + myData.email);
+        Debug.Log("Dữ liệu hiện tại " + myData.Data);
 
+        if(myData.name == null) 
+        {
+            errorText.text = "Vui lòng nhập đầy đủ họ tên"; 
+            isFailed = true;
+        }
+        if(myData.phone == null) {
+            errorText.text = "Vui lòng nhập số điện thoại";  
+            isFailed = true;
+        }
+        if(myData.email == null) {
+            errorText.text = "Vui lòng nhập email";  
+            isFailed = true;
+        }
+        if(myData.gender == null) {
+            errorText.text = "Vui lòng nhập giới tính";  
+            isFailed = true;
+        }
+        if(myData.birthday == null) {
+            errorText.text = "Vui lòng nhập ngày sinh";  
+            isFailed = true;
+        }
+
+        if(isFailed) return;
+
+        EmailChangingOTPController.CurrentFlow = OTPFlowType.Register;
+        navigationManager.Navigate(PageID.OTPPage, false);
+        
         // // B. Gọi API
         // RestClient.Post(BASE_API, myData)
         // .Then(response => 
