@@ -1,0 +1,22 @@
+.container { width: 100%; height: 100%; flex-grow: 1; background-color: #1A1A1A; padding: 10px; display: flex; flex-direction: column; }
+.btn-back { width: 40px; height: 40px; background-color: rgba(0,0,0,0); border-width: 0; color: white; font-size: 30px; padding-top: 60px; padding-bottom: 30px; margin: 0; }
+.title { color: #FFFFFF; font-size: 28px; -unity-font-style: bold; margin-bottom: 12px; white-space: normal; flex-shrink: 0; }
+.subtitle { color: #C0C0C0; font-size: 14px; white-space: normal; line-height: 22px; margin-bottom: 30px; flex-shrink: 0; }
+.avatar-section { align-self: center; width: 80px; height: 80px; margin-bottom: 30px; flex-shrink: 0; }
+.avatar-bg { width: 100%; height: 100%; background-color: #2A2A2A; border-radius: 24px; align-items: center; justify-content: center; }
+.avatar-icon { color: #555555; font-size: 40px; }
+.edit-btn { position: absolute; bottom: -5px; right: -5px; width: 30px; height: 30px; background-color: #403285; border-radius: 15px; align-items: center; justify-content: center; border-width: 3px; border-color: #1A1A1A; }
+.edit-icon { color: white; font-size: 14px; margin-bottom: 2px; }
+.input-group { background-color: #1C1C1E; border-color: #2C2C2E; border-width: 1px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.input-row { flex-direction: row; align-items: center; justify-content: space-between; height: 52px; padding-left: 16px; padding-right: 16px; flex-shrink: 0; }
+.custom-input { flex-grow: 1; margin: 0; padding: 0; }
+.custom-input > .unity-base-field__input { background-color: transparent; border-width: 0; color: #888888; font-size: 14px; padding: 0; margin: 0; }
+.custom-input > .unity-base-field__input--placeholder { color: #888888; }
+.divider { height: 1px; background-color: #2C2C2E; width: 100%; margin: 0; flex-shrink: 0; }
+.dropdown-row { cursor: text; }
+.dropdown-placeholder { color: #888888; font-size: 14px; padding: 0; margin: 0; }
+.icon-chevron { color: #888888; font-size: 14px; }
+.flex-spacer { flex-grow: 1; min-height: 20px; flex-shrink: 1; }
+.btn-submit { flex-shrink: 0; background-color: #403285; color: #FFFFFF; font-size: 16px; -unity-font-style: bold; border-radius: 26px; height: 52px; border-width: 0; margin-bottom: 20px; transition-property: background-color; transition-duration: 0.2s; }
+.btn-submit:hover { background-color: #4C3C9E; }
+.btn-submit:active { background-color: #2D235C; }

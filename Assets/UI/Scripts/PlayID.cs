@@ -12,5 +12,11 @@ public enum PageID
     SupportCenter,
     Contact,
     ARPage,
-    Onboarding
+    Onboarding,
+    EmailChangeForm,
+    PasswordChangeForm,
+    WelcomePage,
+    OTPPage,
+    PasswordConfirm
+
 }

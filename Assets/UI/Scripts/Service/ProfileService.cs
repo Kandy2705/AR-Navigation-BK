@@ -7,9 +7,9 @@ public class ProfileService
     private const string BASE_URL = "https://arnavbk-avbcg7hecgacc5bg.malaysiawest-01.azurewebsites.net/users/me";
 
     // Hàm này trả về Promise (hoặc Task), KHÔNG cập nhật UI
-    public IPromise<RegisterRes> GetUserProfile()
+    public IPromise<RegisterRes> GetUserProfile(string token)
     {
-        string token = PlayerPrefs.GetString("ACCESS_TOKEN", "");
+        //string token = PlayerPrefs.GetString("ACCESS_TOKEN", "");
         
         if (string.IsNullOrEmpty(token))
         {

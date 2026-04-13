@@ -355,13 +355,11 @@ public class UILogin : MonoBehaviour
             "Đăng nhập thành công!",
             "Vui lòng chờ...\nBạn sẽ được chuyển qua trang chủ."
         );
-
         StartCoroutine(LoginProcess());
     }
 
     private IEnumerator LoginProcess()
     {
-        //Debug.Log("YYYYeeeeeehhhhh vào Login Process rồi");
         yield return new WaitForSeconds(2.0f);
 
         HideLoadingOverlay();

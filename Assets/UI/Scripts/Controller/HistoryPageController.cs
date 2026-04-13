@@ -14,6 +14,7 @@ public class HistoryPageController : IPageController
     });
         navigator.BindButton(root, "BtnChatbox", PageID.Chatbox, false);
         navigator.BindButton(root, "BtnSettings", PageID.MainSettings, false);
+        navigator.BindButton(root, "btn-ar", PageID.ARPage, false);
         navigator.BindButton(root, "BtnBack", PageID.None, true);
     }
 }

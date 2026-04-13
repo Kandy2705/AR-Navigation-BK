@@ -9,6 +9,7 @@ public class UIOnboarding : MonoBehaviour
     private VisualElement bgElement;
     private VisualElement LoadingScreenElement;
     private VisualElement loadingSpinner;
+    public GameObject routerManager;
 
     private float spinnerAngle = 0f;
     private float loadingDuration = 1.8f;
@@ -61,6 +62,7 @@ public class UIOnboarding : MonoBehaviour
 
         loadingTimer = 0f;
         router.ShowWelcome();
+        routerManager.SetActive(false);
     }
 
     private void Update()

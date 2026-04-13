@@ -26,8 +26,7 @@ public class ProfileController : IPageController
 
         var btnLogout = root.Q<Button>("LogoutButton");
         var btnBack = root.Q<Button>("BtnBack");
-
-        // 2. Gán sự kiện nút bấm
+        
         if (btnLogout != null) 
         {
             btnLogout.clicked += () => 

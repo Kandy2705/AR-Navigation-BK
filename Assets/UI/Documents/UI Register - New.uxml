@@ -1,0 +1,41 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Styles/UI%20Register%20-%20New.uss?fileID=7433441132597879392&amp;guid=7f853588a533f994a8b11d29dfa8a312&amp;type=3#UI Register - New" />
+    <ui:VisualElement class="container">
+        <ui:VisualElement class="header-section">
+            <ui:Button name="BtnBack" text="←" class="btn-back" />
+        </ui:VisualElement>
+        <ui:Label text="Hoàn thiện hồ sơ của bạn!" class="title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Medium.ttf?fileID=12800000&amp;guid=84bcafc26de5c12449e6c78581cb4892&amp;type=3#Poppins-Medium&quot;);" />
+        <ui:Label text="Để được tham gia thì bạn hãy hoàn thiện hồ sơ bên dưới." class="subtitle" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+        <ui:VisualElement class="avatar-section">
+            <ui:VisualElement class="avatar-bg">
+                <ui:Image class="avatar-icon" style="background-image: url(&quot;project://database/Assets/UI/Images/user.png?fileID=2800000&amp;guid=093caff68db352744966f0ea7b08f777&amp;type=3#user&quot;); height: 42px; width: 44px;" />
+            </ui:VisualElement>
+            <ui:VisualElement class="edit-btn">
+                <ui:Image class="edit-icon" style="background-image: url(&quot;project://database/Assets/UI/Images/pen.png?fileID=2800000&amp;guid=da2bc07506768a74d8b4a5819bef9d7a&amp;type=3#pen&quot;); height: 14px; width: 16px; background-size: 100% 100%;" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="input-group">
+            <ui:VisualElement class="input-row">
+                <ui:TextField name="UsernameInput" placeholder-text="Tên người dùng" class="custom-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="divider"/>
+            <ui:VisualElement class="input-row">
+                <ui:TextField name="PhoneInput" placeholder-text="Số điện thoại" class="custom-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="divider"/>
+            <ui:VisualElement class="input-row">
+                <ui:TextField name="EmailInput" placeholder-text="Email" class="custom-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="divider"/>
+            <ui:VisualElement name="InputGender" class="input-row dropdown-row">
+                <ui:TextField name="GenderInput" isPassword="true" password="false" placeholder-text="Giới tính" class="custom-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+            </ui:VisualElement>
+            <ui:VisualElement class="divider"/>
+            <ui:VisualElement name="InputBirth" class="input-row dropdown-row">
+                <ui:TextField name="BirthdayInput" isPassword="true" password="false" placeholder-text="Ngày sinh" class="custom-input" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="flex-spacer"/>
+        <ui:Button text="Tiếp tục" name="ContinueButton" class="btn-submit" />
+    </ui:VisualElement>
+</ui:UXML>

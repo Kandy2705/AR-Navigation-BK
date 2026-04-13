@@ -13,18 +13,20 @@ public class NavigationManager : MonoBehaviour
     [Header("Dependencies")]
     public UIDocument mainDocument;
     public List<PageRoute> pages;
-    public GameObject loginPageObject;
-    
+    public GameObject ARPageObject;
+    private VisualElement rootContainer;
 
     public static string CurrentChatTitle = "";
-
+    public PageID firstPage;
     private Dictionary<PageID, VisualTreeAsset> pageDict;
-    private VisualElement rootContainer;
     private VisualElement currentPageElement;
+    public static Stack<PageID> pageHistory = new Stack<PageID>();
 
     private readonly List<PageID> tabPages = new List<PageID> { 
         PageID.MainSettings, PageID.HistoryPage, PageID.ARPage 
     };
+
+
 
     void Awake()
     {
@@ -39,7 +41,21 @@ public class NavigationManager : MonoBehaviour
     {
         if(mainDocument == null) return;
         rootContainer = mainDocument.rootVisualElement.Q<VisualElement>("RootContainer");
-        Navigate(PageID.MainSettings);
+        Navigate(firstPage);
+    }
+
+    public PageID PreviousPage()
+    {
+        if (pageHistory.Count > 1)
+        {
+            PageID currentPage = pageHistory.Peek();
+            pageHistory.Pop();
+            PageID previousPage = pageHistory.Peek();
+            pageHistory.Push(currentPage);
+            return previousPage;
+        }
+        else if(pageHistory.Count == 1) return pageHistory.Peek();
+        else return PageID.None;
     }
 
     public void Navigate(PageID pageID, bool isBack = false)
@@ -56,17 +72,22 @@ public class NavigationManager : MonoBehaviour
         
         SetupPageLayout(newPage, isBack);
 
+        if(isBack){
+            if(pageID == PageID.HistoryPage) pageHistory.Push(pageID);
+            else pageHistory.Pop();
+        }
+        else
+        {
+            pageHistory.Push(pageID);
+        }
+
         IPageController controller = PageFactory.GetController(pageID);
         controller.Initialize(newPage, this);
 
-        Debug.Log("Đi đến trang: " + pageID.ToString());
-
-        if(pageID == PageID.Login)
-        {
-            Debug.Log("Chuyển sang trang Login đi nè");
-            return;
-        }
-
+        Debug.Log($"Trang trước đó: {PreviousPage()}");
+        if (pageHistory.Count >= 1) Debug.Log($"Đang mở trang: {pageHistory.Peek()}");
+        else Debug.Log("Không có trang để hiển thị nữa");
+        
         rootContainer.Add(newPage);
         HandleTransition(newPage, isBack);
     }
@@ -79,6 +100,15 @@ public class NavigationManager : MonoBehaviour
         page.style.flexGrow = 1;
         page.style.width = Length.Percent(100);
         page.style.height = Length.Percent(100);
+    }
+
+    public void SwitchObject()
+    {
+        if (ARPageObject != null)
+        {
+            ARPageObject.SetActive(true); 
+        }
+        gameObject.SetActive(false);
     }
 
     private void HandleTransition(VisualElement newPage, bool isBack)
@@ -106,20 +136,15 @@ public class NavigationManager : MonoBehaviour
     public void BindButton(VisualElement container, string buttonName, PageID targetPage, bool leftSlide)
     {
         var btn = container.Q<Button>(buttonName);
-        // if(buttonName == "BtnLogout")
-        // {
-        //     btn.clicked += () => LogOutNotification();
-        //     return;
-        // }
         if (btn != null)
         {
+            if(targetPage == PageID.ARPage) btn.clicked += () => SwitchObject();
             btn.clicked += () => Navigate(targetPage, leftSlide);
         }
     }
 
     public void ShowPasswordButton(VisualElement root)
     {
-        //var root = GetComponent<UIDocument>().rootVisualElement;
         SetupPasswordToggle(root, "old-password", "btn-toggle-old");
 
         SetupPasswordToggle(root, "new-password", "btn-toggle-new");
@@ -129,8 +154,6 @@ public class NavigationManager : MonoBehaviour
 
     private void SetupPasswordToggle(VisualElement root, string inputName, string btnName)
     {
-        // 1. Tìm Input và Nút bằng tên đã đặt trong UXML
-
         var inputField = root.Q<PlaceHolder>(inputName);
         var toggleBtn = root.Q<Button>(btnName);
         Debug.Log($"Input field: {inputName}, Toggle button: {btnName}");
@@ -145,4 +168,25 @@ public class NavigationManager : MonoBehaviour
         };
     }
 
+    public void OnTogglePasswordClick(ClickEvent evt, TextField Input, VisualElement eyeIcon, ref bool checkVisible)
+    {
+        //Debug.Log($"Check hien tai bien visible: {checkVisible}");
+        checkVisible = !checkVisible;
+        Input.isPasswordField = !checkVisible;
+        UpdateEyeIcon(eyeIcon, checkVisible);
+    }
+
+    private void UpdateEyeIcon(VisualElement eyeIcon, bool isPasswordVisible)
+    {
+        if (isPasswordVisible)
+        {
+            eyeIcon.RemoveFromClassList("icon-eye-closed");
+            eyeIcon.AddToClassList("icon-eye-open");
+        }
+        else
+        {
+            eyeIcon.RemoveFromClassList("icon-eye-open");
+            eyeIcon.AddToClassList("icon-eye-closed");
+        }
+    }
 }

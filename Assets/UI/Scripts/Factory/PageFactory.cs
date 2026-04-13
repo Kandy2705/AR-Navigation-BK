@@ -1,4 +1,5 @@
 using UnityEngine.UIElements;
+using System.Collections.Generic;
 
 public interface IPageController
 {
@@ -31,6 +32,13 @@ public static class PageFactory
             case PageID.Contact: return new ContactController();
             case PageID.Chatbox: return new ChatboxController();
             case PageID.Login: return new LoginPageController();
+            case PageID.Register: return new RegisterPageController();
+            case PageID.EmailChangeForm: return new EmailChangeFormController();
+            case PageID.OTPPage: return new EmailChangingOTPController();
+            case PageID.PasswordChangeForm: return new PasswordChangeFormController();
+            case PageID.PasswordConfirm: return new PasswordConfirmController();
+            //case PageID.Onboarding: return new OnboardingController();
+            case PageID.WelcomePage: return new WelcomePageController();
             default: return new DefaultPageController();
         }
     }

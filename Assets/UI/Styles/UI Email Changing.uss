@@ -6,27 +6,51 @@
 .header-row { height: 60px; justify-content: center; padding-left: 20px; padding-top: 10px; margin-bottom: 10px; }
 .header-icon-btn { width: 32px; height: 32px; background-color: transparent; border-width: 0; -unity-background-scale-mode: scale-to-fit; }
 
-
+.container { flex-grow: 1; background-color: #1A1A1A; padding: 10px; display: flex; flex-direction: column; }
+.header { margin-top: 30px; margin-bottom: 30px; }
+.btn-back { width: 40px; height: 40px; background-color: rgba(0,0,0,0); border-width: 0; color: white; font-size: 30px; padding-top: 60px; padding-bottom: 30px; margin: 0; }
 /* Text Styles */
 .page-big-title { font-size: 28px; -unity-font-style: bold; margin-bottom: 12px; color: white; }
 .page-desc { font-size: 14px; color: #EBEBF5; margin-bottom: 32px; white-space: normal; opacity: 0.8; }
+.flex-spacer { flex-grow: 1; }
 
-/* Input Field Style (Hộp nhập liệu) */
 .email-input-field {-unity-text-align: middle-left; margin-top: 0; height: 56px; justify-content: center; border-radius: 12px; border-width: 1px; border-color: #2C2C2E; padding: 0 16px; margin-bottom: 20px;}
-
-/* 1. Input Text bên trong (Lưu ý: dùng đúng class unity-base-text-field__input) */
 .email-input-field > .unity-base-text-field__input { background-color: transparent; border-width: 0; font-size: 16px; color: white; padding: 0; margin: 0; height: 56px; -unity-text-align: middle-left; }
 
-/* 2. Placeholder (Đây là class Unity tự add khi ô trống, dùng đúng tên class này mới nhận) */
+.icon-eye-closed { width: 24px; height: 24px; background-color: transparent; border-width: 0; background-image: url("project://database/Assets/UI/Images/eye-slash.png"); -unity-background-scale-mode: scale-to-fit; flex-shrink: 0; }
+.icon-eye-open { width: 24px; height: 24px; background-color: transparent; border-width: 0; background-image: url("project://database/Assets/UI/Images/eye.png"); -unity-background-scale-mode: scale-to-fit; flex-shrink: 0; }
 .email-input-field > .unity-base-text-field__input--placeholder { color: #8E8E93; }
-
+.container { flex-grow: 1; background-color: #1A1A1A; padding: 10px; display: flex; flex-direction: column; }
+.header {
+    margin-top: 30px;
+    margin-bottom: 30px;
+    flex-shrink: 0;
+}
+.btn-back { width: 40px; height: 40px; background-color: rgba(0,0,0,0); border-width: 0; color: white; font-size: 30px; padding-top: 60px; padding-bottom: 30px; margin: 0; }
 /* Bottom Action (Nút dính đáy) */
 .bottom-actions { padding: 20px 24px 40px 24px; background-color: #121212; position: absolute; bottom: 20px; left: 0; right: 0; }
-.action-btn { height: 52px; border-radius: 26px; background-color: #5E5CE6; color: white; font-size: 16px; -unity-font-style: bold; border-width: 0; transition: scale 0.1s; -unity-text-align: middle-center; }
-.action-btn:active { scale: 0.96; opacity: 0.9; }
+.btn-continue {
+    background-color: rgb(64, 50, 133);
+    color: rgb(255, 255, 255);
+    font-size: 16px;
+    -unity-font-style: bold;
+    border-radius: 26px;
+    height: 52px;
+    border-width: 0;
+    margin-bottom: 20px;
+    transition-property: background-color;
+    transition-duration: 0.2s;
+}
 
+.btn-continue:hover {
+    background-color: rgb(76, 60, 158);
+}
 
-/* Password */
+.btn-continue:active {
+    background-color: rgb(45, 35, 92);
+}
+
+.error-text {color: #5E42A6; font-size: 14px; white-space: normal; line-height: 22px; margin-bottom: 40px; flex-shrink: 0; display: flex}
 
 /* Container gom nhóm các ô input: Bo góc, nền tối, cắt phần thừa */
 .grouped-section { border-radius: 12px; overflow: hidden; margin-bottom: 24px; border-width: 1px; border-color: #2C2C2E; }

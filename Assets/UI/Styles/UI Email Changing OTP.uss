@@ -1,6 +1,10 @@
 .container { flex-grow: 1; background-color: #1A1A1A; padding: 10px; display: flex; flex-direction: column; }
-.header { margin-top: 30px; margin-bottom: 30px; }
-.icon-back { color: #FFFFFF; font-size: 28px; -unity-font-style: bold; }
+.header {
+    margin-top: 30px;
+    margin-bottom: 30px;
+    flex-shrink: 0;
+}
+.btn-back { width: 40px; height: 40px; background-color: rgba(0,0,0,0); border-width: 0; color: white; font-size: 30px; padding-top: 60px; padding-bottom: 30px; margin: 0; }
 .title { color: #FFFFFF; font-size: 28px; -unity-font-style: bold; margin-bottom: 16px; white-space: normal; }
 .subtitle { color: #C0C0C0; font-size: 14px; white-space: normal; line-height: 22px; margin-bottom: 40px; }
 .otp-container { flex-direction: row; justify-content: space-between; margin-bottom: 20px; padding-left: 8px; padding-right: 8px; }

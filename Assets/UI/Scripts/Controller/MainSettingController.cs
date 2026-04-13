@@ -12,6 +12,7 @@ public class MainSettingController : IPageController
         navigator.BindButton(root, "BtnSupportCenter", PageID.SupportCenter, false);
         navigator.BindButton(root, "BtnContact", PageID.Contact, false);
         navigator.BindButton(root, "BtnHistory", PageID.HistoryPage, true);
+        navigator.BindButton(root, "btn-ar", PageID.ARPage, false);
         LogoutButton(root, "BtnLogout");
     }
 
@@ -60,10 +61,16 @@ public class MainSettingController : IPageController
 
     private void Logout()
     {
-        mainNavigator.Navigate(PageID.Login, true);
+        
         Debug.Log($"Chuẩn bị đăng xuất, dữ liệu KEY_CACHE: {PlayerPrefs.GetString(AppConst.KEY_CACHE, "Không có dữ liệu")}");
         PlayerPrefs.DeleteKey(AppConst.KEY_CACHE);
+        // PlayerPrefs.DeleteKey("ACCESS_TOKEN");
+        // PlayerPrefs.DeleteKey("REFRESH_TOKEN");
+        PlayerPrefs.Save();
         Debug.Log("Đăng xuất thành công");
+        Debug.Log("Du lieu cua cache sau khi da dang xuat: " + PlayerPrefs.GetString(AppConst.KEY_CACHE, "Không có dữ liệu"));
+        mainNavigator.Navigate(PageID.Login, true);
+
     }
 
 
