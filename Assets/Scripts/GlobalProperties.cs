@@ -1,23 +1,21 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
-public class GlobalProperties : MonoBehaviour
+namespace ImportedSceneScripts
 {
-    public static GlobalProperties Instance { get; private set; }
-
-    public bool IsShowNavigation = false;
-
-    void Awake()
+    public class GlobalProperties : MonoBehaviour
     {
-        if (Instance == null)
+        public static GlobalProperties Instance;
+        public bool IsShowNavigation = false;
+
+        void Awake()
         {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(this.gameObject);
+                return;
+            }
             Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
+            DontDestroyOnLoad(this.gameObject);
         }
     }
 }

@@ -6,7 +6,7 @@ using TMPro;
 
 public class ChatInputLegacy : MonoBehaviour
 {
-    public TMP_InputField inputField;
+    public InputField inputField;
     public Image talkImage;
     public TMP_Text talkText;
     private string[] keyWords = new[] { "B10", "B9", "B8", "A4", "B4" };

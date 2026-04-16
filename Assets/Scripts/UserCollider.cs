@@ -1,23 +1,26 @@
-using UnityEngine;
+﻿using UnityEngine;
 
-public class DescriptionCollider : MonoBehaviour
+namespace ImportedSceneScripts
 {
-    [SerializeField] private GameObject description;
-    [SerializeField] private GameObject sign;
-
-    private void OnTriggerEnter(Collider other)
+    public class DescriptionCollider : MonoBehaviour
     {
-        if (!other.CompareTag("UserTrigger")) return;
+        [SerializeField] private GameObject description;
+        [SerializeField] private GameObject sign;
 
-        sign.SetActive(false);
-        description.SetActive(true);
-    }
+        private void OnTriggerEnter(Collider other)
+        {
+            if (!other.CompareTag("UserTrigger")) return;
 
-    private void OnTriggerExit(Collider other)
-    {
-        if (!other.CompareTag("UserTrigger")) return;
+            sign.SetActive(false);
+            description.SetActive(true);
+        }
 
-        description.SetActive(false);
-        sign.SetActive(true);
+        private void OnTriggerExit(Collider other)
+        {
+            if (!other.CompareTag("UserTrigger")) return;
+
+            description.SetActive(false);
+            sign.SetActive(true);
+        }
     }
 }
