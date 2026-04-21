@@ -907,6 +907,51 @@ Transform:
   - {fileID: 1043588389}
   m_Father: {fileID: 1188183542}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &152155128
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 152155130}
+  - component: {fileID: 152155129}
+  m_Layer: 0
+  m_Name: GlobalProperties
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &152155129
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 152155128}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 92c5ee2812d510b4e98e60b68f57b927, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  IsShowNavigation: 1
+--- !u!4 &152155130
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 152155128}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 373.49704, y: -67.67332, z: 149.89407}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &166165997
 GameObject:
   m_ObjectHideFlags: 0
@@ -3276,13 +3321,15 @@ MonoBehaviour:
   pathMaterial: {fileID: 2100000, guid: 8a044bce2f1abb54aa94c709d735ba71, type: 2}
   fallbackColor: {r: 0, g: 1, b: 0, a: 1}
   metersPerTile: 2
-  lineHeightOffset: -0.2
+  lineHeightOffset: 0.2
   showLineHeightSlider: 1
   lineHeightMin: -0.5
   lineHeightMax: 0.5
   lineHeightSliderWidthPercent: 0.7
   lineHeightSliderHeight: 24
   lineHeightSliderYOffset: 120
+  enableDebugLogs: 1
+  debugRepeatInterval: 1.5
 --- !u!23 &624480257
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -3306,7 +3353,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 2100000, guid: 8a044bce2f1abb54aa94c709d735ba71, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -4969,8 +5016,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 663512d92723a5d45b997cd246e68f38, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gpsMarker: {fileID: 0}
+  gpsMarker: {fileID: 108915360}
   mapPlane: {fileID: 1188183542}
+  autoUpdatePositionFromGps: 0
+  applyAltitude: 0
   targetLat: 10.773857
   targetLon: 106.660603
   targetAlt: 0
@@ -9806,3 +9855,4 @@ SceneRoots:
   - {fileID: 974979344}
   - {fileID: 624480259}
   - {fileID: 1329301474}
+  - {fileID: 152155130}

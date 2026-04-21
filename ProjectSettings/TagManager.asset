@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 3
   tags:
   - UserTrigger
+  - Wall
+  - Stair
+  - ARCamera
   layers:
   - Default
   - TransparentFX
