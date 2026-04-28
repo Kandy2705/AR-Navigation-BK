@@ -2307,7 +2307,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 453824764}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &203920872
 MonoBehaviour:
@@ -2358,6 +2358,7 @@ MonoBehaviour:
   - id: 11
     asset: {fileID: 9197481963319205126, guid: a58c0dfd7c022114f97861606340b81a, type: 3}
   ARPageObject: {fileID: 1385219208}
+  hybridModeController: {fileID: 0}
   keepARPageDisabledOnStart: 1
   firstPage: 15
 --- !u!114 &203920873
@@ -5860,14 +5861,12 @@ Transform:
   - {fileID: 1391919006}
   - {fileID: 1777215808}
   - {fileID: 1507200839}
-  - {fileID: 203920871}
   - {fileID: 1937024117}
   - {fileID: 1167785825}
   - {fileID: 937746132}
   - {fileID: 1626602496}
   - {fileID: 486894509}
   - {fileID: 1247218533}
-  - {fileID: 583967180}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &473065742
@@ -7570,7 +7569,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 453824764}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &583967181
 MonoBehaviour:
@@ -7585,6 +7584,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   nextObject: {fileID: 203920870}
+  hybridModeController: {fileID: 0}
 --- !u!1 &596139510
 GameObject:
   m_ObjectHideFlags: 0
@@ -8049,6 +8049,8 @@ MonoBehaviour:
   topDownCamera: {fileID: 810313856}
   navTargetObject: {fileID: 974979345}
   markerObject: {fileID: 2012369690}
+  requiredActiveRoot: {fileID: 1669869569}
+  requireReferencesActive: 1
   startWidth: 0.15
   endWidth: 0.15
   pathMaterial: {fileID: 2100000, guid: 8a044bce2f1abb54aa94c709d735ba71, type: 2}
@@ -22602,7 +22604,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1669869570
 Transform:
   m_ObjectHideFlags: 0
@@ -26046,7 +26048,7 @@ AudioListener:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1936069865}
-  m_Enabled: 1
+  m_Enabled: 0
 --- !u!20 &1936069874
 Camera:
   m_ObjectHideFlags: 0
@@ -28245,21 +28247,29 @@ MonoBehaviour:
   autoManageCanvases: 1
   autoManageAudioSources: 1
   autoManageAudioListeners: 1
+  enforceSingleAudioListener: 1
+  autoManageMainCameraTag: 1
+  indoorMainCamera: {fileID: 1936069874}
+  outdoorMainCamera: {fileID: 2012369697}
   indoorOnlyVisualRoots: []
   outdoorOnlyVisualRoots: []
   indoorAudioSources: []
   outdoorAudioSources: []
   indoorAudioListeners: []
   outdoorAudioListeners: []
+  createSharedOutdoorHud: 1
   createTransitionOverlay: 1
   transitionFadeSeconds: 0.25
   transitionHoldSeconds: 0.55
   indoorToOutdoorMessage: Switching to GPS
   outdoorToIndoorMessage: Indoor map found
-  keepIndoorActiveWhileOutdoor: 1
+  keepIndoorActiveWhileOutdoor: 0
   keepOutdoorActiveWhileIndoor: 0
+  alwaysActiveRoots: []
   gpsMarker: {fileID: 108915360}
-  initialMode: 0
+  initialMode: 1
+  activateInitialModeOnStart: 0
+  autoSwitchEnabled: 0
   indoorLostToOutdoorDelay: 5
   gpsStableRequiredTime: 3
   requireGpsForIndoorToOutdoor: 0
@@ -28758,6 +28768,8 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
+  - {fileID: 203920871}
   - {fileID: 1669869570}
   - {fileID: 453824764}
   - {fileID: 2099900011}
+  - {fileID: 583967180}

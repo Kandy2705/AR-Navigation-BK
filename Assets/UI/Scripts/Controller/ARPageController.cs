@@ -4,6 +4,7 @@ public class ARPageController : MonoBehaviour
 {
     [Tooltip("Object UI Toolkit chinh (MainScreen) de quay lai.")]
     public GameObject nextObject;
+    [SerializeField] private HybridModeController hybridModeController;
 
     public void SwitchObject()
     {
@@ -22,6 +23,7 @@ public class ARPageController : MonoBehaviour
 
         navigator.firstPage = navigator.ConsumeReturnPageFromAR();
         nextObject.SetActive(true);
+        DeactivateHybridARMode();
 
         if (navigator.ARPageObject != null)
         {
@@ -30,6 +32,19 @@ public class ARPageController : MonoBehaviour
         else
         {
             Debug.LogWarning("[ARPageController] ARPageObject is null on NavigationManager.");
+        }
+    }
+
+    private void DeactivateHybridARMode()
+    {
+        if (hybridModeController == null)
+        {
+            hybridModeController = FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
+        }
+
+        if (hybridModeController != null)
+        {
+            hybridModeController.DeactivateARMode();
         }
     }
 }

@@ -16,6 +16,12 @@ public class SetNavigation : MonoBehaviour
     private GameObject markerObject;
 
     [SerializeField]
+    private GameObject requiredActiveRoot;
+
+    [SerializeField]
+    private bool requireReferencesActive = true;
+
+    [SerializeField]
     private float startWidth = 0.2f;
 
     [SerializeField]
@@ -92,19 +98,21 @@ public class SetNavigation : MonoBehaviour
 
     void Update()
     {
+        if (!CanRenderNavigation())
+        {
+            HidePath("INACTIVE_CONTEXT", "Required root, marker, or target is inactive");
+            return;
+        }
+
         if (GlobalProperties.Instance == null)
         {
-            mesh.Clear();
-            meshRenderer.enabled = false;
-            LogState("MISSING_GLOBAL_PROPERTIES", "GlobalProperties.Instance is null");
+            HidePath("MISSING_GLOBAL_PROPERTIES", "GlobalProperties.Instance is null");
             return;
         }
 
         if (!GlobalProperties.Instance.IsShowNavigation)
         {
-            mesh.Clear();
-            meshRenderer.enabled = false;
-            LogState("NAVIGATION_HIDDEN", "GlobalProperties.IsShowNavigation == false");
+            HidePath("NAVIGATION_HIDDEN", "GlobalProperties.IsShowNavigation == false");
             return;
         }
 
@@ -112,12 +120,11 @@ public class SetNavigation : MonoBehaviour
 
         if (navTargetObject == null || markerObject == null)
         {
-            mesh.Clear();
-            LogState(
+            HidePath(
                 "MISSING_REFERENCE",
-                () => $"markerObject null={markerObject == null}, navTargetObject null={navTargetObject == null}, " +
-                      $"markerRef={(markerObject != null ? markerObject.name : "null")}, " +
-                      $"targetRef={(navTargetObject != null ? navTargetObject.name : "null")}");
+                $"markerObject null={markerObject == null}, navTargetObject null={navTargetObject == null}, " +
+                $"markerRef={(markerObject != null ? markerObject.name : "null")}, " +
+                $"targetRef={(navTargetObject != null ? navTargetObject.name : "null")}");
             return;
         }
 
@@ -169,6 +176,54 @@ public class SetNavigation : MonoBehaviour
                       $"markerToStart={Vector3.Distance(markerObject.transform.position, startHit.position):0.###}, " +
                       $"targetToEnd={Vector3.Distance(navTargetObject.transform.position, endHit.position):0.###}");
         }
+    }
+
+    private void OnDisable()
+    {
+        if (mesh != null)
+        {
+            mesh.Clear();
+        }
+
+        if (meshRenderer != null)
+        {
+            meshRenderer.enabled = false;
+        }
+    }
+
+    private bool CanRenderNavigation()
+    {
+        if (requiredActiveRoot != null && !requiredActiveRoot.activeInHierarchy)
+        {
+            return false;
+        }
+
+        if (!requireReferencesActive)
+        {
+            return true;
+        }
+
+        if (markerObject != null && !markerObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        return navTargetObject == null || navTargetObject.activeInHierarchy;
+    }
+
+    private void HidePath(string state, string detail)
+    {
+        if (mesh != null)
+        {
+            mesh.Clear();
+        }
+
+        if (meshRenderer != null)
+        {
+            meshRenderer.enabled = false;
+        }
+
+        LogState(state, detail);
     }
 
     private void OnGUI()

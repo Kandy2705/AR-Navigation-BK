@@ -24,6 +24,10 @@ public class HybridModeController : MonoBehaviour
     [SerializeField] private bool autoManageCanvases = true;
     [SerializeField] private bool autoManageAudioSources = true;
     [SerializeField] private bool autoManageAudioListeners = true;
+    [SerializeField] private bool enforceSingleAudioListener = true;
+    [SerializeField] private bool autoManageMainCameraTag = true;
+    [SerializeField] private Camera indoorMainCamera;
+    [SerializeField] private Camera outdoorMainCamera;
     [Tooltip("Objects to hide in Outdoor while keeping indoor localization/runtime alive.")]
     [SerializeField] private List<GameObject> indoorOnlyVisualRoots = new List<GameObject>();
     [Tooltip("Objects to hide in Indoor if outdoor runtime is kept alive.")]
@@ -32,6 +36,7 @@ public class HybridModeController : MonoBehaviour
     [SerializeField] private List<AudioSource> outdoorAudioSources = new List<AudioSource>();
     [SerializeField] private List<AudioListener> indoorAudioListeners = new List<AudioListener>();
     [SerializeField] private List<AudioListener> outdoorAudioListeners = new List<AudioListener>();
+    [SerializeField] private bool createSharedOutdoorHud = true;
 
     [Header("Transition Overlay")]
     [SerializeField] private bool createTransitionOverlay = true;
@@ -42,17 +47,23 @@ public class HybridModeController : MonoBehaviour
 
     [Header("Topology")]
     [Tooltip("Keep indoor runtime alive during Outdoor mode so localization can still run.")]
-    [SerializeField] private bool keepIndoorActiveWhileOutdoor = true;
+    [SerializeField] private bool keepIndoorActiveWhileOutdoor = false;
     [Tooltip("Keep outdoor runtime alive during Indoor mode (usually false).")]
     [SerializeField] private bool keepOutdoorActiveWhileIndoor = false;
+    [Tooltip("Roots that must stay active across modes, such as AR Session, XR Origin, ARCamera, and shared UI.")]
+    [SerializeField] private List<GameObject> alwaysActiveRoots = new List<GameObject>();
 
     [Header("Signal Sources")]
     [SerializeField] private GPSMarker gpsMarker;
 
     [Header("Initial State")]
     [SerializeField] private HybridMode initialMode = HybridMode.Outdoor;
+    [Tooltip("When disabled, AR environments stay inactive until Apply Initial Mode, Force Indoor, or Force Outdoor is called.")]
+    [SerializeField] private bool activateInitialModeOnStart = false;
 
     [Header("Switch Rules")]
+    [Tooltip("When disabled, mode only changes through explicit calls such as Force Indoor, Force Outdoor, or Apply Initial Mode.")]
+    [SerializeField] private bool autoSwitchEnabled = false;
     [Tooltip("Seconds of continuous localization failure before allowing Indoor -> Outdoor.")]
     [SerializeField] private float indoorLostToOutdoorDelay = 8f;
     [Tooltip("Seconds GPS must stay good before allowing Indoor -> Outdoor.")]
@@ -85,18 +96,33 @@ public class HybridModeController : MonoBehaviour
     private CanvasGroup transitionCanvasGroup;
     private TextMeshProUGUI transitionText;
     private Coroutine transitionRoutine;
+    private bool hasCachedPresentationReferences;
 
     private void Start()
     {
         CachePresentationReferences();
         CreateTransitionOverlayIfNeeded();
+        CreateSharedOutdoorHudIfNeeded();
         ResetTimers();
         currentMode = HybridMode.Transition;
-        ApplyMode(initialMode, "Initialize");
+
+        if (activateInitialModeOnStart)
+        {
+            ApplyMode(initialMode, "Initialize");
+        }
+        else
+        {
+            DeactivateARMode();
+        }
     }
 
     private void Update()
     {
+        if (!autoSwitchEnabled)
+        {
+            return;
+        }
+
         bool gpsGood = IsGpsGood();
         bool indoorLocalized = IsLocalizationGood();
 
@@ -126,6 +152,14 @@ public class HybridModeController : MonoBehaviour
             {
                 ApplyMode(HybridMode.Indoor, "Indoor localization stable");
             }
+        }
+    }
+
+    private void LateUpdate()
+    {
+        if (autoManageAudioListeners && enforceSingleAudioListener)
+        {
+            EnforceSingleAudioListener(currentMode);
         }
     }
 
@@ -159,6 +193,68 @@ public class HybridModeController : MonoBehaviour
         ApplyMode(HybridMode.Outdoor, "ForceOutdoor");
     }
 
+    [ContextMenu("Hybrid/Apply Initial Mode")]
+    public void ApplyInitialMode()
+    {
+        CachePresentationReferences();
+        CreateTransitionOverlayIfNeeded();
+        currentMode = HybridMode.Transition;
+        ApplyMode(initialMode, "ApplyInitialMode");
+    }
+
+    [ContextMenu("Hybrid/Deactivate AR")]
+    public void DeactivateARMode()
+    {
+        CachePresentationReferences();
+        ResetTimers();
+
+        if (transitionRoutine != null)
+        {
+            StopCoroutine(transitionRoutine);
+            transitionRoutine = null;
+        }
+
+        if (transitionCanvasGroup != null)
+        {
+            transitionCanvasGroup.alpha = 0f;
+            transitionCanvasGroup.blocksRaycasts = false;
+            transitionCanvasGroup.interactable = false;
+        }
+
+        SetRootActiveDirect(indoorEnvironment, false);
+        SetRootActiveDirect(outdoorEnvironment, false);
+        SetRootActiveDirect(indoorVisualRoot, false);
+        SetRootsActiveDirect(indoorOnlyVisualRoots, false);
+        SetRootsActiveDirect(outdoorOnlyVisualRoots, false);
+        SetRootsActiveDirect(alwaysActiveRoots, false);
+
+        if (autoManageCanvases)
+        {
+            SetCanvasesEnabled(indoorEnvironment, false);
+            SetCanvasesEnabled(outdoorEnvironment, false);
+        }
+
+        if (autoManageAudioSources)
+        {
+            SetAudioSourcesEnabled(indoorAudioSources, false);
+            SetAudioSourcesEnabled(outdoorAudioSources, false);
+        }
+
+        if (autoManageAudioListeners)
+        {
+            SetAudioListenersEnabled(indoorAudioListeners, false);
+            SetAudioListenersEnabled(outdoorAudioListeners, false);
+        }
+
+        currentMode = HybridMode.Transition;
+        hasAppliedInitialMode = false;
+
+        if (verboseLog)
+        {
+            Debug.Log("[HybridMode] AR environments deactivated");
+        }
+    }
+
     [ContextMenu("Hybrid/Mark Localization Success")]
     public void DebugLocalizationSuccess()
     {
@@ -187,6 +283,11 @@ public class HybridModeController : MonoBehaviour
         if (hasAppliedInitialMode)
         {
             PlayTransition(nextMode);
+        }
+
+        if (autoManageMainCameraTag)
+        {
+            ApplyMainCameraTag(nextMode);
         }
 
         SetEnvironmentActive(nextMode);
@@ -219,12 +320,19 @@ public class HybridModeController : MonoBehaviour
 
         if (indoorVisualRoot != null)
         {
-            indoorVisualRoot.SetActive(mode == HybridMode.Indoor);
+            SetRootActiveIfNotProtected(indoorVisualRoot, mode == HybridMode.Indoor);
         }
+
+        SetRootsActive(alwaysActiveRoots, true);
     }
 
     private void CachePresentationReferences()
     {
+        if (hasCachedPresentationReferences)
+        {
+            return;
+        }
+
         if (indoorVisualRoot != null && !indoorOnlyVisualRoots.Contains(indoorVisualRoot))
         {
             indoorOnlyVisualRoots.Add(indoorVisualRoot);
@@ -241,6 +349,21 @@ public class HybridModeController : MonoBehaviour
             AddAudioListeners(indoorEnvironment, indoorAudioListeners);
             AddAudioListeners(outdoorEnvironment, outdoorAudioListeners);
         }
+
+        if (autoManageMainCameraTag)
+        {
+            if (indoorMainCamera == null)
+            {
+                indoorMainCamera = FindPreferredCamera(indoorEnvironment, "ARCamera");
+            }
+
+            if (outdoorMainCamera == null)
+            {
+                outdoorMainCamera = FindPreferredCamera(outdoorEnvironment, "Main Camera");
+            }
+        }
+
+        hasCachedPresentationReferences = true;
     }
 
     private void SetModePresentation(HybridMode mode)
@@ -255,6 +378,11 @@ public class HybridModeController : MonoBehaviour
 
         SetRootsActive(indoorOnlyVisualRoots, indoorVisible);
         SetRootsActive(outdoorOnlyVisualRoots, outdoorVisible);
+
+        if (autoManageMainCameraTag)
+        {
+            ApplyMainCameraTag(mode);
+        }
 
         if (autoManageCanvases)
         {
@@ -272,6 +400,7 @@ public class HybridModeController : MonoBehaviour
         {
             SetAudioListenersEnabled(indoorAudioListeners, indoorVisible);
             SetAudioListenersEnabled(outdoorAudioListeners, outdoorVisible);
+            EnforceSingleAudioListener(mode);
         }
     }
 
@@ -286,9 +415,69 @@ public class HybridModeController : MonoBehaviour
         {
             if (root != null)
             {
-                root.SetActive(active);
+                SetRootActiveIfNotProtected(root, active);
             }
         }
+    }
+
+    private void SetRootsActiveDirect(List<GameObject> roots, bool active)
+    {
+        if (roots == null)
+        {
+            return;
+        }
+
+        foreach (GameObject root in roots)
+        {
+            SetRootActiveDirect(root, active);
+        }
+    }
+
+    private void SetRootActiveDirect(GameObject root, bool active)
+    {
+        if (root != null)
+        {
+            root.SetActive(active);
+        }
+    }
+
+    private void SetRootActiveIfNotProtected(GameObject root, bool active)
+    {
+        if (root == null)
+        {
+            return;
+        }
+
+        if (IsProtectedRoot(root))
+        {
+            root.SetActive(true);
+            return;
+        }
+
+        root.SetActive(active);
+    }
+
+    private bool IsProtectedRoot(GameObject root)
+    {
+        if (alwaysActiveRoots == null || root == null)
+        {
+            return false;
+        }
+
+        foreach (GameObject protectedRoot in alwaysActiveRoots)
+        {
+            if (protectedRoot == null)
+            {
+                continue;
+            }
+
+            if (root == protectedRoot || root.transform.IsChildOf(protectedRoot.transform))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void SetCanvasesEnabled(GameObject root, bool enabled)
@@ -385,9 +574,173 @@ public class HybridModeController : MonoBehaviour
         }
     }
 
+    private Camera FindPreferredCamera(GameObject root, string preferredName)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        Camera[] cameras = root.GetComponentsInChildren<Camera>(true);
+        foreach (Camera camera in cameras)
+        {
+            if (camera != null && camera.name == preferredName)
+            {
+                return camera;
+            }
+        }
+
+        foreach (Camera camera in cameras)
+        {
+            if (camera != null && camera.targetTexture == null)
+            {
+                return camera;
+            }
+        }
+
+        return cameras.Length > 0 ? cameras[0] : null;
+    }
+
+    private void ApplyMainCameraTag(HybridMode mode)
+    {
+        Camera preferred = mode == HybridMode.Indoor ? indoorMainCamera : outdoorMainCamera;
+        if (preferred == null || !preferred.gameObject.activeInHierarchy)
+        {
+            preferred = mode == HybridMode.Indoor
+                ? FindPreferredCamera(indoorEnvironment, "ARCamera")
+                : FindPreferredCamera(outdoorEnvironment, "Main Camera");
+        }
+
+        ClearMainCameraTag(indoorEnvironment, preferred);
+        ClearMainCameraTag(outdoorEnvironment, preferred);
+
+        if (preferred != null)
+        {
+            preferred.tag = "MainCamera";
+        }
+    }
+
+    private void ClearMainCameraTag(GameObject root, Camera preferred)
+    {
+        if (root == null)
+        {
+            return;
+        }
+
+        Camera[] cameras = root.GetComponentsInChildren<Camera>(true);
+        foreach (Camera camera in cameras)
+        {
+            if (camera == null || camera == preferred)
+            {
+                continue;
+            }
+
+            if (camera.CompareTag("MainCamera"))
+            {
+                camera.tag = "Untagged";
+            }
+        }
+    }
+
+    private void EnforceSingleAudioListener(HybridMode mode)
+    {
+        AudioListener[] allListeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (allListeners == null || allListeners.Length == 0)
+        {
+            return;
+        }
+
+        AudioListener preferred = SelectPreferredAudioListener(mode, allListeners);
+
+        foreach (AudioListener listener in allListeners)
+        {
+            if (listener != null)
+            {
+                listener.enabled = listener == preferred;
+            }
+        }
+    }
+
+    private AudioListener SelectPreferredAudioListener(HybridMode mode, AudioListener[] allListeners)
+    {
+        AudioListener preferred = mode == HybridMode.Indoor
+            ? SelectCameraAudioListener(indoorAudioListeners)
+            : SelectCameraAudioListener(outdoorAudioListeners);
+
+        if (preferred != null)
+        {
+            return preferred;
+        }
+
+        preferred = mode == HybridMode.Indoor
+            ? SelectCameraAudioListener(outdoorAudioListeners)
+            : SelectCameraAudioListener(indoorAudioListeners);
+
+        if (preferred != null)
+        {
+            return preferred;
+        }
+
+        foreach (AudioListener listener in allListeners)
+        {
+            if (listener == null || !listener.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            Camera camera = listener.GetComponent<Camera>();
+            if (camera != null && camera.enabled && camera.targetTexture == null)
+            {
+                return listener;
+            }
+        }
+
+        foreach (AudioListener listener in allListeners)
+        {
+            if (listener != null && listener.gameObject.activeInHierarchy)
+            {
+                return listener;
+            }
+        }
+
+        return allListeners[0];
+    }
+
+    private AudioListener SelectCameraAudioListener(List<AudioListener> listeners)
+    {
+        if (listeners == null)
+        {
+            return null;
+        }
+
+        foreach (AudioListener listener in listeners)
+        {
+            if (listener == null || !listener.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            Camera camera = listener.GetComponent<Camera>();
+            if (camera != null && camera.enabled && camera.targetTexture == null)
+            {
+                return listener;
+            }
+        }
+
+        foreach (AudioListener listener in listeners)
+        {
+            if (listener != null && listener.gameObject.activeInHierarchy)
+            {
+                return listener;
+            }
+        }
+
+        return null;
+    }
+
     private void CreateTransitionOverlayIfNeeded()
     {
-        if (!createTransitionOverlay || transitionCanvasGroup != null)
+        if (!Application.isPlaying || !createTransitionOverlay || transitionCanvasGroup != null)
         {
             return;
         }
@@ -446,6 +799,19 @@ public class HybridModeController : MonoBehaviour
         transitionText.fontSize = 18f;
         transitionText.fontStyle = FontStyles.Bold;
         transitionText.text = string.Empty;
+    }
+
+    private void CreateSharedOutdoorHudIfNeeded()
+    {
+        if (!Application.isPlaying || !createSharedOutdoorHud)
+        {
+            return;
+        }
+
+        if (GetComponent<SharedARUIController>() == null)
+        {
+            gameObject.AddComponent<SharedARUIController>();
+        }
     }
 
     private void PlayTransition(HybridMode nextMode)

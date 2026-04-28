@@ -14,6 +14,7 @@ public class NavigationManager : MonoBehaviour
     public UIDocument mainDocument;
     public List<PageRoute> pages;
     public GameObject ARPageObject;
+    [SerializeField] private HybridModeController hybridModeController;
     [SerializeField] private bool keepARPageDisabledOnStart = true;
     private VisualElement rootContainer;
 
@@ -117,7 +118,21 @@ public class NavigationManager : MonoBehaviour
         }
 
         ARPageObject.SetActive(true);
+        ApplyHybridInitialMode();
         gameObject.SetActive(false);
+    }
+
+    private void ApplyHybridInitialMode()
+    {
+        if (hybridModeController == null)
+        {
+            hybridModeController = FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
+        }
+
+        if (hybridModeController != null)
+        {
+            hybridModeController.ApplyInitialMode();
+        }
     }
 
     public void EnterARPage()
