@@ -34,7 +34,7 @@ public class SetNavigation : MonoBehaviour
     private float lineHeightOffset = -0.2f;
 
     [SerializeField]
-    private bool showLineHeightSlider = true;
+    private bool showLineHeightSlider = false;
 
     [SerializeField]
     private float lineHeightMin = -0.5f;
@@ -173,22 +173,8 @@ public class SetNavigation : MonoBehaviour
 
     private void OnGUI()
     {
-        if (!showLineHeightSlider)
-        {
-            return;
-        }
-
-        float clampedWidthPercent = Mathf.Clamp(lineHeightSliderWidthPercent, 0.1f, 1f);
-        float sliderWidth = Screen.width * clampedWidthPercent;
-        float sliderX = (Screen.width - sliderWidth) * 0.5f;
-        float sliderY = lineHeightSliderYOffset;
-        Rect labelRect = new Rect(sliderX - 10f, sliderY - 28f, sliderWidth + 20f, 24f);
-        GUI.Label(labelRect, $"Line Height: {lineHeightOffset:0.00}m");
-        lineHeightOffset = GUI.HorizontalSlider(
-            new Rect(sliderX, sliderY, sliderWidth, lineHeightSliderHeight),
-            lineHeightOffset,
-            lineHeightMin,
-            lineHeightMax);
+        // IMGUI debug slider intentionally disabled.
+        return;
     }
 
     void BuildPathMesh(Vector3[] corners)

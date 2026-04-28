@@ -3322,7 +3322,7 @@ MonoBehaviour:
   fallbackColor: {r: 0, g: 1, b: 0, a: 1}
   metersPerTile: 2
   lineHeightOffset: 0.2
-  showLineHeightSlider: 1
+  showLineHeightSlider: 0
   lineHeightMin: -0.5
   lineHeightMax: 0.5
   lineHeightSliderWidthPercent: 0.7

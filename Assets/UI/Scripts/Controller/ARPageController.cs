@@ -1,33 +1,35 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class ARPageController : MonoBehaviour
 {
-    [Tooltip("Kéo object màn hình mới vào đây")]
+    [Tooltip("Object UI Toolkit chinh (MainScreen) de quay lai.")]
     public GameObject nextObject;
-    private NavigationManager navigator;
 
-    // private void Awake()
-    // {
-    //     if(nextObject != null)
-    //     {
-    //         navigator = nextObject.GetComponent<NavigationManager>();
-    //         navigator.firstPage = NavigationManager.pageHistory.Peek();
-    //         Debug.Log($"Trang trước đó trước khi vào trang AR là {navigator.firstPage}");
-    //     }
-    // }
     public void SwitchObject()
     {
-         if(nextObject != null)
+        if (nextObject == null)
         {
-            navigator = nextObject.GetComponent<NavigationManager>();
-            navigator.firstPage = navigator.PreviousPage();
-            Debug.Log($"Trang trước đó trước khi vào trang AR là {navigator.firstPage}");
+            Debug.LogError("[ARPageController] nextObject is not assigned.");
+            return;
         }
-        if (nextObject != null)
+
+        var navigator = nextObject.GetComponent<NavigationManager>();
+        if (navigator == null)
         {
-            nextObject.SetActive(true); 
+            Debug.LogError("[ARPageController] NavigationManager not found on nextObject.");
+            return;
         }
-        
-        gameObject.SetActive(false);
+
+        navigator.firstPage = navigator.ConsumeReturnPageFromAR();
+        nextObject.SetActive(true);
+
+        if (navigator.ARPageObject != null)
+        {
+            navigator.ARPageObject.SetActive(false);
+        }
+        else
+        {
+            Debug.LogWarning("[ARPageController] ARPageObject is null on NavigationManager.");
+        }
     }
 }

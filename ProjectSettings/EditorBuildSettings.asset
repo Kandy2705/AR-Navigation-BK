@@ -8,9 +8,12 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
-  - enabled: 1
+  - enabled: 0
     path: Assets/Samples/MultiSet-SDK/1.9.2/Sample Scenes/Navigation/Navigation.unity
     guid: 661affd263ed54019b4f2d59bbdb7c73
+  - enabled: 1
+    path: Assets/Scenes/Hybrid Navigation.unity
+    guid: 4247594b285aadf4bb2d1083bbb676d6
   m_configObjects:
     UnityEditor.XR.ARCore.ARCoreSettings: {fileID: 11400000, guid: 4edba7d170d55ac4192bad054438baa8, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

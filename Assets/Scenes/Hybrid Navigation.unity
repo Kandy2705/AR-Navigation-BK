@@ -1447,7 +1447,7 @@ MonoBehaviour:
   alignStrength: 1
   useMockMovement: 0
   mockSpeed: 1.5
-  useMockCompass: 1
+  useMockCompass: 0
   mockCompassHeading: 90
   maxAcceptableAccuracy: 30
   headingSmoothFactor: 0.1
@@ -1576,8 +1576,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 212.81148, y: -95}
-  m_SizeDelta: {x: 345.62296, y: 180}
+  m_AnchoredPosition: {x: 215.48592, y: -95}
+  m_SizeDelta: {x: 350.97183, y: 180}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &130038590
 MonoBehaviour:
@@ -2351,15 +2351,14 @@ MonoBehaviour:
     asset: {fileID: 9197481963319205126, guid: c957e044cb961a7498e5c1e7504edba3, type: 3}
   - id: 12
     asset: {fileID: 9197481963319205126, guid: 14f80055df91aea4fb224f4bedfe994b, type: 3}
-  - id: 15
-    asset: {fileID: 9197481963319205126, guid: fb8bdc5af4312db47a977df12b8f6500, type: 3}
   - id: 16
     asset: {fileID: 9197481963319205126, guid: 7803b9b6792b3064bae24e2b67c35c5b, type: 3}
   - id: 17
     asset: {fileID: 9197481963319205126, guid: a58c0dfd7c022114f97861606340b81a, type: 3}
   - id: 11
     asset: {fileID: 9197481963319205126, guid: a58c0dfd7c022114f97861606340b81a, type: 3}
-  ARPageObject: {fileID: 0}
+  ARPageObject: {fileID: 1385219208}
+  keepARPageDisabledOnStart: 1
   firstPage: 15
 --- !u!114 &203920873
 MonoBehaviour:
@@ -3842,7 +3841,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 973.9871, y: -50}
+  m_AnchoredPosition: {x: 974.25903, y: -50}
   m_SizeDelta: {x: 280, y: 45}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &293208561
@@ -3889,8 +3888,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: ARPage, Assembly-CSharp
+      - m_Target: {fileID: 583967181}
+        m_TargetAssemblyTypeName: ARPageController, Assembly-CSharp
         m_MethodName: SwitchObject
         m_Mode: 1
         m_Arguments:
@@ -3899,19 +3898,7 @@ MonoBehaviour:
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
-          m_BoolArgument: 1
-        m_CallState: 2
-      - m_Target: {fileID: 1385219208}
-        m_TargetAssemblyTypeName: UnityEngine.GameObject, UnityEngine
-        m_MethodName: SetActive
-        m_Mode: 6
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 1
+          m_BoolArgument: 0
         m_CallState: 2
 --- !u!114 &293208562
 MonoBehaviour:
@@ -6150,6 +6137,71 @@ MonoBehaviour:
   inputField: {fileID: 0}
   talkImage: {fileID: 0}
   talkText: {fileID: 0}
+--- !u!1001 &490305687
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 2032334732}
+    m_Modifications:
+    - target: {fileID: 4814140183114437194, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_Name
+      value: MAP_9LME2PB7Y3EN
+      objectReference: {fileID: 0}
+    - target: {fileID: 4814140183114437194, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4814140183114437194, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_TagString
+      value: EditorOnly
+      objectReference: {fileID: 0}
+    - target: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
 --- !u!1 &491483755
 GameObject:
   m_ObjectHideFlags: 0
@@ -7156,7 +7208,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
   m_AnchoredPosition: {x: 0, y: 575}
-  m_SizeDelta: {x: 425.62296, y: 190}
+  m_SizeDelta: {x: 430.97183, y: 190}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &558518553
 MonoBehaviour:
@@ -7322,6 +7374,11 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 569138885}
   m_Mesh: {fileID: -4879345758665017806, guid: 3485c3e72e9ad7d4fa7826a6ee993d8b, type: 3}
+--- !u!4 &569246123 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
+  m_PrefabInstance: {fileID: 490305687}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &580703125
 GameObject:
   m_ObjectHideFlags: 0
@@ -7527,7 +7584,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9552157c4e2a95344a516b66b42b0220, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nextObject: {fileID: 0}
+  nextObject: {fileID: 203920870}
 --- !u!1 &596139510
 GameObject:
   m_ObjectHideFlags: 0
@@ -11976,12 +12033,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   arCamera: {fileID: 1936069874}
   mapSpace: {fileID: 2032334731}
-  localizationType: 1
-  mapOrMapsetCode: MSET_AWDJFJNAVVFM
-  autoLocalize: 1
-  backgroundLocalization: 1
+  localizationType: 0
+  mapOrMapsetCode: MAP_9LME2PB7Y3EN
+  autoLocalize: 0
+  backgroundLocalization: 0
   bgLocalizationDuration: 60
-  relocalization: 1
+  relocalization: 0
   numberOfFrames: 5
   frameCaptureInterval: 0.6
   enableBlurCheck: 1
@@ -12080,6 +12137,18 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 2099900012}
+        m_TargetAssemblyTypeName: HybridModeController, Assembly-CSharp
+        m_MethodName: OnLocalizationSuccess
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
   LocalizationFailure:
     m_PersistentCalls:
       m_Calls:
@@ -12111,6 +12180,18 @@ MonoBehaviour:
         m_TargetAssemblyTypeName: UnityEngine.GameObject, UnityEngine
         m_MethodName: SetActive
         m_Mode: 6
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+      - m_Target: {fileID: 2099900012}
+        m_TargetAssemblyTypeName: HybridModeController, Assembly-CSharp
+        m_MethodName: OnLocalizationFailure
+        m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
@@ -17702,8 +17783,8 @@ MonoBehaviour:
   m_Script: {fileID: -650815242, guid: 5e2b4f19fefec46a08626f272dff56e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  clientId: 
-  clientSecret: 
+  clientId: 3fabd96e-3605-4304-ae68-5b3e7ef50ff9
+  clientSecret: 5947fa59d1bd842eeb8ac700c817d8659c9522125769506e09953272979f7052
   runtimeAuthentication: 0
 --- !u!1 &1298820302
 GameObject:
@@ -17869,7 +17950,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1300395792
 Transform:
   m_ObjectHideFlags: 0
@@ -23088,7 +23169,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1719196512
 Transform:
   m_ObjectHideFlags: 0
@@ -24761,7 +24842,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 652.3923, y: -50}
+  m_AnchoredPosition: {x: 652.5554, y: -50}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1839772753
@@ -25025,7 +25106,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 330.79742, y: -50}
+  m_AnchoredPosition: {x: 330.8518, y: -50}
   m_SizeDelta: {x: 280, y: 45}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1859578145
@@ -27509,6 +27590,7 @@ Transform:
   - {fileID: 1719196512}
   - {fileID: 1300395792}
   - {fileID: 723246777}
+  - {fileID: 569246123}
   m_Father: {fileID: 1385219209}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2032334733
@@ -28112,6 +28194,82 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2084331370}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &2099900010
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2099900011}
+  - component: {fileID: 2099900012}
+  m_Layer: 0
+  m_Name: HybridRuntime
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2099900011
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2099900010}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2099900012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2099900010}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23ee0e968d91a3a4bac0bc95fe11e6db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  indoorEnvironment: {fileID: 453824763}
+  outdoorEnvironment: {fileID: 1669869569}
+  indoorVisualRoot: {fileID: 1385219208}
+  manageModePresentation: 1
+  autoManageCanvases: 1
+  autoManageAudioSources: 1
+  autoManageAudioListeners: 1
+  indoorOnlyVisualRoots: []
+  outdoorOnlyVisualRoots: []
+  indoorAudioSources: []
+  outdoorAudioSources: []
+  indoorAudioListeners: []
+  outdoorAudioListeners: []
+  createTransitionOverlay: 1
+  transitionFadeSeconds: 0.25
+  transitionHoldSeconds: 0.55
+  indoorToOutdoorMessage: Switching to GPS
+  outdoorToIndoorMessage: Indoor map found
+  keepIndoorActiveWhileOutdoor: 1
+  keepOutdoorActiveWhileIndoor: 0
+  gpsMarker: {fileID: 108915360}
+  initialMode: 0
+  indoorLostToOutdoorDelay: 5
+  gpsStableRequiredTime: 3
+  requireGpsForIndoorToOutdoor: 0
+  indoorSuccessRequiredTime: 2
+  switchCooldown: 5
+  maxGpsAccuracyMeters: -1
+  useMockSignalsInEditor: 0
+  mockLocalizationGood: 0
+  mockGpsGood: 1
+  verboseLog: 1
 --- !u!1 &2100635685
 GameObject:
   m_ObjectHideFlags: 0
@@ -28602,3 +28760,4 @@ SceneRoots:
   m_Roots:
   - {fileID: 1669869570}
   - {fileID: 453824764}
+  - {fileID: 2099900011}

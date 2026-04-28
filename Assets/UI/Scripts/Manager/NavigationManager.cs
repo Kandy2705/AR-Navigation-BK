@@ -14,6 +14,7 @@ public class NavigationManager : MonoBehaviour
     public UIDocument mainDocument;
     public List<PageRoute> pages;
     public GameObject ARPageObject;
+    [SerializeField] private bool keepARPageDisabledOnStart = true;
     private VisualElement rootContainer;
 
     public static string CurrentChatTitle = "";
@@ -30,6 +31,11 @@ public class NavigationManager : MonoBehaviour
 
     void Awake()
     {
+        if (keepARPageDisabledOnStart && ARPageObject != null)
+        {
+            ARPageObject.SetActive(false);
+        }
+
         pageDict = new Dictionary<PageID, VisualTreeAsset>();
         foreach(var page in pages)
         {
@@ -104,11 +110,41 @@ public class NavigationManager : MonoBehaviour
 
     public void SwitchObject()
     {
-        if (ARPageObject != null)
+        if (ARPageObject == null)
         {
-            ARPageObject.SetActive(true); 
+            Debug.LogError("[NavigationManager] ARPageObject is not assigned. Cannot switch to AR page.");
+            return;
         }
+
+        ARPageObject.SetActive(true);
         gameObject.SetActive(false);
+    }
+
+    public void EnterARPage()
+    {
+        // Keep AR as a sentinel entry so return flow can resolve the correct previous page.
+        if (pageHistory.Count == 0 || pageHistory.Peek() != PageID.ARPage)
+        {
+            pageHistory.Push(PageID.ARPage);
+        }
+
+        SwitchObject();
+    }
+
+    public PageID ConsumeReturnPageFromAR()
+    {
+        // Remove AR sentinel if present.
+        if (pageHistory.Count > 0 && pageHistory.Peek() == PageID.ARPage)
+        {
+            pageHistory.Pop();
+        }
+
+        if (pageHistory.Count > 0)
+        {
+            return pageHistory.Peek();
+        }
+
+        return firstPage != PageID.None ? firstPage : PageID.MainSettings;
     }
 
     private void HandleTransition(VisualElement newPage, bool isBack)
@@ -138,7 +174,12 @@ public class NavigationManager : MonoBehaviour
         var btn = container.Q<Button>(buttonName);
         if (btn != null)
         {
-            if(targetPage == PageID.ARPage) btn.clicked += () => SwitchObject();
+            if (targetPage == PageID.ARPage)
+            {
+                btn.clicked += () => EnterARPage();
+                return;
+            }
+
             btn.clicked += () => Navigate(targetPage, leftSlide);
         }
     }
