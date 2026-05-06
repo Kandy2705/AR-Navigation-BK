@@ -22,6 +22,7 @@ public static class HybridModeBatchCheck
                 return;
             }
 
+            InvokePrivate(controller, "Awake");
             InvokePrivate(controller, "Start");
             AssertARInactive("Initial App Start");
 

@@ -48,6 +48,10 @@ public class GPSMarker : MonoBehaviour
     [Header("GPS Quality Filter")]
     [Tooltip("Reject GPS samples with horizontal accuracy worse than this (meters)")]
     public float maxAcceptableAccuracy = 30f;
+    [Tooltip("Requested Android GPS accuracy in meters")]
+    public float desiredAccuracyMeters = 5f;
+    [Tooltip("Minimum distance in meters before Android reports a new GPS position")]
+    public float updateDistanceMeters = 1f;
 
     private double lastGpsTimestamp = -1;
 
@@ -58,6 +62,27 @@ public class GPSMarker : MonoBehaviour
 
     private float smoothedHeading = 0f;
     private bool headingInitialized = false;
+
+    [Header("Outdoor Stabilization")]
+    [Tooltip("If enabled, the outdoor map is re-centered to the AR camera after meaningful GPS movement. Keep disabled to avoid jitter.")]
+    public bool continuouslyAlignEnvironment = false;
+    [Tooltip("Minimum GPS movement before re-centering the outdoor map.")]
+    public float environmentRealignDistanceMeters = 2f;
+    [Tooltip("Minimum seconds between outdoor map re-centers.")]
+    public float environmentRealignInterval = 1f;
+    [Tooltip("Minimum seconds between compass-driven map rotation updates.")]
+    public float compassUpdateInterval = 0.25f;
+    [Tooltip("Ignore tiny compass changes to keep outdoor content stable.")]
+    public float minHeadingChangeDegrees = 3f;
+    [Tooltip("Minimum seconds between GPS status text refreshes.")]
+    public float gpsTextUpdateInterval = 0.5f;
+
+    private Vector3 lastAlignedUserENU;
+    private float lastEnvironmentAlignTime = -999f;
+    private float lastHeadingUpdateTime = -999f;
+    private float lastAppliedHeading = -999f;
+    private bool headingApplied = false;
+    private float lastGpsTextUpdateTime = -999f;
 
     // ─── Phase 2: Position Smoothing ─────────────────────────────────────────
 
@@ -105,6 +130,23 @@ public class GPSMarker : MonoBehaviour
         refECEF = LatLonAltToECEF(refLat, refLon, refAlt);
     }
 
+    void OnEnable()
+    {
+        aligned = false;
+        headingApplied = false;
+        headingInitialized = false;
+        positionInitialized = false;
+        lastGpsTimestamp = -1;
+        lastVelocityTimestamp = -1;
+        estimatedVelocity = Vector3.zero;
+        gpslostTimer = 0f;
+        isDeadReckoning = false;
+        adaptiveGpsTimer = 0f;
+        lastEnvironmentAlignTime = -999f;
+        lastHeadingUpdateTime = -999f;
+        lastGpsTextUpdateTime = -999f;
+    }
+
     void OnDestroy()
     {
         Input.location.Stop();
@@ -119,6 +161,7 @@ public class GPSMarker : MonoBehaviour
             yield break;
         }
 
+        //Input.location.Start(desiredAccuracyMeters, updateDistanceMeters);
         Input.location.Start();
 
         int maxWait = 20;
@@ -161,6 +204,8 @@ public class GPSMarker : MonoBehaviour
     void UpdateHeading()
     {
         if (!useMockCompass && !Input.compass.enabled) return;
+        // if (Time.time - lastHeadingUpdateTime < compassUpdateInterval) return;
+        // lastHeadingUpdateTime = Time.time;
 
         float rawHeading = GetCurrentHeading();
 
@@ -176,11 +221,21 @@ public class GPSMarker : MonoBehaviour
             smoothedHeading = (smoothedHeading + 360f) % 360f;
         }
 
-        AlignMapRotationWithXR(smoothedHeading);
+        // if (!headingApplied || Mathf.Abs(Mathf.DeltaAngle(lastAppliedHeading, smoothedHeading)) >= minHeadingChangeDegrees)
+        // {
+        //     AlignMapRotationWithXR(smoothedHeading);
+        //     lastAppliedHeading = smoothedHeading;
+        //     headingApplied = true;
+        // }
     }
 
     void AlignMapRotationWithXR(float compassHeading)
     {
+        if (xrOrigin == null || mapPlane == null)
+        {
+            return;
+        }
+
         float xrYaw = xrOrigin.transform.rotation.eulerAngles.y;
         float mapYaw = xrYaw - compassHeading;
         mapPlane.rotation = Quaternion.Euler(0f, mapYaw, 0f);
@@ -206,6 +261,11 @@ public class GPSMarker : MonoBehaviour
 
     void AlignEnvironmentToXR()
     {
+        if (mainCamera == null || mapPlane == null)
+        {
+            return;
+        }
+
         Vector3 offset = mainCamera.transform.position - transform.position;
         offset.y = 0f;
         mapPlane.position += offset * alignStrength;
@@ -295,22 +355,25 @@ public class GPSMarker : MonoBehaviour
                 AlignEnvironmentToXR();
             }
 
-            // Phase 1.3: Continuous heading update every frame
+            //MaybeAlignEnvironmentToXR(userENU);
             UpdateHeading();
 
-            // Alignment drift correction
             if (aligned)
             {
                 Vector3 deltaENU = userENU - lastUserENU;
                 if (deltaENU.magnitude > alignThreshold)
                 {
-                    if (alignXROriginToUser.aligned) AlignEnvironmentToXR();
+                    if (alignXROriginToUser != null && alignXROriginToUser.aligned) 
+                    {
+                        AlignEnvironmentToXR();
+                    }
                 }
             }
             else
             {
                 aligned = true;
             }
+            
             lastUserENU = userENU;
         }
 
@@ -386,6 +449,8 @@ public class GPSMarker : MonoBehaviour
     void UpdateGpsText()
     {
         if (gpsText == null) return;
+        if (Time.time - lastGpsTextUpdateTime < gpsTextUpdateInterval) return;
+        lastGpsTextUpdateTime = Time.time;
 
         float accuracy = Input.location.status == LocationServiceStatus.Running
             ? Input.location.lastData.horizontalAccuracy : -1f;
@@ -399,6 +464,43 @@ public class GPSMarker : MonoBehaviour
             $"Lat: {lat:F7}  Lon: {lon:F7}\n" +
             $"Speed: {estimatedVelocity.magnitude:F1} m/s | Heading: {smoothedHeading:F1}°\n" +
             $"X: {transform.position.x:F1}  Z: {transform.position.z:F1}";
+    }
+
+    void MaybeAlignEnvironmentToXR(Vector3 userENU)
+    {
+        if (mapPlane == null || mainCamera == null)
+        {
+            aligned = true;
+            return;
+        }
+
+        if (!aligned)
+        {
+            AlignEnvironmentToXR();
+            aligned = true;
+            lastAlignedUserENU = userENU;
+            lastEnvironmentAlignTime = Time.time;
+            return;
+        }
+
+        if (!continuouslyAlignEnvironment)
+        {
+            return;
+        }
+
+        if (Time.time - lastEnvironmentAlignTime < environmentRealignInterval)
+        {
+            return;
+        }
+
+        if (Vector3.Distance(userENU, lastAlignedUserENU) < environmentRealignDistanceMeters)
+        {
+            return;
+        }
+
+        AlignEnvironmentToXR();
+        lastAlignedUserENU = userENU;
+        lastEnvironmentAlignTime = Time.time;
     }
 
     // ─── Coordinate Conversion ────────────────────────────────────────────────

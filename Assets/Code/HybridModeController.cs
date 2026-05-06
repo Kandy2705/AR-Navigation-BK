@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 public class HybridModeController : MonoBehaviour
@@ -37,6 +38,16 @@ public class HybridModeController : MonoBehaviour
     [SerializeField] private List<AudioListener> indoorAudioListeners = new List<AudioListener>();
     [SerializeField] private List<AudioListener> outdoorAudioListeners = new List<AudioListener>();
     [SerializeField] private bool createSharedOutdoorHud = true;
+
+    [Header("Runtime Test Controls")]
+    [SerializeField] private bool createRuntimeModeSwitcher = true;
+    [SerializeField] private bool showRuntimeModeSwitcherOnlyInAR = true;
+    [SerializeField] private Vector2 runtimeModeSwitcherOffset = new Vector2(12f, -58f);
+
+    [Header("Android Permissions")]
+    [SerializeField] private bool requestAndroidPermissionsBeforeAR = true;
+    [SerializeField] private bool requireLocationPermissionForOutdoor = true;
+    [SerializeField] private float permissionRequestTimeoutSeconds = 30f;
 
     [Header("Transition Overlay")]
     [SerializeField] private bool createTransitionOverlay = true;
@@ -97,22 +108,46 @@ public class HybridModeController : MonoBehaviour
     private TextMeshProUGUI transitionText;
     private Coroutine transitionRoutine;
     private bool hasCachedPresentationReferences;
+    private CanvasGroup runtimeModeSwitcherCanvasGroup;
+    private TextMeshProUGUI runtimeModeStatusText;
+    private Button runtimeIndoorButton;
+    private Button runtimeOutdoorButton;
+    private Button runtimeOffButton;
+    private bool runtimeModeSwitcherVisible;
+    private Coroutine pendingPermissionRoutine;
+    private string runtimePermissionStatus;
+    private bool deactivatedARModeInAwake;
+
+    private void Awake()
+    {
+        if (!activateInitialModeOnStart)
+        {
+            DeactivateARMode();
+            deactivatedARModeInAwake = true;
+        }
+    }
 
     private void Start()
     {
         CachePresentationReferences();
         CreateTransitionOverlayIfNeeded();
         CreateSharedOutdoorHudIfNeeded();
+        CreateRuntimeModeSwitcherIfNeeded();
         ResetTimers();
         currentMode = HybridMode.Transition;
 
         if (activateInitialModeOnStart)
         {
+            SetRuntimeModeSwitcherVisible(true);
             ApplyMode(initialMode, "Initialize");
         }
         else
         {
-            DeactivateARMode();
+            SetRuntimeModeSwitcherVisible(false);
+            if (!deactivatedARModeInAwake)
+            {
+                DeactivateARMode();
+            }
         }
     }
 
@@ -161,6 +196,8 @@ public class HybridModeController : MonoBehaviour
         {
             EnforceSingleAudioListener(currentMode);
         }
+
+        UpdateRuntimeModeSwitcher();
     }
 
     public void OnLocalizationSuccess()
@@ -184,13 +221,15 @@ public class HybridModeController : MonoBehaviour
     [ContextMenu("Hybrid/Force Indoor")]
     public void ForceIndoor()
     {
-        ApplyMode(HybridMode.Indoor, "ForceIndoor");
+        SetRuntimeModeSwitcherVisible(true);
+        RequestModeWithPermissions(HybridMode.Indoor, "ForceIndoor");
     }
 
     [ContextMenu("Hybrid/Force Outdoor")]
     public void ForceOutdoor()
     {
-        ApplyMode(HybridMode.Outdoor, "ForceOutdoor");
+        SetRuntimeModeSwitcherVisible(true);
+        RequestModeWithPermissions(HybridMode.Outdoor, "ForceOutdoor");
     }
 
     [ContextMenu("Hybrid/Apply Initial Mode")]
@@ -199,7 +238,14 @@ public class HybridModeController : MonoBehaviour
         CachePresentationReferences();
         CreateTransitionOverlayIfNeeded();
         currentMode = HybridMode.Transition;
-        ApplyMode(initialMode, "ApplyInitialMode");
+        SetRuntimeModeSwitcherVisible(true);
+        RequestModeWithPermissions(initialMode, "ApplyInitialMode");
+    }
+
+    public void SetRuntimeModeSwitcherVisible(bool visible)
+    {
+        runtimeModeSwitcherVisible = visible;
+        ApplyRuntimeModeSwitcherVisibility();
     }
 
     [ContextMenu("Hybrid/Deactivate AR")]
@@ -207,6 +253,15 @@ public class HybridModeController : MonoBehaviour
     {
         CachePresentationReferences();
         ResetTimers();
+
+        if (pendingPermissionRoutine != null)
+        {
+            StopCoroutine(pendingPermissionRoutine);
+            pendingPermissionRoutine = null;
+        }
+
+        runtimePermissionStatus = null;
+        SetRuntimeModeButtonsInteractable(true);
 
         if (transitionRoutine != null)
         {
@@ -302,6 +357,133 @@ public class HybridModeController : MonoBehaviour
             Debug.Log($"[HybridMode] -> {currentMode} | reason={reason} | gpsAccuracy={lastGpsAccuracy:F1}m");
         }
     }
+
+    private void RequestModeWithPermissions(HybridMode nextMode, string reason)
+    {
+#if UNITY_ANDROID && !UNITY_EDITOR
+        if (Application.isPlaying &&
+            requestAndroidPermissionsBeforeAR &&
+            !HasRequiredAndroidPermissions(nextMode))
+        {
+            if (pendingPermissionRoutine != null)
+            {
+                StopCoroutine(pendingPermissionRoutine);
+            }
+
+            pendingPermissionRoutine = StartCoroutine(ApplyModeAfterAndroidPermissions(nextMode, reason));
+            return;
+        }
+#endif
+
+        runtimePermissionStatus = null;
+        SetRuntimeModeButtonsInteractable(true);
+        ApplyMode(nextMode, reason);
+    }
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+    private bool HasRequiredAndroidPermissions(HybridMode mode)
+    {
+        if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Camera))
+        {
+            return false;
+        }
+
+        if (mode == HybridMode.Outdoor &&
+            requireLocationPermissionForOutdoor &&
+            !UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.FineLocation))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private IEnumerator ApplyModeAfterAndroidPermissions(HybridMode nextMode, string reason)
+    {
+        SetRuntimeModeSwitcherVisible(true);
+        SetRuntimeModeButtonsInteractable(false);
+
+        if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Camera))
+        {
+            runtimePermissionStatus = "Allow Camera";
+            yield return RequestAndroidPermission(UnityEngine.Android.Permission.Camera);
+        }
+
+        if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Camera))
+        {
+            runtimePermissionStatus = "Camera denied";
+            Debug.LogError("[HybridMode] Android camera permission is required before AR can render the device camera.");
+            SetRuntimeModeButtonsInteractable(true);
+            pendingPermissionRoutine = null;
+            yield break;
+        }
+
+        if (nextMode == HybridMode.Outdoor &&
+            requireLocationPermissionForOutdoor &&
+            !UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.FineLocation))
+        {
+            runtimePermissionStatus = "Allow Location";
+            yield return RequestAndroidPermission(UnityEngine.Android.Permission.FineLocation);
+        }
+
+        if (nextMode == HybridMode.Outdoor &&
+            requireLocationPermissionForOutdoor &&
+            !UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.FineLocation))
+        {
+            runtimePermissionStatus = "Location denied";
+            Debug.LogError("[HybridMode] Android fine location permission is required for Outdoor GPS mode.");
+            SetRuntimeModeButtonsInteractable(true);
+            pendingPermissionRoutine = null;
+            yield break;
+        }
+
+        runtimePermissionStatus = null;
+        SetRuntimeModeButtonsInteractable(true);
+        pendingPermissionRoutine = null;
+        ApplyMode(nextMode, reason);
+    }
+
+    private IEnumerator RequestAndroidPermission(string permission)
+    {
+        if (UnityEngine.Android.Permission.HasUserAuthorizedPermission(permission))
+        {
+            yield break;
+        }
+
+        bool resolved = false;
+        UnityEngine.Android.PermissionCallbacks callbacks = new UnityEngine.Android.PermissionCallbacks();
+        callbacks.PermissionGranted += grantedPermission =>
+        {
+            if (grantedPermission == permission)
+            {
+                resolved = true;
+            }
+        };
+        callbacks.PermissionDenied += deniedPermission =>
+        {
+            if (deniedPermission == permission)
+            {
+                resolved = true;
+            }
+        };
+        callbacks.PermissionDeniedAndDontAskAgain += deniedPermission =>
+        {
+            if (deniedPermission == permission)
+            {
+                resolved = true;
+            }
+        };
+
+        UnityEngine.Android.Permission.RequestUserPermission(permission, callbacks);
+
+        float elapsed = 0f;
+        while (!resolved && elapsed < permissionRequestTimeoutSeconds)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+    }
+#endif
 
     private void SetEnvironmentActive(HybridMode mode)
     {
@@ -811,6 +993,186 @@ public class HybridModeController : MonoBehaviour
         if (GetComponent<SharedARUIController>() == null)
         {
             gameObject.AddComponent<SharedARUIController>();
+        }
+    }
+
+    private void CreateRuntimeModeSwitcherIfNeeded()
+    {
+        if (!Application.isPlaying || !createRuntimeModeSwitcher || runtimeModeSwitcherCanvasGroup != null)
+        {
+            return;
+        }
+
+        GameObject canvasObject = new GameObject("Hybrid Runtime Mode Switcher");
+        canvasObject.transform.SetParent(transform, false);
+
+        Canvas canvas = canvasObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 5400;
+
+        CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(390f, 844f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        canvasObject.AddComponent<GraphicRaycaster>();
+        runtimeModeSwitcherCanvasGroup = canvasObject.AddComponent<CanvasGroup>();
+        ApplyRuntimeModeSwitcherVisibility();
+
+        GameObject panelObject = new GameObject("Panel");
+        panelObject.transform.SetParent(canvasObject.transform, false);
+        RectTransform panelRect = panelObject.AddComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(0f, 1f);
+        panelRect.anchorMax = new Vector2(0f, 1f);
+        panelRect.pivot = new Vector2(0f, 1f);
+        panelRect.anchoredPosition = runtimeModeSwitcherOffset;
+        panelRect.sizeDelta = new Vector2(210f, 66f);
+
+        Image panel = panelObject.AddComponent<Image>();
+        panel.color = new Color(0.02f, 0.025f, 0.03f, 0.82f);
+
+        VerticalLayoutGroup panelLayout = panelObject.AddComponent<VerticalLayoutGroup>();
+        panelLayout.padding = new RectOffset(7, 7, 5, 5);
+        panelLayout.spacing = 5f;
+        panelLayout.childAlignment = TextAnchor.UpperLeft;
+        panelLayout.childControlWidth = true;
+        panelLayout.childControlHeight = false;
+        panelLayout.childForceExpandWidth = true;
+        panelLayout.childForceExpandHeight = false;
+
+        runtimeModeStatusText = CreateRuntimeModeText("Status", panelObject.transform, "Transition | GPS Stopped | N/A", 10f);
+        LayoutElement statusLayout = runtimeModeStatusText.gameObject.AddComponent<LayoutElement>();
+        statusLayout.preferredHeight = 18f;
+
+        GameObject buttonRow = new GameObject("Buttons");
+        buttonRow.transform.SetParent(panelObject.transform, false);
+        RectTransform rowRect = buttonRow.AddComponent<RectTransform>();
+        rowRect.sizeDelta = new Vector2(0f, 32f);
+
+        HorizontalLayoutGroup rowLayout = buttonRow.AddComponent<HorizontalLayoutGroup>();
+        rowLayout.spacing = 4f;
+        rowLayout.childControlWidth = true;
+        rowLayout.childControlHeight = true;
+        rowLayout.childForceExpandWidth = true;
+        rowLayout.childForceExpandHeight = true;
+
+        runtimeIndoorButton = CreateRuntimeModeButton("Indoor Button", "Indoor", buttonRow.transform, ForceIndoor);
+        runtimeOutdoorButton = CreateRuntimeModeButton("Outdoor Button", "Outdoor", buttonRow.transform, ForceOutdoor);
+        runtimeOffButton = CreateRuntimeModeButton("Off Button", "Off", buttonRow.transform, DeactivateARMode);
+    }
+
+    private TextMeshProUGUI CreateRuntimeModeText(string objectName, Transform parent, string text, float fontSize)
+    {
+        GameObject textObject = new GameObject(objectName);
+        textObject.transform.SetParent(parent, false);
+        RectTransform rect = textObject.AddComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(0f, 28f);
+
+        TextMeshProUGUI textComponent = textObject.AddComponent<TextMeshProUGUI>();
+        textComponent.text = text;
+        textComponent.fontSize = fontSize;
+        textComponent.fontStyle = FontStyles.Bold;
+        textComponent.alignment = TextAlignmentOptions.Left;
+        textComponent.color = Color.white;
+        textComponent.textWrappingMode = TextWrappingModes.NoWrap;
+        return textComponent;
+    }
+
+    private Button CreateRuntimeModeButton(string objectName, string label, Transform parent, UnityAction onClick)
+    {
+        GameObject buttonObject = new GameObject(objectName);
+        buttonObject.transform.SetParent(parent, false);
+        buttonObject.AddComponent<RectTransform>();
+
+        Image image = buttonObject.AddComponent<Image>();
+        image.color = new Color(0.16f, 0.18f, 0.22f, 0.96f);
+
+        Button button = buttonObject.AddComponent<Button>();
+        button.targetGraphic = image;
+        button.onClick.AddListener(onClick);
+
+        TextMeshProUGUI labelText = CreateRuntimeModeText("Label", buttonObject.transform, label, 10f);
+        labelText.alignment = TextAlignmentOptions.Center;
+        RectTransform labelRect = labelText.GetComponent<RectTransform>();
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+
+        LayoutElement layout = buttonObject.AddComponent<LayoutElement>();
+        layout.minHeight = 28f;
+        layout.preferredHeight = 28f;
+        layout.minWidth = 52f;
+
+        return button;
+    }
+
+    private void UpdateRuntimeModeSwitcher()
+    {
+        if (runtimeModeStatusText == null)
+        {
+            return;
+        }
+
+        string gpsStatus = Input.location.status.ToString();
+        string accuracyText = "N/A";
+        if (Input.location.status == LocationServiceStatus.Running)
+        {
+            float accuracy = Input.location.lastData.horizontalAccuracy;
+            accuracyText = accuracy > 0f ? $"{accuracy:0.#}m" : "N/A";
+        }
+
+        runtimeModeStatusText.text = $"{currentMode} | GPS {gpsStatus} | {accuracyText}";
+        if (!string.IsNullOrEmpty(runtimePermissionStatus))
+        {
+            runtimeModeStatusText.text = runtimePermissionStatus;
+        }
+
+        SetRuntimeModeButtonState(runtimeIndoorButton, currentMode == HybridMode.Indoor);
+        SetRuntimeModeButtonState(runtimeOutdoorButton, currentMode == HybridMode.Outdoor);
+        SetRuntimeModeButtonState(runtimeOffButton, currentMode == HybridMode.Transition);
+    }
+
+    private void SetRuntimeModeButtonState(Button button, bool active)
+    {
+        if (button == null || button.image == null)
+        {
+            return;
+        }
+
+        button.image.color = active
+            ? new Color(0.12f, 0.55f, 0.96f, 0.98f)
+            : new Color(0.16f, 0.18f, 0.22f, 0.96f);
+    }
+
+    private void ApplyRuntimeModeSwitcherVisibility()
+    {
+        if (runtimeModeSwitcherCanvasGroup == null)
+        {
+            return;
+        }
+
+        bool visible = !showRuntimeModeSwitcherOnlyInAR || runtimeModeSwitcherVisible;
+        runtimeModeSwitcherCanvasGroup.alpha = visible ? 1f : 0f;
+        runtimeModeSwitcherCanvasGroup.interactable = visible;
+        runtimeModeSwitcherCanvasGroup.blocksRaycasts = visible;
+    }
+
+    private void SetRuntimeModeButtonsInteractable(bool interactable)
+    {
+        if (runtimeIndoorButton != null)
+        {
+            runtimeIndoorButton.interactable = interactable;
+        }
+
+        if (runtimeOutdoorButton != null)
+        {
+            runtimeOutdoorButton.interactable = interactable;
+        }
+
+        if (runtimeOffButton != null)
+        {
+            runtimeOffButton.interactable = true;
         }
     }
 

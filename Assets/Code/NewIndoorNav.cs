@@ -87,6 +87,18 @@ public class NewIndoorNav : MonoBehaviour {
     private void OnEnable() {
         if (m_TrackedImageManager != null) 
             m_TrackedImageManager.trackedImagesChanged += OnChanged;
+
+        // Khi quay lại Indoor (lần 2 trở đi), navigationBase có thể đã bị
+        // destroy hoặc mất reference → reset để sẵn sàng nhận AR event lại
+        if (navigationBase == null || !navigationBase.activeInHierarchy)
+        {
+            navigationBase = null;
+            navigationTargets.Clear();
+            navMeshSurface = null;
+
+            if (line != null)
+                line.positionCount = 0;
+        }
     }
 
     private void OnDisable() {

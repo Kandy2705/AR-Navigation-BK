@@ -45,6 +45,7 @@ public class ARPageController : MonoBehaviour
         if (hybridModeController != null)
         {
             hybridModeController.DeactivateARMode();
+            hybridModeController.SetRuntimeModeSwitcherVisible(false);
         }
     }
 }

@@ -64,6 +64,13 @@ public class SetNavigation : MonoBehaviour
     [SerializeField]
     private float debugRepeatInterval = 1.5f;
 
+    [Header("Performance")]
+    [SerializeField]
+    private float pathUpdateInterval = 0.35f;
+
+    [SerializeField]
+    private float navMeshSampleDistance = 2.0f;
+
     private NavMeshPath path;
     private Mesh mesh;
     private MeshFilter meshFilter;
@@ -71,6 +78,7 @@ public class SetNavigation : MonoBehaviour
     private Vector3[] lastCorners;
     private string lastDebugState;
     private float lastDebugLogTime;
+    private float lastPathUpdateTime = -999f;
 
     void Start()
     {
@@ -93,7 +101,8 @@ public class SetNavigation : MonoBehaviour
                   $"markerRef={(markerObject != null ? markerObject.name : "null")}, " +
                   $"targetRef={(navTargetObject != null ? navTargetObject.name : "null")}, " +
                   $"startWidth={startWidth:0.###}, endWidth={endWidth:0.###}, " +
-                  $"lineHeightOffset={lineHeightOffset:0.###}, metersPerTile={metersPerTile:0.###}, sampleDistance=2.00");
+                  $"lineHeightOffset={lineHeightOffset:0.###}, metersPerTile={metersPerTile:0.###}, " +
+                  $"sampleDistance={navMeshSampleDistance:0.##}, pathUpdateInterval={pathUpdateInterval:0.##}");
     }
 
     void Update()
@@ -128,7 +137,15 @@ public class SetNavigation : MonoBehaviour
             return;
         }
 
-        const float sampleDistance = 2.0f;
+        float interval = Mathf.Max(0.02f, pathUpdateInterval);
+        if (Time.time - lastPathUpdateTime < interval)
+        {
+            return;
+        }
+
+        lastPathUpdateTime = Time.time;
+
+        float sampleDistance = Mathf.Max(0.1f, navMeshSampleDistance);
         NavMeshHit startHit, endHit;
         bool haveStart = NavMesh.SamplePosition(markerObject.transform.position, out startHit, sampleDistance, NavMesh.AllAreas);
         bool haveEnd = NavMesh.SamplePosition(navTargetObject.transform.position, out endHit, sampleDistance, NavMesh.AllAreas);
