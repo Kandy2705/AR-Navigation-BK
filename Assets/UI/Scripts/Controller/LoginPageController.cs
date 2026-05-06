@@ -22,7 +22,7 @@ public class LoginPageController : IPageController
     private const string KEY_PASS = "KEY_USER_PASS";
     private const string KEY_REMEMBER = "KEY_IS_REMEMBER";
     private const string BASE_API = AppConst.BASE_API + "/users/login";
-    private const string cacheKey = AppConst.KEY_CACHE;
+    private const string cacheKey = AppConst.KEY_CACHE; 
 
     private bool isPasswordVisible = false;
     public void Start(VisualElement root)

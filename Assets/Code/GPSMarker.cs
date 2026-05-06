@@ -271,6 +271,15 @@ public class GPSMarker : MonoBehaviour
         mapPlane.position += offset * alignStrength;
     }
 
+    void AlignXRToEnvironment()
+    {
+        if (xrOrigin == null) return;
+
+        Vector3 targetPosition = new Vector3(transform.position.x, xrOrigin.transform.position.y, transform.position.z);
+        
+        xrOrigin.transform.position = Vector3.Lerp(xrOrigin.transform.position, targetPosition, alignStrength * Time.deltaTime);
+    }
+
     // ─── Phase 2: EMA smoothing + outlier rejection ───────────────────────────
 
     Vector3 ApplySmoothing(Vector3 rawENU)
@@ -346,6 +355,7 @@ public class GPSMarker : MonoBehaviour
                 positionInitialized = true;
                 transform.localPosition = userENU;
                 AlignEnvironmentToXR();
+                //AlignXRToEnvironment();
             }
             else
             {
@@ -353,6 +363,7 @@ public class GPSMarker : MonoBehaviour
                 Vector3 worldPos = mapPlane.TransformPoint(userENU);
                 transform.position = worldPos;
                 AlignEnvironmentToXR();
+                //AlignXRToEnvironment();
             }
 
             //MaybeAlignEnvironmentToXR(userENU);
@@ -366,6 +377,7 @@ public class GPSMarker : MonoBehaviour
                     if (alignXROriginToUser != null && alignXROriginToUser.aligned) 
                     {
                         AlignEnvironmentToXR();
+                        //AlignXRToEnvironment();
                     }
                 }
             }
@@ -476,7 +488,8 @@ public class GPSMarker : MonoBehaviour
 
         if (!aligned)
         {
-            AlignEnvironmentToXR();
+            // AlignEnvironmentToXR();
+            AlignXRToEnvironment();
             aligned = true;
             lastAlignedUserENU = userENU;
             lastEnvironmentAlignTime = Time.time;
@@ -550,4 +563,6 @@ public class GPSMarker : MonoBehaviour
         enu.u =  cosLat * cosLon * dx + cosLat * sinLon * dy + sinLat * dz;
         return enu;
     }
+
+    
 }

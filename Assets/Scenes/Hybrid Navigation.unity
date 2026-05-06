@@ -1967,6 +1967,7 @@ GameObject:
   - component: {fileID: 108915360}
   - component: {fileID: 108915359}
   - component: {fileID: 108915358}
+  - component: {fileID: 108915362}
   m_Layer: 10
   m_Name: UserIcon
   m_TagString: Untagged
@@ -2063,7 +2064,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 108915356}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f16ace5e1212ac045878aa469436ca4f, type: 3}
   m_Name: 
@@ -2083,9 +2084,9 @@ MonoBehaviour:
   aligned: 0
   alignThreshold: 0.5
   alignStrength: 1
-  useMockMovement: 0
+  useMockMovement: 1
   mockSpeed: 1.5
-  useMockCompass: 0
+  useMockCompass: 1
   mockCompassHeading: 90
   maxAcceptableAccuracy: 30
   desiredAccuracyMeters: 5
@@ -2111,6 +2112,43 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 108915356}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &108915362
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 108915356}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29525aae4f8a1dd4d9d577af0fd35c37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  xrOrigin: {fileID: 132730615}
+  mainCamera: {fileID: 2012369697}
+  mapPlane: {fileID: 1188183542}
+  gpsText: {fileID: 473065743}
+  refLat: 10.7736444
+  refLon: 106.6593743
+  refAlt: 0
+  lat: 10.7741875
+  lon: 106.6606904
+  alt: 0
+  useMockMovement: 0
+  mockSpeed: 1.5
+  useMockCompass: 1
+  mockCompassHeading: 0
+  maxAcceptableAccuracy: 30
+  desiredAccuracyMeters: 5
+  updateDistanceMeters: 1
+  headingSmoothFactor: 0.1
+  positionSmoothFactor: 0.15
+  maxPositionJumpMeters: 50
+  deadReckoningSpeed: 1.4
+  stationarySpeedThreshold: 0.3
+  gpslostTimeout: 3
+  stationaryGpsInterval: 5
+  gpsTextUpdateInterval: 0.5
 --- !u!1 &121175370
 GameObject:
   m_ObjectHideFlags: 0
@@ -2445,7 +2483,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &142741222
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3929,7 +3967,7 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 1
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 6e72656b
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
@@ -6019,7 +6057,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!120 &334681832
 LineRenderer:
   serializedVersion: 2
@@ -14999,7 +15037,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!20 &810313856
 Camera:
   m_ObjectHideFlags: 0
@@ -15068,7 +15106,7 @@ Transform:
   m_GameObject: {fileID: 810313855}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 0, y: 88.7, z: 0}
+  m_LocalPosition: {x: 0, y: 20, z: 0}
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -21527,7 +21565,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1161289534
 RectTransform:
   m_ObjectHideFlags: 0
@@ -21535,7 +21573,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1161289533}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
@@ -37570,7 +37608,7 @@ MonoBehaviour:
   keepOutdoorActiveWhileIndoor: 0
   alwaysActiveRoots: []
   gpsMarker: {fileID: 108915360}
-  initialMode: 1
+  initialMode: 0
   activateInitialModeOnStart: 0
   autoSwitchEnabled: 0
   indoorLostToOutdoorDelay: 5
