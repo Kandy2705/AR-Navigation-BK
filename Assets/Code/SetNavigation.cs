@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.Rendering;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class SetNavigation : MonoBehaviour
@@ -14,6 +15,18 @@ public class SetNavigation : MonoBehaviour
 
     [SerializeField]
     private GameObject markerObject;
+
+    [Header("GPS Validity Gate")]
+    [SerializeField]
+    private GPSMarker gpsMarker;
+
+    [Tooltip("Hide navigation if the last good GPS fix is farther than this from the reference/map origin (meters).")]
+    [SerializeField]
+    private float maxGpsDistanceFromReferenceMeters = 250f;
+
+    [Tooltip("Hide navigation if the last GPS fix was rejected as a jump (prevents unrealistic route when GPS is far/off-map).")]
+    [SerializeField]
+    private bool hidePathWhenGpsJumpRejected = true;
 
     [SerializeField]
     private GameObject requiredActiveRoot;
@@ -37,7 +50,29 @@ public class SetNavigation : MonoBehaviour
     private float metersPerTile = 1f;
 
     [SerializeField]
-    private float lineHeightOffset = -0.2f;
+    private float lineHeightOffset = -1.2f;
+
+    [Header("Visibility (AR camera)")]
+    [Tooltip("Lift the navigation line relative to the camera so it stays visible at different phone heights.")]
+    [SerializeField]
+    private bool useCameraRelativeHeight = false;
+
+    [Tooltip("Camera used for camera-relative height. If null, Camera.main will be used.")]
+    [SerializeField]
+    private Camera heightReferenceCamera;
+
+    [Tooltip("Target line height relative to the reference camera (meters). Negative = below camera.")]
+    [SerializeField]
+    private float heightRelativeToCameraMeters = -1.0f;
+
+    [Tooltip("Clamp additional lift (meters) added on top of Line Height Offset.")]
+    [SerializeField]
+    private Vector2 cameraRelativeLiftClampMeters = new Vector2(0.0f, 2.0f);
+
+    [Header("AR path draw order")]
+    [Tooltip("If true, path uses transparent queue + ZTest Always (always visible, but can look 'in your face'). If false, path respects depth so it can sit on the ground better.")]
+    [SerializeField]
+    private bool pathAlwaysOnTop = false;
 
     [SerializeField]
     private bool showLineHeightSlider = false;
@@ -71,6 +106,14 @@ public class SetNavigation : MonoBehaviour
     [SerializeField]
     private float navMeshSampleDistance = 2.0f;
 
+    [Header("Optional LineRenderer Output")]
+    [SerializeField]
+    private LineRenderer lineRenderer;
+
+    [Tooltip("When true, also drive the LineRenderer (if assigned) from path corners.")]
+    [SerializeField]
+    private bool renderWithLineRenderer = false;
+
     private NavMeshPath path;
     private Mesh mesh;
     private MeshFilter meshFilter;
@@ -91,9 +134,30 @@ public class SetNavigation : MonoBehaviour
         meshFilter.mesh = mesh;
 
         if (pathMaterial != null)
+        {
             meshRenderer.material = pathMaterial;
+        }
         else
-            meshRenderer.material = new Material(Shader.Find("Unlit/Color")) { color = fallbackColor };
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null)
+            {
+                shader = Shader.Find("Unlit/Color");
+            }
+            meshRenderer.material = new Material(shader) { color = fallbackColor };
+        }
+
+        ConfigurePathMaterial(meshRenderer.material, pathAlwaysOnTop);
+
+        if (lineRenderer == null)
+        {
+            lineRenderer = GetComponent<LineRenderer>();
+        }
+
+        if (lineRenderer != null)
+        {
+            ConfigureLineRenderer(lineRenderer);
+        }
 
         LogState(
             "START_CONFIG",
@@ -103,10 +167,21 @@ public class SetNavigation : MonoBehaviour
                   $"startWidth={startWidth:0.###}, endWidth={endWidth:0.###}, " +
                   $"lineHeightOffset={lineHeightOffset:0.###}, metersPerTile={metersPerTile:0.###}, " +
                   $"sampleDistance={navMeshSampleDistance:0.##}, pathUpdateInterval={pathUpdateInterval:0.##}");
+
+        if (gpsMarker == null)
+        {
+            gpsMarker = FindFirstObjectByType<GPSMarker>(FindObjectsInactive.Include);
+        }
     }
 
     void Update()
     {
+        if (!IsGpsStateValidForNavigation())
+        {
+            HidePath("GPS_INVALID", "GPS is out-of-range or last fix was rejected as jump");
+            return;
+        }
+
         if (!CanRenderNavigation())
         {
             HidePath("INACTIVE_CONTEXT", "Required root, marker, or target is inactive");
@@ -153,6 +228,12 @@ public class SetNavigation : MonoBehaviour
         if (!haveStart || !haveEnd)
         {
             mesh.Clear();
+            lastCorners = null; // force rebuild when coming back on NavMesh
+            if (lineRenderer != null)
+            {
+                lineRenderer.positionCount = 0;
+                lineRenderer.enabled = false;
+            }
             LogState(
                 "OFF_NAVMESH",
                 () => $"haveStart={haveStart}, haveEnd={haveEnd}, sampleDistance={sampleDistance:0.00}, " +
@@ -173,6 +254,11 @@ public class SetNavigation : MonoBehaviour
         {
             mesh.Clear();
             lastCorners = null;
+            if (lineRenderer != null)
+            {
+                lineRenderer.positionCount = 0;
+                lineRenderer.enabled = false;
+            }
             int corners = path.corners == null ? 0 : path.corners.Length;
             LogState(
                 "PATH_NOT_COMPLETE",
@@ -186,6 +272,7 @@ public class SetNavigation : MonoBehaviour
         {
             lastCorners = (Vector3[])path.corners.Clone();
             BuildPathMesh(path.corners);
+            UpdateLineRenderer(path.corners);
             LogState(
                 "PATH_RENDERED",
                 () => $"status={path.status}, corners={path.corners.Length}, lineHeightOffset={lineHeightOffset:0.00}, " +
@@ -193,6 +280,28 @@ public class SetNavigation : MonoBehaviour
                       $"markerToStart={Vector3.Distance(markerObject.transform.position, startHit.position):0.###}, " +
                       $"targetToEnd={Vector3.Distance(navTargetObject.transform.position, endHit.position):0.###}");
         }
+    }
+
+    private float GetEffectiveHeightOffset(float cornerWorldY)
+    {
+        float baseOffset = lineHeightOffset;
+
+        if (!useCameraRelativeHeight)
+        {
+            return baseOffset;
+        }
+
+        Camera cam = heightReferenceCamera != null ? heightReferenceCamera : Camera.main;
+        if (cam == null)
+        {
+            return baseOffset;
+        }
+
+        // We want: (cornerWorldY + offset) ~= (cameraY + heightRelativeToCameraMeters)
+        float desiredY = cam.transform.position.y + heightRelativeToCameraMeters;
+        float desiredExtraLift = desiredY - (cornerWorldY + baseOffset);
+        float extraLift = Mathf.Clamp(desiredExtraLift, cameraRelativeLiftClampMeters.x, cameraRelativeLiftClampMeters.y);
+        return baseOffset + extraLift;
     }
 
     private void OnDisable()
@@ -228,6 +337,33 @@ public class SetNavigation : MonoBehaviour
         return navTargetObject == null || navTargetObject.activeInHierarchy;
     }
 
+    private bool IsGpsStateValidForNavigation()
+    {
+        if (gpsMarker == null)
+        {
+            return true;
+        }
+
+        if (hidePathWhenGpsJumpRejected && gpsMarker.LastFixRejectedAsJump)
+        {
+            return false;
+        }
+
+        float maxRange = Mathf.Max(0f, maxGpsDistanceFromReferenceMeters);
+        if (maxRange <= 0f)
+        {
+            return true;
+        }
+
+        float distance = gpsMarker.LastEnuDistanceFromRefMeters;
+        if (distance > maxRange)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     private void HidePath(string state, string detail)
     {
         if (mesh != null)
@@ -235,9 +371,19 @@ public class SetNavigation : MonoBehaviour
             mesh.Clear();
         }
 
+        // Important: when we hide/clear the path due to temporary invalid state (OFF_NAVMESH, GPS_INVALID, etc.),
+        // reset cached corners so the next valid update rebuilds the mesh even if the path corners match the last one.
+        lastCorners = null;
+
         if (meshRenderer != null)
         {
             meshRenderer.enabled = false;
+        }
+
+        if (lineRenderer != null)
+        {
+            lineRenderer.positionCount = 0;
+            lineRenderer.enabled = false;
         }
 
         LogState(state, detail);
@@ -264,7 +410,7 @@ public class SetNavigation : MonoBehaviour
         for (int i = 0; i < n; i++)
         {
             Vector3 worldPos = corners[i];
-            worldPos.y += lineHeightOffset;
+            worldPos.y += GetEffectiveHeightOffset(worldPos.y);
 
             Vector3 forward;
             if (i == 0) forward = (corners[1] - corners[0]).normalized;
@@ -324,6 +470,71 @@ public class SetNavigation : MonoBehaviour
         for (int i = 0; i < a.Length; i++)
             if (a[i] != b[i]) return false;
         return true;
+    }
+
+    private void UpdateLineRenderer(Vector3[] corners)
+    {
+        if (!renderWithLineRenderer || lineRenderer == null || corners == null || corners.Length < 2)
+        {
+            if (lineRenderer != null)
+            {
+                lineRenderer.positionCount = 0;
+                lineRenderer.enabled = false;
+            }
+            return;
+        }
+
+        lineRenderer.enabled = true;
+        lineRenderer.positionCount = corners.Length;
+
+        for (int i = 0; i < corners.Length; i++)
+        {
+            Vector3 p = corners[i];
+            p.y += GetEffectiveHeightOffset(p.y);
+            lineRenderer.SetPosition(i, p);
+        }
+    }
+
+    private static void ConfigureLineRenderer(LineRenderer lr)
+    {
+        if (lr == null) return;
+        lr.useWorldSpace = true;
+        lr.loop = false;
+        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        lr.receiveShadows = false;
+        lr.alignment = LineAlignment.View; // always face camera
+        lr.textureMode = LineTextureMode.Tile;
+        lr.numCapVertices = 6;
+        lr.numCornerVertices = 6;
+    }
+
+    private static void ConfigurePathMaterial(Material material, bool alwaysOnTop)
+    {
+        if (material == null) return;
+
+        if (alwaysOnTop)
+        {
+            // Ensure the path draws on top in AR (best-effort across built-in/URP unlit variants).
+            material.renderQueue = 4000;
+            if (material.HasProperty("_ZWrite"))
+                material.SetFloat("_ZWrite", 0f);
+
+            if (material.HasProperty("_ZTest"))
+                material.SetFloat("_ZTest", (float)CompareFunction.Always);
+        }
+        else
+        {
+            // Respect depth: path sits in world like geometry on/near the ground.
+            material.renderQueue = 2450;
+            if (material.HasProperty("_ZWrite"))
+                material.SetFloat("_ZWrite", 1f);
+
+            if (material.HasProperty("_ZTest"))
+                material.SetFloat("_ZTest", (float)CompareFunction.LessEqual);
+        }
+
+        if (material.HasProperty("_Surface"))
+            material.SetFloat("_Surface", 0f);
     }
 
     private void LogState(string state, string detail)

@@ -19,6 +19,10 @@ public class NewIndoorNav : MonoBehaviour {
     private NavMeshPath navMeshPath;
     private GameObject navigationBase;
 
+    //cl
+    private float lastNavUpdateTime;
+    private const float navUpdateInterval = 0.3f;
+
     private void Start() {
         navMeshPath = new NavMeshPath();
         Debug.Log("when play, activated");
@@ -44,6 +48,10 @@ public class NewIndoorNav : MonoBehaviour {
     }
 
   private void Update() {
+
+    if (Time.time - lastNavUpdateTime < navUpdateInterval) return;
+    lastNavUpdateTime = Time.time;
+    
     if (navigationBase != null && navigationTargets.Count > 0 && navMeshSurface != null && line != null)
     {
         // Sample both player and target to nearest NavMesh positions (avoid moving the camera transform)

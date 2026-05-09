@@ -11,6 +11,8 @@ public class SharedARUIController : MonoBehaviour
     [SerializeField] private string promptText = "Nhập địa chỉ nơi dùng về tọa";
     [SerializeField] private string assistantText = "Hãy hỏi tôi";
 
+    private HybridModeController.HybridMode lastKnownMode = (HybridModeController.HybridMode)(-1);
+
     private GameObject rootObject;
     private CanvasGroup canvasGroup;
     private readonly List<GameObject> legacyOutdoorRootsToHide = new List<GameObject>();
@@ -31,6 +33,10 @@ public class SharedARUIController : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (hybridModeController == null || canvasGroup == null) return;
+        var mode = hybridModeController.CurrentMode;
+        if (mode == lastKnownMode) return;
+        lastKnownMode = mode;
         ApplyVisibility();
     }
 

@@ -94,6 +94,13 @@ public class HybridModeController : MonoBehaviour
     [SerializeField] private bool mockGpsGood = true;
     [SerializeField] private bool verboseLog = true;
 
+    private bool audioListenersDirty = true;
+
+    private float lastUITextTime;
+    // Cache để tránh TMP/Canvas rebuild không cần thiết mỗi 0.5s
+    private string _lastStatusText = null;
+    private HybridMode _lastButtonMode = (HybridMode)(-1);
+
     public HybridMode CurrentMode => currentMode;
 
     private HybridMode currentMode;
@@ -347,7 +354,11 @@ public class HybridModeController : MonoBehaviour
 
         SetEnvironmentActive(nextMode);
         SetModePresentation(nextMode);
+
         currentMode = nextMode;
+
+        audioListenersDirty = true;
+
         lastSwitchTime = Time.time;
         ResetTimers();
         hasAppliedInitialMode = true;
@@ -826,6 +837,9 @@ public class HybridModeController : MonoBehaviour
 
     private void EnforceSingleAudioListener(HybridMode mode)
     {
+        if (!audioListenersDirty) return;
+        audioListenersDirty = false;
+
         AudioListener[] allListeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         if (allListeners == null || allListeners.Length == 0)
         {
@@ -1109,6 +1123,9 @@ public class HybridModeController : MonoBehaviour
 
     private void UpdateRuntimeModeSwitcher()
     {
+        if (Time.time - lastUITextTime < 0.5f) return;
+        lastUITextTime = Time.time;
+        
         if (runtimeModeStatusText == null)
         {
             return;
@@ -1122,15 +1139,25 @@ public class HybridModeController : MonoBehaviour
             accuracyText = accuracy > 0f ? $"{accuracy:0.#}m" : "N/A";
         }
 
-        runtimeModeStatusText.text = $"{currentMode} | GPS {gpsStatus} | {accuracyText}";
-        if (!string.IsNullOrEmpty(runtimePermissionStatus))
+        // Xây dựng text mới và chỉ set khi nội dung thực sự thay đổi — tránh Canvas rebuild
+        string newText = !string.IsNullOrEmpty(runtimePermissionStatus)
+            ? runtimePermissionStatus
+            : $"{currentMode} | GPS {gpsStatus} | {accuracyText}";
+
+        if (newText != _lastStatusText)
         {
-            runtimeModeStatusText.text = runtimePermissionStatus;
+            runtimeModeStatusText.text = newText;
+            _lastStatusText = newText;
         }
 
-        SetRuntimeModeButtonState(runtimeIndoorButton, currentMode == HybridMode.Indoor);
-        SetRuntimeModeButtonState(runtimeOutdoorButton, currentMode == HybridMode.Outdoor);
-        SetRuntimeModeButtonState(runtimeOffButton, currentMode == HybridMode.Transition);
+        // Chỉ cập nhật màu button khi mode thay đổi — tránh Canvas dirty
+        if (currentMode != _lastButtonMode)
+        {
+            SetRuntimeModeButtonState(runtimeIndoorButton, currentMode == HybridMode.Indoor);
+            SetRuntimeModeButtonState(runtimeOutdoorButton, currentMode == HybridMode.Outdoor);
+            SetRuntimeModeButtonState(runtimeOffButton, currentMode == HybridMode.Transition);
+            _lastButtonMode = currentMode;
+        }
     }
 
     private void SetRuntimeModeButtonState(Button button, bool active)

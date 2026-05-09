@@ -58,8 +58,10 @@ public class NavigationTarget : MonoBehaviour
         var enu = gpsMarker.ECEFToENU(targetECEF, refECEF, refLat, refLon);
 
         float y = applyAltitude ? (float)enu.u : 0f;
+        // Keep target placement independent of mapPlane rotation (compass may rotate the minimap visual).
         Vector3 localPos = new Vector3((float)enu.e, y, (float)enu.n);
-        Vector3 worldPos = mapPlane.TransformPoint(localPos);
+        Vector3 basePos = mapPlane != null ? mapPlane.position : Vector3.zero;
+        Vector3 worldPos = basePos + new Vector3(localPos.x, localPos.y, localPos.z);
         if (!float.IsFinite(worldPos.x) || !float.IsFinite(worldPos.y) || !float.IsFinite(worldPos.z))
         {
             return;

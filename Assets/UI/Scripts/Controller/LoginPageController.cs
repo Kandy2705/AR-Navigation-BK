@@ -69,6 +69,9 @@ public class LoginPageController : IPageController
 
     private void HandleLogin()
     {
+        navigatorManager.Navigate(PageID.MainSettings, false);
+        return; 
+        
         if (RestClient.DefaultRequestHeaders.ContainsKey("Authorization"))
         {
             Debug.Log("À anh Thanh, Hóa ra là còn Authorization à!");
