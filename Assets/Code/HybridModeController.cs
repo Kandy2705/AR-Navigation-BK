@@ -1,9 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
+using Unity.XR.CoreUtils;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using UnityEngine.XR.ARFoundation;
 
 public class HybridModeController : MonoBehaviour
 {
@@ -17,6 +19,12 @@ public class HybridModeController : MonoBehaviour
     [Header("Environment Roots")]
     [SerializeField] private GameObject indoorEnvironment;
     [SerializeField] private GameObject outdoorEnvironment;
+
+    /// <summary>
+    /// False when <see cref="indoorEnvironment"/> is not assigned (outdoor-only / stripped hybrid).
+    /// <see cref="HybridOutdoorNavigationRoot"/> uses this so it does not hide the path HUD in Awake.
+    /// </summary>
+    public bool HasAssignedIndoorEnvironment => indoorEnvironment != null;
     [Tooltip("Optional child root to show only in Indoor mode while keeping indoor runtime alive.")]
     [SerializeField] private GameObject indoorVisualRoot;
 
@@ -42,7 +50,12 @@ public class HybridModeController : MonoBehaviour
     [Header("Runtime Test Controls")]
     [SerializeField] private bool createRuntimeModeSwitcher = true;
     [SerializeField] private bool showRuntimeModeSwitcherOnlyInAR = true;
-    [SerializeField] private Vector2 runtimeModeSwitcherOffset = new Vector2(12f, -58f);
+    [Tooltip("Indoor | Outdoor | Off bar is anchored bottom-center when true so it does not overlap the navigation HUD.")]
+    [SerializeField] private bool anchorRuntimeModeSwitcherAtBottom = true;
+    [Tooltip("Offset from anchor: lateral X, Y up from bottom (bottom mode) or from top-left (legacy top mode).")]
+    [SerializeField] private Vector2 runtimeModeSwitcherOffset = new Vector2(0f, 20f);
+    [Tooltip("GPS / mode status line above the buttons — duplicates Mobile HUD GPS line; hide for a cleaner layout.")]
+    [SerializeField] private bool showRuntimeModeSwitcherStatusLine = false;
 
     [Header("Android Permissions")]
     [SerializeField] private bool requestAndroidPermissionsBeforeAR = true;
@@ -64,12 +77,25 @@ public class HybridModeController : MonoBehaviour
     [Tooltip("Roots that must stay active across modes, such as AR Session, XR Origin, ARCamera, and shared UI.")]
     [SerializeField] private List<GameObject> alwaysActiveRoots = new List<GameObject>();
 
-    [Header("Signal Sources")]
+    [Header("Single XR rig (outdoor camera survives Indoor)")]
+    [Tooltip("On Awake, reparent the outdoor AR rig to the scene root so turning off OutdoorEnvironment in Indoor mode does not disable XROrigin / AR camera (avoids black screen on device when both stacks were edited active).")]
+    [SerializeField] private bool detachOutdoorXrRigFromEnvironment = true;
+    [Tooltip("Optional. Root that stays alive in both modes: assign a parent that contains both AR Session and XROrigin if they are not under the same transform. If unset, only the XROrigin node is detached and AR Session may stay under (inactive) OutdoorEnvironment.")]
+    [SerializeField] private GameObject outdoorXrRigRootOverride;
+    [Tooltip("Disable XROrigin components under IndoorEnvironment so only one rig drives AR.")]
+    [SerializeField] private bool disableIndoorXROriginDuplicates = true;
+    [Tooltip("While the outdoor environment stack is active, disable AR Session components under IndoorEnvironment to avoid two simultaneous AR sessions. When only indoor is active, indoor sessions stay enabled for a normal camera feed.")]
+    [SerializeField] private bool disableIndoorARSessionDuplicates = true;
+
+    [Header("Signal sources (optional)")]
+    [Tooltip("Optional. Legacy / hybrid scenes only. Outdoor GPSMapPlane flow uses SimpleGPSTracker + MapOrigin — leave empty. When assigned and Max Gps Accuracy Meters <= 0, threshold can inherit maxAcceptableAccuracy from this marker (else default 30 m).")]
     [SerializeField] private GPSMarker gpsMarker;
 
     [Header("Initial State")]
     [SerializeField] private HybridMode initialMode = HybridMode.Outdoor;
-    [Tooltip("When disabled, AR environments stay inactive until Apply Initial Mode, Force Indoor, or Force Outdoor is called.")]
+    [Tooltip(
+        "When true, applies initial mode on launch. If a NavigationManager is present (app shell), AR is entered automatically "
+        + "via EnterARPage — same as tapping AR in UI — so ARPageObject is enabled and hybrid is not left in Transition (avoids black screen).")]
     [SerializeField] private bool activateInitialModeOnStart = false;
 
     [Header("Switch Rules")]
@@ -79,13 +105,13 @@ public class HybridModeController : MonoBehaviour
     [SerializeField] private float indoorLostToOutdoorDelay = 8f;
     [Tooltip("Seconds GPS must stay good before allowing Indoor -> Outdoor.")]
     [SerializeField] private float gpsStableRequiredTime = 3f;
-    [Tooltip("Require a good GPS fix before switching Indoor -> Outdoor. Disable this when GPSMarker lives under OutdoorEnvironment.")]
+    [Tooltip("Require Input.location running with good accuracy before switching Indoor -> Outdoor. Not tied to GPSMarker; use false when auto-switch is off or outdoor-only.")]
     [SerializeField] private bool requireGpsForIndoorToOutdoor = false;
     [Tooltip("Seconds of stable indoor localization before allowing Outdoor -> Indoor.")]
     [SerializeField] private float indoorSuccessRequiredTime = 2f;
     [Tooltip("Cooldown to prevent mode flapping.")]
     [SerializeField] private float switchCooldown = 5f;
-    [Tooltip("If <= 0, inherit from GPSMarker.maxAcceptableAccuracy.")]
+    [Tooltip("If > 0, GPS must be at or better than this accuracy (m) for IsGpsGood. If <= 0, uses GPSMarker.maxAcceptableAccuracy when marker assigned, otherwise 30 m.")]
     [SerializeField] private float maxGpsAccuracyMeters = -1f;
 
     [Header("Debug / Mock")]
@@ -125,13 +151,17 @@ public class HybridModeController : MonoBehaviour
     private string runtimePermissionStatus;
     private bool deactivatedARModeInAwake;
 
+    /// <summary>Runtime-only: outdoor XROrigin (or override root) reparented off <see cref="outdoorEnvironment"/>.</summary>
+    private GameObject _detachedOutdoorXrRigRoot;
+
     private void Awake()
     {
-        if (!activateInitialModeOnStart)
-        {
-            DeactivateARMode();
-            deactivatedARModeInAwake = true;
-        }
+        DetachOutdoorXrRigForSharedCamera();
+
+        // Luôn deactivate ngay trong Awake để không frame nào thấy outdoor/indoor
+        // environment trước khi MainScreen hiện ra — dù activateInitialModeOnStart = true.
+        DeactivateARMode();
+        deactivatedARModeInAwake = true;
     }
 
     private void Start()
@@ -143,18 +173,25 @@ public class HybridModeController : MonoBehaviour
         ResetTimers();
         currentMode = HybridMode.Transition;
 
-        if (activateInitialModeOnStart)
+        // Khi NavigationManager có mặt: AR được gated bởi user action (bấm nút AR).
+        // Không bao giờ tự vào AR tại Start — dù activateInitialModeOnStart = true.
+        bool navManagerPresent =
+            FindFirstObjectByType<NavigationManager>(FindObjectsInactive.Include) != null;
+
+        if (activateInitialModeOnStart && !navManagerPresent)
         {
+            // Không có NavigationManager (standalone scene): activate AR ngay.
             SetRuntimeModeSwitcherVisible(true);
-            ApplyMode(initialMode, "Initialize");
+            if (!hasAppliedInitialMode)
+                ApplyMode(initialMode, "Initialize");
         }
         else
         {
+            // Có NavigationManager hoặc activateInitialModeOnStart=false:
+            // Giữ mọi thứ deactivated, chờ user bấm nút AR.
             SetRuntimeModeSwitcherVisible(false);
             if (!deactivatedARModeInAwake)
-            {
                 DeactivateARMode();
-            }
         }
     }
 
@@ -289,6 +326,10 @@ public class HybridModeController : MonoBehaviour
         SetRootsActiveDirect(indoorOnlyVisualRoots, false);
         SetRootsActiveDirect(outdoorOnlyVisualRoots, false);
         SetRootsActiveDirect(alwaysActiveRoots, false);
+        SetRootActiveDirect(_detachedOutdoorXrRigRoot, false);
+
+        // Leave indoor ARSession components enabled for a clean slate next time Indoor runs (outdoor stack is off).
+        ApplyIndoorArSessionDuplicatePolicy(outdoorStackActive: false);
 
         if (autoManageCanvases)
         {
@@ -347,12 +388,16 @@ public class HybridModeController : MonoBehaviour
             PlayTransition(nextMode);
         }
 
+        SetEnvironmentActive(nextMode);
+
+        // Resolve MainCamera while hierarchy matches mode, before canvases / listeners (avoids wrong Camera.main on presentation step).
         if (autoManageMainCameraTag)
         {
             ApplyMainCameraTag(nextMode);
         }
 
-        SetEnvironmentActive(nextMode);
+        RebindOutdoorNavigationCameras(nextMode);
+
         SetModePresentation(nextMode);
 
         currentMode = nextMode;
@@ -517,6 +562,150 @@ public class HybridModeController : MonoBehaviour
         }
 
         SetRootsActive(alwaysActiveRoots, true);
+
+        if (_detachedOutdoorXrRigRoot != null)
+            _detachedOutdoorXrRigRoot.SetActive(indoorActive || outdoorActive);
+
+        // Do not disable indoor ARSession in Awake: when Outdoor is off, indoor may be the only session driving
+        // the camera. Only suppress indoor sessions while the outdoor hierarchy is active (dual-session guard).
+        ApplyIndoorArSessionDuplicatePolicy(outdoorActive);
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        WarnIfMultipleActiveArSessions(mode);
+#endif
+    }
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+    private void WarnIfMultipleActiveArSessions(HybridMode mode)
+    {
+        if (mode != HybridMode.Indoor && mode != HybridMode.Outdoor)
+        {
+            return;
+        }
+
+        int count = 0;
+        foreach (ARSession session in FindObjectsByType<ARSession>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        {
+            if (session != null && session.enabled && session.gameObject.activeInHierarchy)
+            {
+                count++;
+            }
+        }
+
+        if (count > 1)
+        {
+            Debug.LogWarning(
+                "[HybridMode] " + count +
+                " ARSession component(s) are active at once. That often causes black camera or AR instability. " +
+                "Search the Hierarchy for extra \"AR Session\" GameObjects (including under UI or duplicate stacks). " +
+                "Only one session should be active for the current mode.");
+        }
+    }
+#endif
+
+    /// <summary>
+    /// Moves the outdoor AR rig out of <see cref="outdoorEnvironment"/> so Indoor mode can disable the
+    /// outdoor hierarchy without losing the device camera. Optionally soft-disables indoor duplicate XROrigins.
+    /// </summary>
+    private void DetachOutdoorXrRigForSharedCamera()
+    {
+        if (!detachOutdoorXrRigFromEnvironment || outdoorEnvironment == null)
+        {
+            return;
+        }
+
+        Transform detachTf = null;
+        if (outdoorXrRigRootOverride != null)
+        {
+            detachTf = outdoorXrRigRootOverride.transform;
+        }
+        else
+        {
+            XROrigin xr = outdoorEnvironment.GetComponentInChildren<XROrigin>(true);
+            if (xr != null)
+            {
+                detachTf = xr.transform;
+            }
+        }
+
+        if (detachTf == null)
+        {
+            if (verboseLog)
+            {
+                Debug.Log("[HybridMode] Detach XR: no XROrigin / override under OutdoorEnvironment — skip.");
+            }
+
+            return;
+        }
+
+        if (detachTf.parent != null)
+        {
+            detachTf.SetParent(null, true);
+        }
+
+        _detachedOutdoorXrRigRoot = detachTf.gameObject;
+
+        // Prevent TrackedPoseDriver from running before AR Session is active.
+        // SetEnvironmentActive will re-enable the rig when the mode is actually applied.
+        // Without this, XR Origin becomes activeInHierarchy=true immediately on detach
+        // (activeSelf was true under the inactive OutdoorEnvironment), causing a camera
+        // snap on the first frame AR Session comes online.
+        _detachedOutdoorXrRigRoot.SetActive(false);
+
+        if (verboseLog)
+        {
+            Debug.Log($"[HybridMode] Shared XR rig detached to scene root: {_detachedOutdoorXrRigRoot.name}");
+        }
+
+        if (disableIndoorXROriginDuplicates && indoorEnvironment != null)
+        {
+            foreach (XROrigin indoorXr in indoorEnvironment.GetComponentsInChildren<XROrigin>(true))
+            {
+                if (indoorXr == null)
+                {
+                    continue;
+                }
+
+                indoorXr.enabled = false;
+            }
+        }
+
+        hasCachedPresentationReferences = false;
+    }
+
+    /// <summary>
+    /// When the outdoor environment stack is active, optionally disable duplicate <see cref="ARSession"/> under
+    /// indoor. When outdoor is off, re-enable them so Indoor mode can keep a working camera feed (disabling
+    /// them once in <c>Awake</c> left components off for the whole session and caused a black screen).
+    /// </summary>
+    private void ApplyIndoorArSessionDuplicatePolicy(bool outdoorStackActive)
+    {
+        if (!disableIndoorARSessionDuplicates || indoorEnvironment == null)
+        {
+            return;
+        }
+
+        foreach (ARSession session in indoorEnvironment.GetComponentsInChildren<ARSession>(true))
+        {
+            if (session == null)
+            {
+                continue;
+            }
+
+            bool enableIndoorSession = !outdoorStackActive;
+            if (session.enabled == enableIndoorSession)
+            {
+                continue;
+            }
+
+            session.enabled = enableIndoorSession;
+            if (verboseLog)
+            {
+                Debug.Log(
+                    $"[HybridMode] Indoor ARSession on '{session.gameObject.name}' -> enabled={enableIndoorSession} " +
+                    $"(outdoor stack active={outdoorStackActive}).");
+            }
+        }
     }
 
     private void CachePresentationReferences()
@@ -535,12 +724,20 @@ public class HybridModeController : MonoBehaviour
         {
             AddAudioSources(indoorEnvironment, indoorAudioSources);
             AddAudioSources(outdoorEnvironment, outdoorAudioSources);
+            if (_detachedOutdoorXrRigRoot != null)
+            {
+                AddAudioSources(_detachedOutdoorXrRigRoot, outdoorAudioSources);
+            }
         }
 
         if (autoManageAudioListeners)
         {
             AddAudioListeners(indoorEnvironment, indoorAudioListeners);
             AddAudioListeners(outdoorEnvironment, outdoorAudioListeners);
+            if (_detachedOutdoorXrRigRoot != null)
+            {
+                AddAudioListeners(_detachedOutdoorXrRigRoot, outdoorAudioListeners);
+            }
         }
 
         if (autoManageMainCameraTag)
@@ -554,6 +751,21 @@ public class HybridModeController : MonoBehaviour
             {
                 outdoorMainCamera = FindPreferredCamera(outdoorEnvironment, "Main Camera");
             }
+
+            if (outdoorMainCamera == null && _detachedOutdoorXrRigRoot != null)
+            {
+                outdoorMainCamera = FindPreferredCamera(_detachedOutdoorXrRigRoot, "Main Camera");
+            }
+
+            // Tìm thêm trong alwaysActiveRoots (ví dụ SharedARRig khi không dùng detach)
+            if (outdoorMainCamera == null && alwaysActiveRoots != null)
+            {
+                foreach (GameObject root in alwaysActiveRoots)
+                {
+                    Camera cam = FindPreferredCamera(root, "Main Camera");
+                    if (cam != null) { outdoorMainCamera = cam; break; }
+                }
+            }
         }
 
         hasCachedPresentationReferences = true;
@@ -566,16 +778,11 @@ public class HybridModeController : MonoBehaviour
             return;
         }
 
-        bool indoorVisible = mode == HybridMode.Indoor;
+        bool indoorVisible  = mode == HybridMode.Indoor;
         bool outdoorVisible = mode == HybridMode.Outdoor;
 
         SetRootsActive(indoorOnlyVisualRoots, indoorVisible);
         SetRootsActive(outdoorOnlyVisualRoots, outdoorVisible);
-
-        if (autoManageMainCameraTag)
-        {
-            ApplyMainCameraTag(mode);
-        }
 
         if (autoManageCanvases)
         {
@@ -595,6 +802,53 @@ public class HybridModeController : MonoBehaviour
             SetAudioListenersEnabled(outdoorAudioListeners, outdoorVisible);
             EnforceSingleAudioListener(mode);
         }
+
+        // Quản lý ARCameraManager + ARCameraBackground để tránh camera đen khi switch mode.
+        // Khi có 2 XR Origin (indoor + outdoor/SharedARRig), phải tắt AR camera components
+        // của camera không dùng để AR Session không bị confused về camera feed.
+        ManageARCameraComponents(mode);
+    }
+
+    /// <summary>
+    /// Bật/tắt <c>ARCameraManager</c> và <c>ARCameraBackground</c> trên mỗi camera
+    /// theo mode hiện tại. Ngăn tình trạng camera outdoor bị đen sau khi
+    /// từ Indoor chuyển về Outdoor do 2 ARCameraManager cùng active tranh nhau AR Session.
+    /// </summary>
+    private void ManageARCameraComponents(HybridMode mode)
+    {
+        bool indoorActive  = mode == HybridMode.Indoor;
+        bool outdoorActive = mode == HybridMode.Outdoor;
+
+        SetARCameraComponents(indoorMainCamera,  indoorActive);
+        SetARCameraComponents(outdoorMainCamera, outdoorActive);
+
+        // outdoorMainCamera có thể là camera trên SharedARRig (alwaysActiveRoots),
+        // không nằm trong outdoorEnvironment. Tìm thêm từ alwaysActiveRoots nếu chưa có.
+        if (outdoorMainCamera == null && alwaysActiveRoots != null)
+        {
+            foreach (GameObject root in alwaysActiveRoots)
+            {
+                Camera cam = FindPreferredCamera(root, "Main Camera");
+                if (cam != null)
+                {
+                    SetARCameraComponents(cam, outdoorActive);
+                    break;
+                }
+            }
+        }
+    }
+
+    private static void SetARCameraComponents(Camera cam, bool enabled)
+    {
+        if (cam == null) return;
+
+        UnityEngine.XR.ARFoundation.ARCameraManager mgr =
+            cam.GetComponent<UnityEngine.XR.ARFoundation.ARCameraManager>();
+        if (mgr != null) mgr.enabled = enabled;
+
+        UnityEngine.XR.ARFoundation.ARCameraBackground bg =
+            cam.GetComponent<UnityEngine.XR.ARFoundation.ARCameraBackground>();
+        if (bg != null) bg.enabled = enabled;
     }
 
     private void SetRootsActive(List<GameObject> roots, bool active)
@@ -796,12 +1050,38 @@ public class HybridModeController : MonoBehaviour
 
     private void ApplyMainCameraTag(HybridMode mode)
     {
-        Camera preferred = mode == HybridMode.Indoor ? indoorMainCamera : outdoorMainCamera;
-        if (preferred == null || !preferred.gameObject.activeInHierarchy)
+        Camera preferred = null;
+
+        if (mode == HybridMode.Indoor)
         {
-            preferred = mode == HybridMode.Indoor
-                ? FindPreferredCamera(indoorEnvironment, "ARCamera")
-                : FindPreferredCamera(outdoorEnvironment, "Main Camera");
+            preferred = indoorMainCamera;
+            if (preferred == null || !preferred.gameObject.activeInHierarchy)
+            {
+                preferred = FindPreferredCamera(indoorEnvironment, "ARCamera");
+            }
+        }
+        else
+        {
+            // After DetachOutdoorXrRigForSharedCamera the live AR camera is usually on the detached root, not under outdoorEnvironment.
+            if (_detachedOutdoorXrRigRoot != null && _detachedOutdoorXrRigRoot.activeInHierarchy)
+            {
+                preferred = FindPreferredCamera(_detachedOutdoorXrRigRoot, "Main Camera");
+            }
+
+            if (preferred == null || !preferred.gameObject.activeInHierarchy)
+            {
+                preferred = outdoorMainCamera;
+            }
+
+            if (preferred == null || !preferred.gameObject.activeInHierarchy)
+            {
+                preferred = FindPreferredCamera(outdoorEnvironment, "Main Camera");
+            }
+        }
+
+        if (_detachedOutdoorXrRigRoot != null)
+        {
+            ClearMainCameraTag(_detachedOutdoorXrRigRoot, preferred);
         }
 
         ClearMainCameraTag(indoorEnvironment, preferred);
@@ -811,6 +1091,48 @@ public class HybridModeController : MonoBehaviour
         {
             preferred.tag = "MainCamera";
         }
+    }
+
+    /// <summary>
+    /// GPSMapPlane wires AR camera in Inspector; hybrid retags MainCamera on the detached rig, so path + GPS must follow the same reference.
+    /// </summary>
+    private void RebindOutdoorNavigationCameras(HybridMode mode)
+    {
+        if (mode != HybridMode.Outdoor)
+        {
+            return;
+        }
+
+        Camera main = Camera.main;
+        if (main == null)
+        {
+            return;
+        }
+
+        foreach (ARPathFinder finder in FindObjectsByType<ARPathFinder>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        {
+            if (finder == null || IsUnderEnvironmentRoot(finder.transform, indoorEnvironment))
+            {
+                continue;
+            }
+
+            finder.RebindToDisplayCamera(main);
+        }
+
+        foreach (SimpleGPSTracker tracker in FindObjectsByType<SimpleGPSTracker>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        {
+            if (tracker == null || IsUnderEnvironmentRoot(tracker.transform, indoorEnvironment))
+            {
+                continue;
+            }
+
+            tracker.RebindArCamera(main);
+        }
+    }
+
+    private static bool IsUnderEnvironmentRoot(Transform t, GameObject envRoot)
+    {
+        return envRoot != null && t != null && t.IsChildOf(envRoot.transform);
     }
 
     private void ClearMainCameraTag(GameObject root, Camera preferred)
@@ -1036,27 +1358,44 @@ public class HybridModeController : MonoBehaviour
         GameObject panelObject = new GameObject("Panel");
         panelObject.transform.SetParent(canvasObject.transform, false);
         RectTransform panelRect = panelObject.AddComponent<RectTransform>();
-        panelRect.anchorMin = new Vector2(0f, 1f);
-        panelRect.anchorMax = new Vector2(0f, 1f);
-        panelRect.pivot = new Vector2(0f, 1f);
-        panelRect.anchoredPosition = runtimeModeSwitcherOffset;
-        panelRect.sizeDelta = new Vector2(210f, 66f);
+        float panelHeight = showRuntimeModeSwitcherStatusLine ? 66f : 44f;
+
+        if (anchorRuntimeModeSwitcherAtBottom)
+        {
+            panelRect.anchorMin = new Vector2(0.5f, 0f);
+            panelRect.anchorMax = new Vector2(0.5f, 0f);
+            panelRect.pivot = new Vector2(0.5f, 0f);
+            panelRect.anchoredPosition = runtimeModeSwitcherOffset;
+            panelRect.sizeDelta = new Vector2(248f, panelHeight);
+        }
+        else
+        {
+            panelRect.anchorMin = new Vector2(0f, 1f);
+            panelRect.anchorMax = new Vector2(0f, 1f);
+            panelRect.pivot = new Vector2(0f, 1f);
+            panelRect.anchoredPosition = runtimeModeSwitcherOffset;
+            panelRect.sizeDelta = new Vector2(210f, panelHeight);
+        }
 
         Image panel = panelObject.AddComponent<Image>();
         panel.color = new Color(0.02f, 0.025f, 0.03f, 0.82f);
 
         VerticalLayoutGroup panelLayout = panelObject.AddComponent<VerticalLayoutGroup>();
-        panelLayout.padding = new RectOffset(7, 7, 5, 5);
+        panelLayout.padding = new RectOffset(7, 7, showRuntimeModeSwitcherStatusLine ? 5 : 6, showRuntimeModeSwitcherStatusLine ? 5 : 6);
         panelLayout.spacing = 5f;
-        panelLayout.childAlignment = TextAnchor.UpperLeft;
+        panelLayout.childAlignment = TextAnchor.MiddleCenter;
         panelLayout.childControlWidth = true;
         panelLayout.childControlHeight = false;
         panelLayout.childForceExpandWidth = true;
         panelLayout.childForceExpandHeight = false;
 
-        runtimeModeStatusText = CreateRuntimeModeText("Status", panelObject.transform, "Transition | GPS Stopped | N/A", 10f);
-        LayoutElement statusLayout = runtimeModeStatusText.gameObject.AddComponent<LayoutElement>();
-        statusLayout.preferredHeight = 18f;
+        runtimeModeStatusText = null;
+        if (showRuntimeModeSwitcherStatusLine)
+        {
+            runtimeModeStatusText = CreateRuntimeModeText("Status", panelObject.transform, "Transition | GPS Stopped | N/A", 10f);
+            LayoutElement statusLayout = runtimeModeStatusText.gameObject.AddComponent<LayoutElement>();
+            statusLayout.preferredHeight = 18f;
+        }
 
         GameObject buttonRow = new GameObject("Buttons");
         buttonRow.transform.SetParent(panelObject.transform, false);
@@ -1125,32 +1464,28 @@ public class HybridModeController : MonoBehaviour
     {
         if (Time.time - lastUITextTime < 0.5f) return;
         lastUITextTime = Time.time;
-        
-        if (runtimeModeStatusText == null)
+
+        if (runtimeModeStatusText != null)
         {
-            return;
+            string gpsStatus = Input.location.status.ToString();
+            string accuracyText = "N/A";
+            if (Input.location.status == LocationServiceStatus.Running)
+            {
+                float accuracy = Input.location.lastData.horizontalAccuracy;
+                accuracyText = accuracy > 0f ? $"{accuracy:0.#}m" : "N/A";
+            }
+
+            string newText = !string.IsNullOrEmpty(runtimePermissionStatus)
+                ? runtimePermissionStatus
+                : $"{currentMode} | GPS {gpsStatus} | {accuracyText}";
+
+            if (newText != _lastStatusText)
+            {
+                runtimeModeStatusText.text = newText;
+                _lastStatusText = newText;
+            }
         }
 
-        string gpsStatus = Input.location.status.ToString();
-        string accuracyText = "N/A";
-        if (Input.location.status == LocationServiceStatus.Running)
-        {
-            float accuracy = Input.location.lastData.horizontalAccuracy;
-            accuracyText = accuracy > 0f ? $"{accuracy:0.#}m" : "N/A";
-        }
-
-        // Xây dựng text mới và chỉ set khi nội dung thực sự thay đổi — tránh Canvas rebuild
-        string newText = !string.IsNullOrEmpty(runtimePermissionStatus)
-            ? runtimePermissionStatus
-            : $"{currentMode} | GPS {gpsStatus} | {accuracyText}";
-
-        if (newText != _lastStatusText)
-        {
-            runtimeModeStatusText.text = newText;
-            _lastStatusText = newText;
-        }
-
-        // Chỉ cập nhật màu button khi mode thay đổi — tránh Canvas dirty
         if (currentMode != _lastButtonMode)
         {
             SetRuntimeModeButtonState(runtimeIndoorButton, currentMode == HybridMode.Indoor);

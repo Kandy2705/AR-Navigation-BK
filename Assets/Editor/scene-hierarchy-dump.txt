@@ -1,0 +1,110 @@
+﻿Scene: testOutdoorBK | path: Assets/Scenes/testOutdoorBK.unity
+Time: 2026-05-17T18:42:03.1860801+07:00
+========================================================================
+- [off] MainScreen
+- [on] OutdoorEnvironment
+  - [off] UI
+    - [selfOn_parentOff] AssistantImage
+      - [selfOn_parentOff] Assistantassets
+        - [selfOn_parentOff] Text (Legacy)
+    - [selfOn_parentOff] InputManager
+    - [selfOn_parentOff] InputField (Legacy)
+      - [selfOn_parentOff] Placeholder
+      - [selfOn_parentOff] Text (Legacy)
+    - [selfOn_parentOff] Text (TMP)
+    - [selfOn_parentOff] DistanceText (TMP)
+    - [selfOn_parentOff] Minimap
+    - [off] Button
+      - [selfOn_parentOff] Text (TMP)
+  - [on] XR Origin
+    - [on] Camera Offset
+      - [on] Main Camera
+        - [on] UserTrigger
+    - [off] Icon
+      - [selfOn_parentOff] direction
+  - [on] AR Session
+  - [on] Directional Light
+  - [off] BKField
+  - [on] NavigationManager
+  - [on] Minimap Camera
+  - [on] OutdoorNavigationUI
+    - [on] Minimap Canvas
+      - [on] Minimap Border
+        - [on] Minimap Circle Mask
+          - [on] Minimap View
+          - [on] North Label
+    - [on] Mobile Navigation HUD
+      - [on] Status Panel
+        - [on] Accent Bar
+        - [on] Status Text
+      - [on] Target Dropdown Panel
+        - [on] Nav Label
+        - [on] Separator
+        - [on] Target Dropdown
+          - [on] Label
+          - [on] Arrow
+          - [off] Template
+            - [selfOn_parentOff] Viewport
+              - [selfOn_parentOff] Content
+                - [selfOn_parentOff] Item
+                  - [selfOn_parentOff] Item Background
+                  - [selfOn_parentOff] Item Checkmark
+                  - [selfOn_parentOff] Item Label
+            - [selfOn_parentOff] Scrollbar
+              - [selfOn_parentOff] Sliding Area
+                - [selfOn_parentOff] Handle
+      - [off] Toast
+    - [on] GPS Accuracy Circle
+    - [on] GPS Startup Overlay
+      - [on] Background
+      - [on] GPS Dot
+      - [on] Status Text
+      - [on] Hint Text
+  - [off] MYPHUMAP
+    - [selfOn_parentOff] Ground
+      - [selfOn_parentOff] RefPoint
+    - [selfOn_parentOff] ObstacleContainer
+      - [selfOn_parentOff] CenterTower
+      - [selfOn_parentOff] Tree1
+      - [selfOn_parentOff] Tree4
+      - [selfOn_parentOff] Tree2
+      - [selfOn_parentOff] Tree3
+    - [selfOn_parentOff] DestinationContainer
+      - [selfOn_parentOff] Des1
+      - [selfOn_parentOff] Des2
+  - [on] BKMAP
+    - [on] ObstacleContainer
+      - [on] Walls
+      - [on] TreeFields
+        - [on] trees
+        - [on] trees (1)
+        - [on] trees (2)
+      - [on] Buildings
+        - [on] B10
+        - [on] B9
+        - [on] libraryA2
+        - [on] A5
+        - [on] A4
+        - [on] ElectronicLab
+        - [on] MechanicalLab
+        - [on] B8
+        - [on] A3
+          - [on] front-building
+          - [on] behind-building
+    - [on] DestinationContainer
+      - [on] B9 Destination
+      - [on] B10 Destination
+      - [on] A3 Destination
+      - [on] B8 Destination
+    - [on] OriginOffset
+    - [on] SchoolGround
+- [on] HybridRuntime
+- [on] ARPageController
+- [on] EventSystem
+------------------------------------------------------------------------
+Components (search): HybridModeController, HybridOutdoorNavigationRoot, ARPathFinder, SimpleGPSTracker, MobileNavigationHUD
+[SimpleGPSTracker] OutdoorEnvironment/XR Origin | enabled=True activeInHierarchy=True
+[ARPathFinder] OutdoorEnvironment/NavigationManager | enabled=True activeSelf=True activeInHierarchy=True
+[MobileNavigationHUD] OutdoorEnvironment/OutdoorNavigationUI/Mobile Navigation HUD | activeInHierarchy=True
+[HybridModeController] HybridRuntime | activeInHierarchy=True
+[HybridOutdoorNavigationRoot] HybridRuntime | activeInHierarchy=True

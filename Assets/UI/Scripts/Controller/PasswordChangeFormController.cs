@@ -31,6 +31,7 @@ public class PasswordChangeFormController : IPageController
     }
     public void Initialize(VisualElement root, NavigationManager navigator)
     {
+        navigationManager = navigator;
         Start(root);
         navigator.BindButton(root, "Btn-Back", PageID.OTPPage, true);
         navigator.BindButton(root, "btn-submit", PageID.Login, false);

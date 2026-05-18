@@ -10,6 +10,12 @@ public struct PageRoute{
 
 public class NavigationManager : MonoBehaviour
 {
+    /// <summary>Fired khi người dùng chuyển sang AR world (outdoor nav nên hiện ra).</summary>
+    public static event System.Action OnAREntered;
+    /// <summary>Fired khi quay lại MainScreen từ AR (outdoor nav nên ẩn đi).
+    /// Cũng fire khi OnEnable lúc khởi động — lúc đó chưa có subscriber nào, hoàn toàn an toàn.</summary>
+    public static event System.Action OnARExited;
+
     [Header("Dependencies")]
     public UIDocument mainDocument;
     public List<PageRoute> pages;
@@ -49,6 +55,9 @@ public class NavigationManager : MonoBehaviour
         if(mainDocument == null) return;
         rootContainer = mainDocument.rootVisualElement.Q<VisualElement>("RootContainer");
         Navigate(firstPage);
+        // Thông báo outdoor nav nên ẩn khi MainScreen đang active.
+        // Lúc khởi động đầu tiên chưa ai subscribe nên hoàn toàn an toàn.
+        OnARExited?.Invoke();
     }
 
     public PageID PreviousPage()
@@ -119,6 +128,7 @@ public class NavigationManager : MonoBehaviour
 
         ARPageObject.SetActive(true);
         ApplyHybridInitialMode();
+        OnAREntered?.Invoke();   // Thông báo để outdoor nav có thể hiện ra
         gameObject.SetActive(false);
     }
 

@@ -19,7 +19,7 @@ public class PasswordConfirmController : IPageController
     {
         navigationManager = navigator;
         Start(root);
-        navigator.BindButton(root, "BtnBack", navigator.PreviousPage(), true);
+        navigator.BindButton(root, "Btn-Back", navigator.PreviousPage(), true);
         //navigator.ShowPasswordButton(root);
     }
 

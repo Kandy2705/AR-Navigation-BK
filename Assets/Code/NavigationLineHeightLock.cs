@@ -1,8 +1,14 @@
 using UnityEngine;
 
+/// <summary>
+/// Forces every point of a <see cref="LineRenderer"/> to a single world Y. Works for flat prototypes;
+/// in AR outdoor prefer <see cref="ARPathFinder"/> with <c>useMeshPath</c> instead — flat Y often looks
+/// wrong next to real terrain. Disable this component when using mesh ribbons on the same object.
+/// </summary>
 [RequireComponent(typeof(LineRenderer))]
 public class NavigationLineHeightLock : MonoBehaviour
 {
+    [Tooltip("World Y forced for all LineRenderer points. Not recommended with ARPathFinder mesh paths — remove or disable this component.")]
     public float height = -0.11f;
     private LineRenderer lr;
 

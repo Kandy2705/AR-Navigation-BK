@@ -8576,7 +8576,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5a1c3f4b9d8e7a6c5b4a3d2e1f0a9b8c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  user: {fileID: 132730614}
+  user: {fileID: 974979346}
   target: {fileID: 974979347}
   output: {fileID: 473065750}
   xzOnly: 1
@@ -11483,7 +11483,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   topDownCamera: {fileID: 810313856}
   navTargetObject: {fileID: 974979345}
-  markerObject: {fileID: 2012369690}
+  markerObject: {fileID: 1409464439}
   gpsMarker: {fileID: 0}
   maxGpsDistanceFromReferenceMeters: 250
   hidePathWhenGpsJumpRejected: 1
@@ -19053,8 +19053,8 @@ MonoBehaviour:
   mapPlane: {fileID: 1188183542}
   autoUpdatePositionFromGps: 0
   applyAltitude: 0
-  targetLat: 10.7736645
-  targetLon: 106.6608276
+  targetLat: 10
+  targetLon: 100
   targetAlt: 0
 --- !u!114 &974979350
 MonoBehaviour:
@@ -26596,6 +26596,11 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1408299363}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1409464439 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 122032183004366844, guid: af72142906128ae4b9549535e658aca9, type: 3}
+  m_PrefabInstance: {fileID: 974979344}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1409514056
 GameObject:
   m_ObjectHideFlags: 0
@@ -30057,7 +30062,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1669869570
 Transform:
   m_ObjectHideFlags: 0

@@ -10,6 +10,8 @@ public class SharedARUIController : MonoBehaviour
     [SerializeField] private bool showInOutdoor = true;
     [SerializeField] private string promptText = "Nhập địa chỉ nơi dùng về tọa";
     [SerializeField] private string assistantText = "Hãy hỏi tôi";
+    [Tooltip("If assigned, skips runtime BuildUI and uses this Hierarchy canvas (needs CanvasGroup).")]
+    [SerializeField] private GameObject prebuiltUiRoot;
 
     private HybridModeController.HybridMode lastKnownMode = (HybridModeController.HybridMode)(-1);
 
@@ -27,7 +29,20 @@ public class SharedARUIController : MonoBehaviour
             hybridModeController = FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
         }
 
-        BuildUI();
+        if (prebuiltUiRoot != null)
+        {
+            rootObject = prebuiltUiRoot;
+            canvasGroup = rootObject.GetComponent<CanvasGroup>();
+            if (canvasGroup == null)
+            {
+                canvasGroup = rootObject.AddComponent<CanvasGroup>();
+            }
+        }
+        else
+        {
+            BuildUI();
+        }
+
         ApplyVisibility();
     }
 

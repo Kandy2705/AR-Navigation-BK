@@ -2,6 +2,12 @@ using UnityEngine;
 
 public class UIRouter : MonoBehaviour
 {
+    /// <summary>
+    /// Fired once when the user reaches the home page (onboarding complete).
+    /// HybridOutdoorNavigationRoot listens to this to defer outdoor nav activation.
+    /// </summary>
+    public static event System.Action OnHomePageShown;
+
     [Header("UIDoc GameObjects")]
     [SerializeField] private GameObject uiOnboarding;
     [SerializeField] private GameObject uiWelcome;
@@ -39,6 +45,7 @@ public class UIRouter : MonoBehaviour
     {
         Debug.Log("vao home page duoc roi ne");
         SetOnly(uiHomePage);
+        OnHomePageShown?.Invoke();
     }
 
     private void SetOnly(GameObject active)

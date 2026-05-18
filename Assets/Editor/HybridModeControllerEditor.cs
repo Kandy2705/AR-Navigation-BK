@@ -45,6 +45,9 @@ public class HybridModeControllerEditor : Editor
         }
 
         EditorGUILayout.Space();
+        EditorGUILayout.HelpBox(
+            "Outdoor XR rig: if AR Session and XROrigin are not parented together, set Outdoor Xr Rig Root Override to a root that contains both so detaching keeps a single session + rig alive across Indoor/Outdoor.",
+            MessageType.Info);
         DrawDefaultInspector();
     }
 }

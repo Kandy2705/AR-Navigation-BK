@@ -147,7 +147,7 @@ public class SetNavigation : MonoBehaviour
             meshRenderer.material = new Material(shader) { color = fallbackColor };
         }
 
-        ConfigurePathMaterial(meshRenderer.material, pathAlwaysOnTop);
+        NavigationPathMaterialHelper.Configure(meshRenderer.material, pathAlwaysOnTop);
 
         if (lineRenderer == null)
         {
@@ -397,71 +397,17 @@ public class SetNavigation : MonoBehaviour
 
     void BuildPathMesh(Vector3[] corners)
     {
-        mesh.Clear();
-
-        int n = corners.Length;
-        if (n < 2) return;
-
-        Vector3[] verts = new Vector3[n * 2];
-        Vector2[] uvs = new Vector2[n * 2];
-        List<int> tris = new List<int>((n - 1) * 6);
-        float dist = 0f;
-
-        for (int i = 0; i < n; i++)
-        {
-            Vector3 worldPos = corners[i];
-            worldPos.y += GetEffectiveHeightOffset(worldPos.y);
-
-            Vector3 forward;
-            if (i == 0) forward = (corners[1] - corners[0]).normalized;
-            else if (i == n - 1) forward = (corners[n - 1] - corners[n - 2]).normalized;
-            else
-            {
-                Vector3 a = (corners[i] - corners[i - 1]).normalized;
-                Vector3 b = (corners[i + 1] - corners[i]).normalized;
-                forward = (a + b).normalized;
-                if (forward.sqrMagnitude < 0.0001f) forward = b;
-            }
-
-            Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
-
-            float t = (float)i / (n - 1);
-            float width = Mathf.Lerp(startWidth, endWidth, t) * 0.5f;
-
-            Vector3 leftWorld = worldPos - right * width;
-            Vector3 rightWorld = worldPos + right * width;
-
-            verts[i * 2 + 0] = transform.InverseTransformPoint(leftWorld);
-            verts[i * 2 + 1] = transform.InverseTransformPoint(rightWorld);
-
-            if (i > 0) dist += Vector3.Distance(corners[i - 1], corners[i]);
-            float v = dist / metersPerTile;
-            uvs[i * 2 + 0] = new Vector2(0, v);
-            uvs[i * 2 + 1] = new Vector2(1, v);
-        }
-
-        for (int i = 0; i < n - 1; i++)
-        {
-            int i0 = i * 2;
-            int i1 = i0 + 1;
-            int i2 = (i + 1) * 2;
-            int i3 = i2 + 1;
-
-            tris.Add(i0);
-            tris.Add(i2);
-            tris.Add(i1);
-
-            tris.Add(i2);
-            tris.Add(i3);
-            tris.Add(i1);
-        }
-
-        mesh.vertices = verts;
-        mesh.triangles = tris.ToArray();
-        mesh.uv = uvs;
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-        mesh.MarkDynamic();
+        NavMeshPathRibbon.BuildMesh(
+            mesh,
+            transform,
+            corners,
+            wp => GetEffectiveHeightOffset(wp.y),
+            startWidth,
+            endWidth,
+            metersPerTile,
+            addArrowHead: false,
+            arrowLengthMeters: 0f,
+            arrowWidthMeters: 0f);
     }
 
     private bool CornersEqual(Vector3[] a, Vector3[] b)
@@ -508,34 +454,6 @@ public class SetNavigation : MonoBehaviour
         lr.numCornerVertices = 6;
     }
 
-    private static void ConfigurePathMaterial(Material material, bool alwaysOnTop)
-    {
-        if (material == null) return;
-
-        if (alwaysOnTop)
-        {
-            // Ensure the path draws on top in AR (best-effort across built-in/URP unlit variants).
-            material.renderQueue = 4000;
-            if (material.HasProperty("_ZWrite"))
-                material.SetFloat("_ZWrite", 0f);
-
-            if (material.HasProperty("_ZTest"))
-                material.SetFloat("_ZTest", (float)CompareFunction.Always);
-        }
-        else
-        {
-            // Respect depth: path sits in world like geometry on/near the ground.
-            material.renderQueue = 2450;
-            if (material.HasProperty("_ZWrite"))
-                material.SetFloat("_ZWrite", 1f);
-
-            if (material.HasProperty("_ZTest"))
-                material.SetFloat("_ZTest", (float)CompareFunction.LessEqual);
-        }
-
-        if (material.HasProperty("_Surface"))
-            material.SetFloat("_Surface", 0f);
-    }
 
     private void LogState(string state, string detail)
     {

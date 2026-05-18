@@ -1,4 +1,4 @@
-<ui:UXML>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
     <ui:VisualElement name="content-viewport" style="flex-grow:1;" />
 
     <ui:VisualElement name="bottom-nav" class="bottom-nav" style="position: absolute; bottom: 0; left: 0; right: 0; height: 80px; flex-direction: row; align-items: flex-end;">

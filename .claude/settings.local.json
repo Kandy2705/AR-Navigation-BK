@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\TestAR\\\\TestARMultiSet\" -Depth 1 | Where-Object { $_.Extension -match '\\\\.\\(json|yml|yaml|ps1|sh\\)$' } | Select-Object -ExpandProperty Name)"
+    ]
+  }
+}

@@ -4,6 +4,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.XR.ARFoundation;
 
 public static class HybridModeBatchCheck
 {
@@ -105,6 +106,8 @@ public static class HybridModeBatchCheck
             Fail($"{label}: expected MainCamera '{expectedMainCamera}', got '{mainTaggedCameras[0].name}'.");
         }
 
+        AssertAtMostOneActiveArSession(label);
+
         Debug.Log($"[HybridModeBatchCheck] {label}: OK");
     }
 
@@ -124,6 +127,28 @@ public static class HybridModeBatchCheck
         }
 
         Debug.Log($"[HybridModeBatchCheck] {label}: OK");
+    }
+
+    private static void AssertAtMostOneActiveArSession(string label)
+    {
+        ARSession[] sessions = UnityEngine.Object.FindObjectsByType<ARSession>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+        int active = 0;
+        foreach (ARSession session in sessions)
+        {
+            if (session != null && session.enabled && session.gameObject.activeInHierarchy)
+            {
+                active++;
+            }
+        }
+
+        if (active > 1)
+        {
+            Fail(
+                $"{label}: expected at most 1 active ARSession (enabled + activeInHierarchy), found {active}. " +
+                "Tools/TestAR/Hybrid/Log All ARSession In Open Scenes — remove stray AR Session (e.g. under UI).");
+        }
     }
 
     private static GameObject FindSceneObject(string objectName)

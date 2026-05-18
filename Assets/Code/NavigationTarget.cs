@@ -46,10 +46,10 @@ public class NavigationTarget : MonoBehaviour
         warnedMissingReferences = false;
 
         var refECEF = gpsMarker.GetRefECEF();
-        if (IsNearZero(refECEF.x) && IsNearZero(refECEF.y) && IsNearZero(refECEF.z))
-        {
-            return;
-        }
+        // if (IsNearZero(refECEF.x) && IsNearZero(refECEF.y) && IsNearZero(refECEF.z))
+        // {
+        //     return;
+        // }
 
         var refLat = gpsMarker.refLat;
         var refLon = gpsMarker.refLon;

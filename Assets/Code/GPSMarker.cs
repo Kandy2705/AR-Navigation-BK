@@ -86,8 +86,8 @@ public class GPSMarker : MonoBehaviour
     [Tooltip("Also append compact mapBK + XR yaw lines to the GPS HUD text.")]
     public bool appendTransformDiagToGpsHud = false;
 
-    [Tooltip("Adds a Screen Space Overlay panel with world/local position + euler for mapPlane, MapBK, XR Origin, camera, UserIcon.")]
-    public bool showEnvironmentTransformOverlay = true;
+    [Tooltip("Adds a Screen Space Overlay panel with world/local position + euler for mapPlane, MapBK, XR Origin, camera, UserIcon. Off by default for end-user HUD.")]
+    public bool showEnvironmentTransformOverlay = false;
 
     [Tooltip("How often to refresh the environment overlay text (seconds).")]
     public float environmentOverlayRefreshInterval = 0.25f;
@@ -167,7 +167,7 @@ public class GPSMarker : MonoBehaviour
     public float compassUpdateInterval = 0.25f;
     [Tooltip("Ignore tiny compass changes to keep outdoor content stable.")]
     public float minHeadingChangeDegrees = 3f;
-    [Tooltip("Do not enable this when mapPlane contains NavMesh/targets. Rotating navigation world breaks pathfinding.")]
+    [Tooltip("Do not enable when mapPlane contains NavMesh/targets. Also avoid combining with SimpleGPSTracker lockXrOriginYawAfterNorthAlign + north-up minimap — pick one source of truth for heading or they fight.")]
     public bool rotateMapPlaneWithCompass = false;
     [Tooltip("Optional visual-only root for compass rotation (minimap graphics only, not NavMesh/targets).")]
     public Transform compassVisualRoot;
@@ -184,7 +184,7 @@ public class GPSMarker : MonoBehaviour
     // ─── Runtime update indicator (stuck detector) ────────────────────────────
     [Header("Runtime update indicator")]
     [Tooltip("Show a small on-screen heartbeat so users can confirm data is updating (not frozen).")]
-    public bool showRuntimeUpdateIndicator = true;
+    public bool showRuntimeUpdateIndicator = false;
 
     [Tooltip("If no new GPS fix arrives for longer than this, indicator turns red (seconds).")]
     public float gpsStaleAfterSeconds = 3.0f;
@@ -302,10 +302,20 @@ public class GPSMarker : MonoBehaviour
 
     void OnDestroy()
     {
-        Input.location.Stop();
+        // Edit Mode: không Start Location — đụng Input.location hoặc Destroy() có thể lỗi / spam Console khi Test Runner DestroyImmediate.
+        if (Application.isPlaying)
+        {
+            if (Input.location.status == LocationServiceStatus.Running)
+                Input.location.Stop();
+        }
+
         if (envOverlayRoot != null)
         {
-            Destroy(envOverlayRoot);
+            if (Application.isPlaying)
+                Destroy(envOverlayRoot);
+            else
+                DestroyImmediate(envOverlayRoot);
+
             envOverlayRoot = null;
             envOverlayLabel = null;
         }
@@ -1119,10 +1129,13 @@ public class GPSMarker : MonoBehaviour
         if (showPositionDebugDetails && targetObject != null)
         {
             Vector3 targetWorld = targetObject.transform.position;
+            Vector3 targetLocal = targetObject.transform.localPosition;
             Vector3 a = new Vector3(worldPos.x, 0f, worldPos.z);
             Vector3 b = new Vector3(targetWorld.x, 0f, targetWorld.z);
             float flatDistance = Vector3.Distance(a, b);
-            positionDetails += $"\nTarget X/Z: {targetWorld.x:F1}, {targetWorld.z:F1} | Flat: {flatDistance:F1}m";
+            positionDetails +=
+                $"\nTarget World X/Z: {targetWorld.x:F1}, {targetWorld.z:F1} | Flat: {flatDistance:F1}m" +
+                $"\nTarget Local X/Z: {targetLocal.x:F1}, {targetLocal.z:F1} | Parent: {DescribeParentChain(targetObject.transform)}";
         }
 
         if (appendTransformDiagToGpsHud)

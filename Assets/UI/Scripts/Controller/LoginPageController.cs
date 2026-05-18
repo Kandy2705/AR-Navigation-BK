@@ -69,9 +69,10 @@ public class LoginPageController : IPageController
 
     private void HandleLogin()
     {
+        // Shortcut để tua nhanh vào MainSettings khi dev (bật lại nếu không test luồng API đăng nhập).
         navigatorManager.Navigate(PageID.MainSettings, false);
-        return; 
-        
+        return;
+
         if (RestClient.DefaultRequestHeaders.ContainsKey("Authorization"))
         {
             Debug.Log("À anh Thanh, Hóa ra là còn Authorization à!");

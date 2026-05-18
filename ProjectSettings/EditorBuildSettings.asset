@@ -6,16 +6,26 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 0
+    path: Assets/Scenes/GPSMapPlane.unity
+    guid: e91b6f3caf1b02f4fad8e133bd567864
+  - enabled: 1
+    path: Assets/Scenes/HybridGPSMap.unity
+    guid: a8f2c4d19e6b4c1d9f3e0725b4c8d901
+  - enabled: 0
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 0
     path: Assets/Samples/MultiSet-SDK/1.9.2/Sample Scenes/Navigation/Navigation.unity
     guid: 661affd263ed54019b4f2d59bbdb7c73
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Hybrid Navigation.unity
     guid: 4247594b285aadf4bb2d1083bbb676d6
+  - enabled: 0
+    path: Assets/Scenes/testOutdoorBK.unity
+    guid: 9a48020639bfe794ea0d0dd87ec4f7e2
   m_configObjects:
     UnityEditor.XR.ARCore.ARCoreSettings: {fileID: 11400000, guid: 4edba7d170d55ac4192bad054438baa8, type: 2}
+    UnityEditor.XR.ARKit.ARKitSettings: {fileID: 11400000, guid: e53584264f07a384496af985595b8c83, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     com.unity.xr.arfoundation.simulation_settings: {fileID: 11400000, guid: 98865bd92036c1048b86cdb8e0091b73, type: 2}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 1e05af2848f0a1344b3afc377e679a2b, type: 2}
