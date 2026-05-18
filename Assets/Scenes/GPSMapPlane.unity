@@ -985,8 +985,9 @@ MonoBehaviour:
   targetNode: {fileID: 1708830434}
   arCamera: {fileID: 510559344}
   navigationGpsTracker: {fileID: 0}
-  gateLineUntilNavigationGpsHealthy: 1
+  gateLineUntilNavigationGpsHealthy: 0
   bypassNavigationGpsGateInEditor: 1
+  pathBorderMaterial: {fileID: 2100000, guid: a4f21b3c8d5e9f7b2c4a6e8d1f3b5a7c, type: 2}
   navMeshSampleRadius: 3
   pathUpdateInterval: 0.5
   minMoveDistanceMeters: 0.5

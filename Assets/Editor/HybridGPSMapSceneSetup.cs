@@ -594,18 +594,28 @@ public static class HybridGPSMapSceneSetup
             // Shared rig is always at scene root — no need to detach at runtime
             SetBool(so, "detachOutdoorXrRigFromEnvironment", false);
 
-            // No duplicates left → guards no longer needed
-            SetBool(so, "disableIndoorARSessionDuplicates", false);
-            SetBool(so, "disableIndoorXROriginDuplicates",  false);
+            // Shared rig: one presentation camera drives both hybrid modes — keep duplicate guards enabled
+            // so any leftover indoor ARSession prefabs get toggled if someone re-enabled them later.
+            SetBool(so, "disableIndoorARSessionDuplicates", true);
+            SetBool(so, "disableIndoorXROriginDuplicates",  true);
 
             // Keep outdoor active so ARPathFinder never stops
             SetBool(so, "keepOutdoorActiveWhileIndoor", true);
 
-            // Point HMC to the shared outdoor camera
+            // Point HybridModeController at the single shared presentation camera for both modes
             if (sharedCam != null)
             {
+                SerializedProperty indoorCamProp = so.FindProperty("indoorMainCamera");
+                if (indoorCamProp != null)
+                {
+                    indoorCamProp.objectReferenceValue = sharedCam;
+                }
+
                 SerializedProperty camProp = so.FindProperty("outdoorMainCamera");
-                if (camProp != null) camProp.objectReferenceValue = sharedCam;
+                if (camProp != null)
+                {
+                    camProp.objectReferenceValue = sharedCam;
+                }
             }
 
             // Add SharedARRig to alwaysActiveRoots

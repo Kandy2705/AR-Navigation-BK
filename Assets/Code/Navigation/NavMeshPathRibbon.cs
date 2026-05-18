@@ -377,9 +377,16 @@ public static class NavigationPathMaterialHelper
 
     public static Material CreateDefaultPathMaterial(Color color)
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit")
+                     ?? Shader.Find("Universal Render Pipeline/Lit")
+                     ?? Shader.Find("Unlit/Color")
+                     ?? Shader.Find("Standard");
         if (shader == null)
-            shader = Shader.Find("Unlit/Color");
+        {
+            Debug.LogError("[NavMeshPathRibbon] No usable shader found (URP/Unlit, URP/Lit, Unlit/Color, Standard all null). " +
+                           "Add 'Universal Render Pipeline/Unlit' to Graphics Settings > Always Included Shaders.");
+            return null;
+        }
         var m = new Material(shader) { color = color };
         return m;
     }
@@ -415,7 +422,7 @@ public static class NavigationPathMaterialHelper
             for (int x = 0; x < w; x++)
             {
                 int dx = x - halfW;
-                int dy = y - (yCenter - 5);
+                int dy = (yCenter + 5) - y;
                 if (x < halfW && Mathf.Abs(dx + dy) <= thick) tex.SetPixel(x, y, fg);
                 else if (x >= halfW && Mathf.Abs(dx - dy) <= thick) tex.SetPixel(x, y, fg);
             }

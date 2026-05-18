@@ -813,29 +813,199 @@ public class HybridModeController : MonoBehaviour
     /// Bật/tắt <c>ARCameraManager</c> và <c>ARCameraBackground</c> trên mỗi camera
     /// theo mode hiện tại. Ngăn tình trạng camera outdoor bị đen sau khi
     /// từ Indoor chuyển về Outdoor do 2 ARCameraManager cùng active tranh nhau AR Session.
+    /// Khi indoor + outdoor cùng trỏ một camera (SharedARRig), chỉ set enabled một lần — gọi lần hai
+    /// với outdoorActive=false sẽ tắt nhầm feed (màn đen Indoor trên máy thật).
     /// </summary>
     private void ManageARCameraComponents(HybridMode mode)
     {
-        bool indoorActive  = mode == HybridMode.Indoor;
-        bool outdoorActive = mode == HybridMode.Outdoor;
+        bool indoorPhase  = mode == HybridMode.Indoor;
+        bool outdoorPhase = mode == HybridMode.Outdoor;
 
-        SetARCameraComponents(indoorMainCamera,  indoorActive);
-        SetARCameraComponents(outdoorMainCamera, outdoorActive);
+        Camera outdoorCam = ResolveOutdoorPresentationCamera();
+        if (outdoorCam == null)
+        {
+            outdoorCam = LastResortFindPresentationCamera();
+        }
 
-        // outdoorMainCamera có thể là camera trên SharedARRig (alwaysActiveRoots),
-        // không nằm trong outdoorEnvironment. Tìm thêm từ alwaysActiveRoots nếu chưa có.
-        if (outdoorMainCamera == null && alwaysActiveRoots != null)
+        Camera indoorCam = indoorMainCamera;
+        if ((indoorCam == null || !indoorCam.gameObject.activeInHierarchy) && indoorEnvironment != null)
+        {
+            indoorCam = FindPreferredCamera(indoorEnvironment, "ARCamera");
+        }
+
+        // HybridGPSMap single rig: duplicate XROrigin disabled, no separate indoor ARCamera.
+        if (indoorCam == null)
+        {
+            indoorCam = outdoorCam;
+        }
+
+        bool samePhysicalCamera = indoorCam != null && outdoorCam != null &&
+            ReferenceEquals(indoorCam, outdoorCam);
+
+        bool arShouldRun = indoorPhase || outdoorPhase;
+
+        if (samePhysicalCamera)
+        {
+            SetARCameraComponents(indoorCam, arShouldRun);
+            return;
+        }
+
+        SetARCameraComponents(indoorCam, indoorPhase);
+        SetARCameraComponents(outdoorCam, outdoorPhase);
+    }
+
+    /// <summary>Shared / outdoor AR display camera (Main Camera on SharedARRig, detached rig, or outdoor env).</summary>
+    private Camera ResolveOutdoorPresentationCamera()
+    {
+        if (_detachedOutdoorXrRigRoot != null && _detachedOutdoorXrRigRoot.activeInHierarchy)
+        {
+            Camera fromDetached = FindPreferredCamera(_detachedOutdoorXrRigRoot, "Main Camera");
+            if (fromDetached != null)
+            {
+                return fromDetached;
+            }
+        }
+
+        if (outdoorMainCamera != null && outdoorMainCamera.gameObject.activeInHierarchy)
+        {
+            return outdoorMainCamera;
+        }
+
+        if (alwaysActiveRoots != null)
         {
             foreach (GameObject root in alwaysActiveRoots)
             {
-                Camera cam = FindPreferredCamera(root, "Main Camera");
-                if (cam != null)
+                if (root == null)
                 {
-                    SetARCameraComponents(cam, outdoorActive);
-                    break;
+                    continue;
+                }
+
+                Camera cam = FindPreferredCamera(root, "Main Camera");
+                if (cam != null && cam.gameObject.activeInHierarchy)
+                {
+                    return cam;
                 }
             }
         }
+
+        if (outdoorEnvironment != null)
+        {
+            Camera fromOutdoorEnv = FindPreferredCamera(outdoorEnvironment, "Main Camera");
+            if (fromOutdoorEnv != null && fromOutdoorEnv.gameObject.activeInHierarchy)
+            {
+                return fromOutdoorEnv;
+            }
+        }
+
+        return LastResortFindPresentationCamera();
+    }
+
+    /// <summary>
+    /// Avoid null from ResolveOutdoor when refs are stale — null + ApplyMainCameraTag would strip all MainCamera tags.
+    /// Skips minimap / render-texture cameras.
+    /// </summary>
+    private Camera LastResortFindPresentationCamera()
+    {
+        if (alwaysActiveRoots != null)
+        {
+            foreach (GameObject root in alwaysActiveRoots)
+            {
+                if (root == null || !root.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                Camera found = FindPresentationCameraExcludingMinimap(root);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+        }
+
+        Camera tagged = Camera.main;
+        if (tagged != null && tagged.targetTexture == null && !IsLikelyMinimapOrOffscreenCamera(tagged))
+        {
+            return tagged;
+        }
+
+        foreach (Unity.XR.CoreUtils.XROrigin xr in FindObjectsByType<Unity.XR.CoreUtils.XROrigin>(
+            FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        {
+            if (xr == null || !xr.isActiveAndEnabled)
+            {
+                continue;
+            }
+
+            Camera c = xr.GetComponentInChildren<Camera>(true);
+            if (c != null && c.gameObject.activeInHierarchy && c.targetTexture == null &&
+                !IsLikelyMinimapOrOffscreenCamera(c))
+            {
+                return c;
+            }
+        }
+
+        return null;
+    }
+
+    private static Camera FindPresentationCameraExcludingMinimap(GameObject root)
+    {
+        Camera[] cams = root.GetComponentsInChildren<Camera>(true);
+        foreach (Camera c in cams)
+        {
+            if (c == null || !c.gameObject.activeInHierarchy || c.targetTexture != null)
+            {
+                continue;
+            }
+
+            if (IsLikelyMinimapOrOffscreenCamera(c))
+            {
+                continue;
+            }
+
+            if (c.name.Equals("Main Camera", System.StringComparison.Ordinal))
+            {
+                return c;
+            }
+        }
+
+        foreach (Camera c in cams)
+        {
+            if (c == null || !c.gameObject.activeInHierarchy || c.targetTexture != null)
+            {
+                continue;
+            }
+
+            if (IsLikelyMinimapOrOffscreenCamera(c))
+            {
+                continue;
+            }
+
+            return c;
+        }
+
+        return null;
+    }
+
+    private static bool IsLikelyMinimapOrOffscreenCamera(Camera c)
+    {
+        if (c == null)
+        {
+            return true;
+        }
+
+        string n = c.gameObject.name;
+        if (n.IndexOf("Minimap", System.StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return true;
+        }
+
+        if (n.IndexOf("Map", System.StringComparison.OrdinalIgnoreCase) >= 0 && c.orthographic)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static void SetARCameraComponents(Camera cam, bool enabled)
@@ -1057,26 +1227,36 @@ public class HybridModeController : MonoBehaviour
             preferred = indoorMainCamera;
             if (preferred == null || !preferred.gameObject.activeInHierarchy)
             {
-                preferred = FindPreferredCamera(indoorEnvironment, "ARCamera");
+                preferred = indoorEnvironment != null
+                    ? FindPreferredCamera(indoorEnvironment, "ARCamera")
+                    : null;
+            }
+
+            Camera sharedCam = ResolveOutdoorPresentationCamera();
+            if ((preferred == null || !preferred.gameObject.activeInHierarchy) && sharedCam != null)
+            {
+                preferred = sharedCam;
             }
         }
         else
         {
             // After DetachOutdoorXrRigForSharedCamera the live AR camera is usually on the detached root, not under outdoorEnvironment.
-            if (_detachedOutdoorXrRigRoot != null && _detachedOutdoorXrRigRoot.activeInHierarchy)
+            preferred = ResolveOutdoorPresentationCamera();
+        }
+
+        if (preferred == null)
+        {
+            preferred = LastResortFindPresentationCamera();
+        }
+
+        if (preferred == null)
+        {
+            if (verboseLog)
             {
-                preferred = FindPreferredCamera(_detachedOutdoorXrRigRoot, "Main Camera");
+                Debug.LogWarning("[HybridMode] ApplyMainCameraTag: no presentation camera resolved — skipping retag (avoids stripping all MainCamera tags).");
             }
 
-            if (preferred == null || !preferred.gameObject.activeInHierarchy)
-            {
-                preferred = outdoorMainCamera;
-            }
-
-            if (preferred == null || !preferred.gameObject.activeInHierarchy)
-            {
-                preferred = FindPreferredCamera(outdoorEnvironment, "Main Camera");
-            }
+            return;
         }
 
         if (_detachedOutdoorXrRigRoot != null)
@@ -1086,6 +1266,20 @@ public class HybridModeController : MonoBehaviour
 
         ClearMainCameraTag(indoorEnvironment, preferred);
         ClearMainCameraTag(outdoorEnvironment, preferred);
+
+        // SharedARRig is often sibling to OutdoorEnvironment; clear lingering MainCamera here or Camera.main/indoor mismatch.
+        if (alwaysActiveRoots != null)
+        {
+            foreach (GameObject root in alwaysActiveRoots)
+            {
+                if (root == null)
+                {
+                    continue;
+                }
+
+                ClearMainCameraTag(root, preferred);
+            }
+        }
 
         if (preferred != null)
         {

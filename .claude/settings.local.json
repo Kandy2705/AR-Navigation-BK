@@ -2,7 +2,29 @@
   "permissions": {
     "allow": [
       "PowerShell(Get-ChildItem *)",
-      "PowerShell(Get-ChildItem -Path \"D:\\\\TestAR\\\\TestARMultiSet\" -Depth 1 | Where-Object { $_.Extension -match '\\\\.\\(json|yml|yaml|ps1|sh\\)$' } | Select-Object -ExpandProperty Name)"
+      "PowerShell(Get-ChildItem -Path \"D:\\\\TestAR\\\\TestARMultiSet\" -Depth 1 | Where-Object { $_.Extension -match '\\\\.\\(json|yml|yaml|ps1|sh\\)$' } | Select-Object -ExpandProperty Name)",
+      "Bash(Get-Item \"D:\\\\TestAR\\\\TestARMultiSet\\\\Assets\\\\Scenes\\\\Hybrid Navigation.unity\")",
+      "Bash(Select-Object Length)",
+      "Bash(xargs grep -l \"933532a4fcc9baf4fa0491de14d08ed7\")",
+      "Bash(xargs grep -l \"UniversalRenderPipeline\\\\|URPAsset\\\\|UniversalRenderer\")",
+      "Bash(xargs grep -l \"UniversalRendererData\\\\|ARBackgroundRendererFeature\\\\|ARBackground\")",
+      "mcp__mcp-unity__get_scene_info",
+      "mcp__mcp-unity__get_gameobject",
+      "mcp__mcp-unity__update_component",
+      "mcp__mcp-unity__update_gameobject",
+      "mcp__mcp-unity__save_scene",
+      "Bash(git -C \"D:/TestAR/TestARMultiSet\" diff HEAD -- ProjectSettings/GraphicsSettings.asset)",
+      "Bash(xargs grep -l \"UniversalRendererData\\\\|m_RendererFeatures\")",
+      "Bash(xargs grep -l \"UniversalRenderPipeline\\\\b\")",
+      "mcp__mcp-unity__reparent_gameobject",
+      "mcp__mcp-unity__delete_gameobject",
+      "mcp__mcp-unity__duplicate_gameobject",
+      "mcp__mcp-unity__recompile_scripts",
+      "mcp__mcp-unity__get_console_logs",
+      "mcp__mcp-unity__execute_menu_item"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "mcp-unity"
+  ]
 }

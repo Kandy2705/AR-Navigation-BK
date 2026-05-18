@@ -61,6 +61,10 @@ public class ARPathFinder : MonoBehaviour
     [SerializeField] private float pathBorderWidthMeters = 0.06f;
     [Tooltip("Lift path above each NavMesh corner Y (meters).")]
     [SerializeField] private float pathHeightOffset = 0.04f;
+    [Tooltip("Pin path Y to camera-foot level (cameraY - cameraEyeToFootMeters). Fixes 'path floats in air' when GPS Y drifts or NavMesh sits above visible ground.")]
+    [SerializeField] private bool clampPathYToCameraFoot = true;
+    [Tooltip("Eye-to-foot distance assumed for the user when clampPathYToCameraFoot is on (meters).")]
+    [SerializeField] private float cameraEyeToFootMeters = 1.6f;
     [SerializeField] private bool pathAlwaysOnTop = true;
     [SerializeField] private Material pathCenterMaterial;
     [SerializeField] private Material pathBorderMaterial;
@@ -479,11 +483,21 @@ public class ARPathFinder : MonoBehaviour
         {
             EnsureMeshComponents();
             Transform meshSpace = _pathMeshRoot != null ? _pathMeshRoot : transform;
+            Func<Vector3, float> yOffsetFn;
+            if (clampPathYToCameraFoot && arCamera != null)
+            {
+                float footY = arCamera.transform.position.y - cameraEyeToFootMeters;
+                yOffsetFn = corner => (footY - corner.y) + pathHeightOffset;
+            }
+            else
+            {
+                yOffsetFn = _ => pathHeightOffset;
+            }
             NavMeshPathRibbon.BuildMesh(
                 pathMesh,
                 meshSpace,
                 corners,
-                _ => pathHeightOffset,
+                yOffsetFn,
                 pathWidth,
                 pathWidth,
                 pathMetersPerTile,
