@@ -2,21 +2,28 @@ using UnityEngine;
 using UnityEngine.AI;
 
 /// <summary>
-/// Đảm bảo các điều kiện tiên quyết cho NavigationController (MultiSet SDK) trước khi nó Start():
-///   1. AR Camera có SphereCollider (trigger) — SDK dùng để phát hiện arrival tại POI.
-///   2. NavMeshAgent được đặt lên NavMesh nếu spawn position không khớp.
+/// Helper component đặt cùng GameObject với <see cref="NavigationController"/> (Multiset SDK).
+/// Chuẩn bị 2 precondition mà SDK cần ở thời điểm <c>Awake/Start</c>:
+///   1. Thêm <see cref="SphereCollider"/> trigger vào <c>Camera.main</c>.
+///   2. Warp <see cref="NavMeshAgent"/> về NavMesh gần nhất nếu chưa onNavMesh.
 ///
-/// Cách dùng: Đặt script này trên CÙNG GameObject với NavigationController.
-/// DefaultExecutionOrder(-100) đảm bảo Awake/Start của script này chạy TRƯỚC NavigationController.
+/// Ghi chú: Nếu <c>Camera.main</c> chưa tag MainCamera lúc Awake (timing race khi
+/// IndoorEnvironment vừa được bật), 2 việc trên sẽ thất bại — đó là lý do
+/// <see cref="MultisetIndoorBootstrap"/> tồn tại để tiếp tục poll và reflection-patch
+/// SDK runtime. Component này chỉ là "fast path" cho trường hợp setup chuẩn.
 /// </summary>
 [DefaultExecutionOrder(-100)]
+[RequireComponent(typeof(NavigationController))]
 public class NavigationControllerSetup : MonoBehaviour
 {
-    [Tooltip("Bán kính SphereCollider thêm vào AR Camera (metres). Dùng để phát hiện khi người dùng đến gần POI.")]
+    [Tooltip("Bán kính SphereCollider thêm vào Camera.main (m). Dùng để phát hiện arrival tại POI.")]
     [SerializeField] private float cameraColliderRadius = 0.5f;
 
-    [Tooltip("Bán kính tìm kiếm NavMesh khi agent chưa ở trên NavMesh (metres).")]
+    [Tooltip("Bán kính tìm NavMesh khi agent chưa onNavMesh (m).")]
     [SerializeField] private float navMeshSearchRadius = 10f;
+
+    [Tooltip("In log chi tiết.")]
+    [SerializeField] private bool verboseLog = true;
 
     private void Awake()
     {
@@ -25,67 +32,39 @@ public class NavigationControllerSetup : MonoBehaviour
 
     private void Start()
     {
-        EnsureAgentOnNavMesh();
+        EnsureCameraCollider();
+        WarpAgentToNavMesh();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Camera collider
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// NavigationController.Awake() lấy Camera.main và Start() gọi GetComponent&lt;SphereCollider&gt;().
-    /// Nếu camera chưa có collider → NullRef mỗi frame trong Update().
-    /// Script này thêm SphereCollider (trigger) trước khi NavigationController.Start() chạy.
-    /// </summary>
     private void EnsureCameraCollider()
     {
-        Camera cam = Camera.main;
-        if (cam == null)
+        var cam = Camera.main;
+        if (cam == null) return;
+
+        if (cam.GetComponent<SphereCollider>() == null)
         {
-            // Camera chưa được tag lúc Awake — thử lại ở Start
-            return;
+            var col = cam.gameObject.AddComponent<SphereCollider>();
+            col.radius = cameraColliderRadius;
+            col.isTrigger = true;
+            if (verboseLog)
+            {
+                Debug.Log($"[NavigationControllerSetup] SphereCollider added to Camera.main '{cam.name}'.");
+            }
         }
-
-        AddColliderIfMissing(cam.gameObject);
     }
 
-    private void AddColliderIfMissing(GameObject camGO)
+    private void WarpAgentToNavMesh()
     {
-        if (camGO.GetComponent<SphereCollider>() != null) return;
-
-        SphereCollider col = camGO.AddComponent<SphereCollider>();
-        col.radius    = cameraColliderRadius;
-        col.isTrigger = true;
-        Debug.Log($"[NavigationControllerSetup] SphereCollider (trigger, r={cameraColliderRadius}m) đã được thêm vào '{camGO.name}'.");
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // NavMesh agent
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// NavigationController.Start() đọc agent.transform.position ngay lập tức.
-    /// Nếu agent chưa nằm trên NavMesh (spawn point không trùng với baked mesh),
-    /// Unity in "Failed to create agent — not close enough to NavMesh".
-    /// Script này Warp agent về điểm gần nhất trên NavMesh trước khi NavigationController.Start() chạy.
-    /// </summary>
-    private void EnsureAgentOnNavMesh()
-    {
-        NavigationController navCtrl = GetComponent<NavigationController>();
+        var navCtrl = GetComponent<NavigationController>();
         if (navCtrl == null) return;
 
-        NavMeshAgent agent = navCtrl.agent;
+        var agent = navCtrl.agent;
         if (agent == null || agent.isOnNavMesh) return;
 
         if (NavMesh.SamplePosition(agent.transform.position, out NavMeshHit hit, navMeshSearchRadius, NavMesh.AllAreas))
         {
             agent.Warp(hit.position);
-            Debug.Log($"[NavigationControllerSetup] NavMeshAgent warped từ {agent.transform.position} → {hit.position}.");
-        }
-        else
-        {
-            Debug.LogWarning($"[NavigationControllerSetup] Không tìm thấy NavMesh trong bán kính {navMeshSearchRadius}m quanh agent. " +
-                             "Hãy bake NavMesh cho scene này: Window → AI → Navigation → Bake.");
+            if (verboseLog) Debug.Log($"[NavigationControllerSetup] Agent warped → {hit.position}.");
         }
     }
 }

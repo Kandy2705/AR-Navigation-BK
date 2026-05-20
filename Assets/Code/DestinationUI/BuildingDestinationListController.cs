@@ -50,6 +50,10 @@ namespace Project.DestinationUI
 
             destinationSelectUI.SetActive(true);
             ResetSearchTextOnly();
+
+            // Auto-sync buildings từ BuildingSceneBindings nếu list rỗng hoặc poiRoot null.
+            AutoSyncBuildingsIfNeeded();
+
             RenderBuildings();
         }
 
@@ -300,6 +304,80 @@ namespace Project.DestinationUI
             {
                 placeholder.SetActive(true);
             }
+        }
+
+        /// <summary>
+        /// Tự động sync buildings list từ BuildingSceneBindings nếu list rỗng hoặc poiRoot null.
+        /// Dùng reflection để tránh dependency vào assembly khác (BuildingSceneBindings ở Assembly-CSharp).
+        /// </summary>
+        void AutoSyncBuildingsIfNeeded()
+        {
+            // Kiểm tra xem buildings đã có data hợp lệ chưa.
+            bool needsSync = buildings.Count == 0;
+            if (!needsSync)
+            {
+                foreach (var b in buildings)
+                {
+                    if (b == null || b.poiRoot == null) { needsSync = true; break; }
+                }
+            }
+
+            if (!needsSync) return;
+
+            // Reflection: tìm component "BuildingSceneBindings" trong scene.
+            MonoBehaviour bindingsComp = null;
+            foreach (var mb in Resources.FindObjectsOfTypeAll<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                if (mb.GetType().Name == "BuildingSceneBindings" && mb.gameObject.scene.IsValid())
+                {
+                    bindingsComp = mb;
+                    break;
+                }
+            }
+            if (bindingsComp == null) return;
+
+            var bindingsType = bindingsComp.GetType();
+            var bindingsListProp = bindingsType.GetProperty("Bindings");
+            if (bindingsListProp == null) return;
+
+            var bindingsEnumerable = bindingsListProp.GetValue(bindingsComp) as System.Collections.IEnumerable;
+            if (bindingsEnumerable == null) return;
+
+            // Read Registry property + Find method to get displayName.
+            var registryProp = bindingsType.GetProperty("Registry");
+            object registry = registryProp?.GetValue(bindingsComp);
+            var findMethod = registry?.GetType().GetMethod("Find");
+
+            buildings.Clear();
+            foreach (var b in bindingsEnumerable)
+            {
+                if (b == null) continue;
+                var bType = b.GetType();
+                var idField = bType.GetField("id");
+                var rootField = bType.GetField("buildingRoot");
+                var poiField = bType.GetField("poiContainer");
+                if (idField == null || rootField == null) continue;
+
+                var buildingRoot = rootField.GetValue(b) as GameObject;
+                if (buildingRoot == null) continue;
+
+                var poiContainer = poiField?.GetValue(b) as Transform;
+                GameObject poiRoot = poiContainer != null ? poiContainer.gameObject : buildingRoot;
+
+                // Lấy displayName từ Registry.Find(id).
+                string displayName = idField.GetValue(b)?.ToString() ?? "Unknown";
+                if (findMethod != null && registry != null)
+                {
+                    var entry = findMethod.Invoke(registry, new[] { idField.GetValue(b) });
+                    var entryDisplayName = entry?.GetType().GetField("displayName")?.GetValue(entry) as string;
+                    if (!string.IsNullOrEmpty(entryDisplayName)) displayName = entryDisplayName;
+                }
+
+                buildings.Add(new BuildingPoiGroup { displayName = displayName, poiRoot = poiRoot });
+            }
+
+            Debug.Log($"[BuildingDestinationList] Auto-synced {buildings.Count} buildings from BuildingSceneBindings.");
         }
 
         bool PrepareNavigationStart(POI poi)

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Preserve Multiset SDK types/fields được truy cập qua reflection.
+
+  Reflection targets:
+    - IndoorMapSwitcher: mapOrMapsetCode, localizationType (trên MapLocalizationManager)
+    - MultisetIndoorBootstrap: ARCamera, ARCameraCollider private (trên NavigationController)
+    - IndoorAutoEnterB9: localizationGood/isLocalized + meshVisualizationOption
+                        (trên MapLocalizationManager / MapMeshHandler)
+
+  Multiset SDK gồm:
+    - MultiSetSDK.dll (precompiled, đặt trong Runtime/Plugins)
+    - MultiSet-SDK.Core asmdef (C# wrapper trong Runtime/Scripts)
+
+  Cả 2 cần preserve để IL2CPP stripping (Minimal/Low) không xoá field.
+-->
+<linker>
+  <assembly fullname="MultiSetSDK" preserve="all"/>
+  <assembly fullname="MultiSet-SDK.Core" preserve="all"/>
+</linker>

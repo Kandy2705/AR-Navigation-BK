@@ -68,28 +68,12 @@ public class ProfileController : IPageController
                 Debug.LogWarning("Lỗi đọc cache cũ: " + ex.Message);
             }
         }
+        else
+        {
+            Debug.LogWarning("[Profile] Chưa có cache user trong PlayerPrefs. Cần đăng nhập thật để lấy dữ liệu.");
+        }
 
-        Debug.Log("Controller: Đang yêu cầu Service lấy dữ liệu...");
-
-        RegisterRes res = JsonUtility.FromJson<RegisterRes>(PlayerPrefs.GetString(cacheKey, "Không có dữ liệu"));
-        UpdateUI(res);
-
-        // Service.GetUserProfile()
-        //     .Then(res => 
-        //     {
-        //         Debug.Log("Controller: Đã nhận dữ liệu, đang update UI");
-        //         UpdateUI(res);
-        //     })
-        //     .Catch(err => 
-        //     {
-        //         Debug.LogError("Controller: Lỗi khi lấy profile: " + err.Message);
-                
-        //         var reqErr = err as RequestException;
-        //         if (reqErr != null && reqErr.StatusCode == 401)
-        //         {
-        //             Service.Logout();
-        //         }
-        //     });
+        // TODO: gọi Service.GetUserProfile(token) để refresh khi đã có token thật.
     }
 
 

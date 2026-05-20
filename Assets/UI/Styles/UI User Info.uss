@@ -161,10 +161,8 @@
 
 .bottom-actions {
     margin-top: 10px;
-    position: absolute;
-    bottom: 20px;
-    left: 0;
-    right: 0;
+    padding-bottom: 20px;
+    align-items: center;
 }
 
 .action-btn {

@@ -1,4 +1,21 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <Style src="project://database/Assets/UI/Documents/TestLazyLoading/Style.uss?fileID=7433441132597879392&amp;guid=afa2cedffe47b8b4683062f70bc33717&amp;type=3#Style" />
-    <ui:VisualElement name="RootContainer" class="screen-container" style="min-height: 812px; max-height: 1000px;" />
+    <Style src="project://database/Assets/UI/Styles/UI%20History.uss?fileID=7433441132597879392&amp;guid=6231b9df5df3d5443a4da945824e4045&amp;type=3#UI History" />
+    <ui:VisualElement style="flex-grow: 1;">
+        <ui:VisualElement name="RootContainer" class="screen-container" style="flex-grow: 1; min-height: auto; max-height: none;" />
+        <ui:VisualElement name="SharedBottomNav" class="bottom-nav" style="flex-direction: row; height: 80px; align-items: flex-end; flex-shrink: 0; background-color: rgb(25, 25, 25); border-top-width: 1px; border-top-color: rgb(44, 44, 46); padding-top: 12px; padding-bottom: 8px; justify-content: space-around;">
+            <ui:Button name="btn-ar" class="nav-item">
+                <ui:VisualElement class="icon-action icon-phone" style="margin-left: 0;" />
+                <ui:Label text="AR chỉ đường" class="nav-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); padding-left: 2px; margin-right: 2px; margin-bottom: 4px; font-size: 11px;" />
+            </ui:Button>
+            <ui:Button name="BtnHistory" class="nav-item">
+                <ui:VisualElement class="icon-action icon-clock" style="margin-left: 0; background-image: url(&quot;project://database/Assets/UI/Styles/Material/3%20-%20Bold/clock.png?fileID=2800000&amp;guid=b9ec7b6f68c04e84d8c9bb37c229f786&amp;type=3#clock&quot;);" />
+                <ui:Label text="Lịch sử" class="nav-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); padding-left: 2px; margin-right: 2px; margin-bottom: 4px; font-size: 11px;" />
+            </ui:Button>
+            <ui:Button name="BtnSettings" class="nav-item">
+                <ui:VisualElement class="icon-action icon-gear" style="margin-left: 0;" />
+                <ui:Label text="Cài đặt" class="nav-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;); padding-left: 2px; margin-right: 2px; margin-bottom: 4px; font-size: 11px;" />
+            </ui:Button>
+        </ui:VisualElement>
+    </ui:VisualElement>
 </ui:UXML>

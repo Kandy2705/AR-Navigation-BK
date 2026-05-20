@@ -129,6 +129,17 @@ public class HybridModeController : MonoBehaviour
 
     public HybridMode CurrentMode => currentMode;
 
+    /// <summary>
+    /// Read-only accessor cho camera đang được present theo <see cref="CurrentMode"/>.
+    /// Giúp observer ngoài (vd <c>IndoorAutoEnterB9</c>, <c>MultisetIndoorBootstrap</c>) tránh
+    /// race với <see cref="Camera.main"/> cache khi <c>ApplyMainCameraTag</c> vừa chạy.
+    /// Trả về null nếu field tương ứng chưa được gán trong inspector.
+    /// </summary>
+    public Camera GetActiveARCamera()
+    {
+        return currentMode == HybridMode.Indoor ? indoorMainCamera : outdoorMainCamera;
+    }
+
     private HybridMode currentMode;
     private bool localizationGood;
     private float localizationGoodTimer;

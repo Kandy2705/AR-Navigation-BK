@@ -13,6 +13,8 @@ public class UIWelcome : MonoBehaviour
         var root = GetComponent<UIDocument>()?.rootVisualElement;
         if (root == null) return;
 
+        CaretStyleApplier.Apply(root);
+
         btnLogin = root.Q<Button>("LoginButton");
         btnSignup = root.Q<Button>("SignUpButton");
 

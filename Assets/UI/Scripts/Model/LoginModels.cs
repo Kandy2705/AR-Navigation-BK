@@ -17,3 +17,12 @@ public class LoginRes
   
 }
 
+[Serializable]
+public class LoginResponseWrapper
+{
+    public bool success;
+    public LoginRes data;
+    public string message;
+    public string errorCode;
+}
+

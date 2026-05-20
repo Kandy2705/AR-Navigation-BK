@@ -27,6 +27,8 @@ public class UIOnboarding : MonoBehaviour
             return;
         }
 
+        CaretStyleApplier.Apply(root);
+
         onboardingElement = root.Q<VisualElement>("Onboarding");
         bgElement = root.Q<VisualElement>("Background");
         loadingSpinner = root.Q<VisualElement>("LoadingSpinner");

@@ -1,0 +1,16 @@
+/*
+ * Style chung cho caret (con trỏ nháy) của mọi TextField/PlaceHolder.
+ * --unity-cursor-color là USS variable chuẩn của Unity UI Toolkit.
+ * Caret tự blink mặc định nên chỉ cần đặt màu trắng cho dễ nhìn.
+ *
+ * File này được load runtime qua Resources.Load (xem CaretStyleApplier.cs)
+ * và gắn vào root VisualElement của mọi UIDocument trong project.
+ */
+
+TextField,
+PlaceHolder,
+.unity-text-field,
+.unity-text-input,
+.unity-base-text-field__input {
+    --unity-cursor-color: rgb(255, 255, 255);
+}

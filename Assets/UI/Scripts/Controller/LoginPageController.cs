@@ -69,10 +69,6 @@ public class LoginPageController : IPageController
 
     private void HandleLogin()
     {
-        // Shortcut để tua nhanh vào MainSettings khi dev (bật lại nếu không test luồng API đăng nhập).
-        navigatorManager.Navigate(PageID.MainSettings, false);
-        return;
-
         if (RestClient.DefaultRequestHeaders.ContainsKey("Authorization"))
         {
             Debug.Log("À anh Thanh, Hóa ra là còn Authorization à!");
@@ -99,13 +95,15 @@ public class LoginPageController : IPageController
                 errorLabel.style.display = DisplayStyle.None;
             }
 
-            var resData = JsonUtility.FromJson<LoginRes>(response.Text);
+            // BE trả wrapper {"success":true,"data":{accessToken,refreshToken,...}}.
+            // Thử parse wrapper trước, fallback parse flat nếu BE thay đổi format.
+            LoginRes resData = ParseLoginResponse(response.Text);
 
             if(resData != null && !string.IsNullOrEmpty(resData.accessToken))
             {
                 Debug.Log("Đăng nhập thành công! Token: " + resData.accessToken);
                 RestClient.DefaultRequestHeaders["Authorization"] = "Bearer " + resData.accessToken;
-                PlayerPrefs.SetString("REFRESH_TOKEN", resData.refreshToken);
+                PlayerPrefs.SetString("REFRESH_TOKEN", resData.refreshToken ?? "");
                 PlayerPrefs.SetString("ACCESS_TOKEN", resData.accessToken);
 
                 PlayerPrefs.Save();
@@ -141,6 +139,41 @@ public class LoginPageController : IPageController
             PlayerPrefs.DeleteKey(KEY_PASS);
             PlayerPrefs.SetInt(KEY_REMEMBER, 0);
         }
+    }
+
+    private static LoginRes ParseLoginResponse(string json)
+    {
+        if (string.IsNullOrEmpty(json)) return null;
+
+        // 1) BE chuẩn: { success, data: { accessToken, refreshToken, ... }, message }
+        try
+        {
+            var wrapper = JsonUtility.FromJson<LoginResponseWrapper>(json);
+            if (wrapper != null && wrapper.data != null && !string.IsNullOrEmpty(wrapper.data.accessToken))
+            {
+                return wrapper.data;
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[Login] Parse wrapper fail: {ex.Message}");
+        }
+
+        // 2) Fallback: BE trả flat { accessToken, refreshToken }
+        try
+        {
+            var flat = JsonUtility.FromJson<LoginRes>(json);
+            if (flat != null && !string.IsNullOrEmpty(flat.accessToken))
+            {
+                return flat;
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[Login] Parse flat fail: {ex.Message}");
+        }
+
+        return null;
     }
 
     private void getUserProfileData(string access_token)

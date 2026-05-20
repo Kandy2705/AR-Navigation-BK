@@ -21,7 +21,10 @@
       "mcp__mcp-unity__duplicate_gameobject",
       "mcp__mcp-unity__recompile_scripts",
       "mcp__mcp-unity__get_console_logs",
-      "mcp__mcp-unity__execute_menu_item"
+      "mcp__mcp-unity__execute_menu_item",
+      "Bash(find Library/PackageCache/com.multiset.sdk* -name \"*.asmdef\")",
+      "Bash(find Library/PackageCache/com.multiset.sdk* -name \"link.xml\")",
+      "Bash(find *)"
     ]
   },
   "enabledMcpjsonServers": [

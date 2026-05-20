@@ -80,6 +80,8 @@ public class UILogin : MonoBehaviour
             return;
         }
 
+        CaretStyleApplier.Apply(root);
+
         // Pages
         loginRoot = root.Q<VisualElement>("LoginRoot");
         emailRoot = root.Q<VisualElement>("EmailRoot");

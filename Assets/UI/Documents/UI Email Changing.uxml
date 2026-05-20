@@ -7,7 +7,7 @@
          <ui:VisualElement class="header-section">
             <ui:Button name="Btn-Back" text="←" class="btn-back" />
         </ui:VisualElement>
-        <ui:ScrollView show-vertical-scroller="false" style="min-height: 400px; max-height: 812px; margin-top: 30px; background-color: rgba(46, 97, 150, 0);">
+        <ui:ScrollView horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Hidden" touch-scroll-type="Clamped" elasticity="0" style="flex-grow: 1; margin-top: 30px; background-color: rgba(46, 97, 150, 0);">
             <ui:Label text="Thay đổi Email" name="Label" class="page-big-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-SemiBold.ttf?fileID=12800000&amp;guid=061287b66ecca5f4d9da25a0991292c6&amp;type=3#Poppins-SemiBold&quot;);" />
             <ui:Label text="Vui lòng nhập email của bạn và chúng tôi sẽ gửi mã OTP để xác nhận Email mới của bạn." class="page-desc" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Regular.ttf?fileID=12800000&amp;guid=f1f7c436755b83142926c04250f56572&amp;type=3#Poppins-Regular&quot;);" />
             <PlaceHolder placeholder-text="Email" class="email-input-field" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;); -unity-text-align: middle-center; padding-top: 0; padding-bottom: 0;" />

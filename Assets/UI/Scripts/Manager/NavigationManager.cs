@@ -23,6 +23,7 @@ public class NavigationManager : MonoBehaviour
     [SerializeField] private HybridModeController hybridModeController;
     [SerializeField] private bool keepARPageDisabledOnStart = true;
     private VisualElement rootContainer;
+    private SharedNavBar _navBar;
 
     public static string CurrentChatTitle = "";
     public PageID firstPage;
@@ -54,6 +55,23 @@ public class NavigationManager : MonoBehaviour
     {
         if(mainDocument == null) return;
         rootContainer = mainDocument.rootVisualElement.Q<VisualElement>("RootContainer");
+
+        // Reset state khi GameObject được kích hoạt lại (ví dụ quay về từ AR scene).
+        // Nếu không clear, currentPageElement sẽ trỏ tới page cũ đã bị detach,
+        // làm Navigate() ghi đè lung tung và UI bấm không ăn.
+        if (rootContainer != null)
+        {
+            rootContainer.Clear();
+        }
+        currentPageElement = null;
+
+        // Apply caret trắng cho mọi page render qua hệ navigation mới.
+        CaretStyleApplier.Apply(mainDocument.rootVisualElement);
+
+        // Bind shared nav 1 lần để không bị re-render khi chuyển trang.
+        if (_navBar == null) _navBar = new SharedNavBar(this);
+        _navBar.Bind(mainDocument.rootVisualElement);
+
         Navigate(firstPage);
         // Thông báo outdoor nav nên ẩn khi MainScreen đang active.
         // Lúc khởi động đầu tiên chưa ai subscribe nên hoàn toàn an toàn.
@@ -99,6 +117,17 @@ public class NavigationManager : MonoBehaviour
 
         IPageController controller = PageFactory.GetController(pageID);
         controller.Initialize(newPage, this);
+
+        // Apply lại caret + clamp scroll cho ScrollView mới render trong page này.
+        CaretStyleApplier.Apply(newPage);
+
+        // Cập nhật trạng thái shared nav: hiện ở các tab chính, ẩn ở các page con.
+        if (_navBar != null)
+        {
+            bool isTabPage = _navBar.IsTabPage(pageID);
+            _navBar.SetVisible(isTabPage);
+            if (isTabPage) _navBar.SetActive(pageID);
+        }
 
         Debug.Log($"Trang trước đó: {PreviousPage()}");
         if (pageHistory.Count >= 1) Debug.Log($"Đang mở trang: {pageHistory.Peek()}");
@@ -164,12 +193,24 @@ public class NavigationManager : MonoBehaviour
             pageHistory.Pop();
         }
 
+        PageID target;
         if (pageHistory.Count > 0)
         {
-            return pageHistory.Peek();
+            target = pageHistory.Peek();
+        }
+        else
+        {
+            target = firstPage != PageID.None ? firstPage : PageID.MainSettings;
         }
 
-        return firstPage != PageID.None ? firstPage : PageID.MainSettings;
+        // Pop luôn target ở đỉnh stack — Navigate(target) sẽ push lại,
+        // tránh bị duplicate dồn lịch sử mỗi lần ra/vào AR.
+        if (pageHistory.Count > 0 && pageHistory.Peek() == target)
+        {
+            pageHistory.Pop();
+        }
+
+        return target;
     }
 
     private void HandleTransition(VisualElement newPage, bool isBack)

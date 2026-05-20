@@ -5,7 +5,7 @@ using Proyecto26; // Thư viện API
 public class LoginController : MonoBehaviour
 {
     // Biến để hứng các ô nhập liệu
-    private string BASE_API = "https://arnavbk-avbcg7hecgacc5bg.malaysiawest-01.azurewebsites.net/users/login";
+    private string BASE_API = AppConst.BASE_API + "/users/login";
     private TextField _emailInput;
     private TextField _passwordInput;
     private Toggle _rememberToggle;

@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "mcp-unity": {
+      "command": "node",
+      "args": [
+        "D:/TestAR/TestARMultiSet/Library/PackageCache/com.gamelovers.mcp-unity@a32e47d4ec87/Server~/build/index.js"
+      ],
+      "env": {
+        "UNITY_PORT": "8090"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "get_gameobject",
+        "get_scene_info",
+        "update_component",
+        "execute_menu_item",
+        "recompile_scripts",
+        "get_console_logs",
+        "save_scene",
+        "update_gameobject"
+      ]
+    }
+  }
+}

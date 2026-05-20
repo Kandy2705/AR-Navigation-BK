@@ -8,7 +8,7 @@
             </ui:VisualElement>
             <ui:VisualElement style="width: 32px;" />
         </ui:VisualElement>
-        <ui:ScrollView mode="Horizontal" show-horizontal-scroller="false" class="chip-scroll-container" style="min-height: auto; max-height: none; overflow: hidden; min-width: 150px; max-width: 800px;">
+        <ui:ScrollView mode="Horizontal" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Hidden" class="chip-scroll-container" style="min-height: auto; max-height: none; overflow: hidden; min-width: 150px; max-width: 800px;">
             <ui:VisualElement class="chip-row">
                 <ui:Button text="All" class="chip-btn chip-active" style="background-color: rgb(72, 60, 155);" />
                 <ui:Button text="Account" class="chip-btn" />
@@ -17,7 +17,7 @@
                 <ui:Button text="Privacy" class="chip-btn" />
             </ui:VisualElement>
         </ui:ScrollView>
-        <ui:ScrollView show-vertical-scroller="false" class="content-scroll" style="min-height: 400px; max-height: 812px;">
+        <ui:ScrollView horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Hidden" touch-scroll-type="Clamped" elasticity="0" class="content-scroll" style="flex-grow: 1;">
             <ui:VisualElement class="faq-item">
                 <ui:VisualElement class="faq-header" style="padding-top: 20px; padding-bottom: 20px; background-color: rgb(37, 37, 39); -unity-background-image-tint-color: rgba(9, 9, 9, 0);">
                     <ui:Label text="Can I edit a generated response?" class="faq-question" style="justify-content: space-evenly; -unity-font-style: bold; margin-right: 0; padding-right: 0; font-size: 14px;" />
