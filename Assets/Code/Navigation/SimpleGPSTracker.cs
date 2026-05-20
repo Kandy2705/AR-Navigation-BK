@@ -79,6 +79,13 @@ public class SimpleGPSTracker : MonoBehaviour
     private const string PrefOffsetLon = "gps_offset_lon";
     private const string PrefExtraNorthYaw = "gps_extra_north_yaw";
 
+    /// <summary>
+    /// When true, all XR Origin position/rotation updates are suppressed.
+    /// Set by HybridModeController when entering Indoor mode so Multiset VPS
+    /// can drive the XR Origin without GPS interference.
+    /// </summary>
+    [HideInInspector] public bool freezeXROriginUpdate = false;
+
     // --- GPS state ---
     private MapOrigin mapOrigin;
     private bool isGpsReady;
@@ -334,7 +341,7 @@ public class SimpleGPSTracker : MonoBehaviour
         }
 
         // ── RENDER LAYER: runs every frame ─────────────────────────────────────
-        if (!_hasGpsTarget) return;
+        if (!_hasGpsTarget || freezeXROriginUpdate) return;
 
         float t = smoothSpeed * Time.deltaTime;
         _smoothedPosition.x = Mathf.Lerp(_smoothedPosition.x, _gpsTargetPosition.x, t);
@@ -357,7 +364,7 @@ public class SimpleGPSTracker : MonoBehaviour
         // XR Origin được đặt theo GPS, nhưng camera là con của Origin + ARCore (offset local).
         // Nếu không chỉnh, điểm nhìn trên mặt phẳng ENU lệch mỗi phiên → Des cố định GPS trông “nhảy chỗ”.
         // Chỉ chạy một lần sau khi đã có fix đầu và đã xoay Bắc, để khớp camera XZ với _smoothedPosition.
-        if (_pendingInitialCameraGpsAlign && _hasFirstValidFix && _isNorthAligned && xrOrigin != null && arCamera != null)
+        if (!freezeXROriginUpdate && _pendingInitialCameraGpsAlign && _hasFirstValidFix && _isNorthAligned && xrOrigin != null && arCamera != null)
         {
             Vector3 display = SmoothedWorldPosition;
             Vector3 cam = arCamera.transform.position;
@@ -371,7 +378,8 @@ public class SimpleGPSTracker : MonoBehaviour
             _pendingInitialCameraGpsAlign = false;
         }
 
-        EnforceLockedNorthYawIfConfigured();
+        if (!freezeXROriginUpdate)
+            EnforceLockedNorthYawIfConfigured();
     }
 
     private void EnforceLockedNorthYawIfConfigured()

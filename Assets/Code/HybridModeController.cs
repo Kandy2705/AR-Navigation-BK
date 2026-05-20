@@ -90,6 +90,10 @@ public class HybridModeController : MonoBehaviour
     [Header("Signal sources (optional)")]
     [Tooltip("Optional. Legacy / hybrid scenes only. Outdoor GPSMapPlane flow uses SimpleGPSTracker + MapOrigin — leave empty. When assigned and Max Gps Accuracy Meters <= 0, threshold can inherit maxAcceptableAccuracy from this marker (else default 30 m).")]
     [SerializeField] private GPSMarker gpsMarker;
+    [Tooltip("Assign the SimpleGPSTracker on the shared XR rig. Its XR Origin updates will be frozen during Indoor mode so Multiset VPS can drive positioning without GPS interference.")]
+    [SerializeField] private SimpleGPSTracker simpleGpsTracker;
+    [Tooltip("Assign AlignXROriginToUser if present. Its one-shot alignment flag is reset when returning to Outdoor so it re-anchors the camera to GPS.")]
+    [SerializeField] private AlignXROriginToUser alignXROriginToUser;
 
     [Header("Initial State")]
     [SerializeField] private HybridMode initialMode = HybridMode.Outdoor;
@@ -400,6 +404,7 @@ public class HybridModeController : MonoBehaviour
         }
 
         SetEnvironmentActive(nextMode);
+        ApplyXROriginFreezeForMode(nextMode);
 
         // Resolve MainCamera while hierarchy matches mode, before canvases / listeners (avoids wrong Camera.main on presentation step).
         if (autoManageMainCameraTag)
@@ -551,6 +556,21 @@ public class HybridModeController : MonoBehaviour
         }
     }
 #endif
+
+    /// <summary>
+    /// Freezes GPS-driven XR Origin updates while in Indoor mode so Multiset VPS can
+    /// drive positioning without GPS interference. Resets one-shot alignment on return
+    /// to Outdoor so the camera re-anchors to GPS correctly.
+    /// </summary>
+    private void ApplyXROriginFreezeForMode(HybridMode mode)
+    {
+        bool freeze = mode == HybridMode.Indoor;
+        if (simpleGpsTracker != null)
+            simpleGpsTracker.freezeXROriginUpdate = freeze;
+        // Reset one-shot flag so camera re-aligns to GPS when returning outdoors
+        if (!freeze && alignXROriginToUser != null)
+            alignXROriginToUser.aligned = false;
+    }
 
     private void SetEnvironmentActive(HybridMode mode)
     {

@@ -4,7 +4,10 @@
       "command": "node",
       "args": [
         "Library/PackageCache/com.gamelovers.mcp-unity@a32e47d4ec87/Server~/build/index.js"
-      ]
+      ],
+      "env": {
+        "UNITY_PORT": "8090"
+      }
     }
   }
 }
