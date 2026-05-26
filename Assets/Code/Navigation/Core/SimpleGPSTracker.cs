@@ -32,6 +32,10 @@ public class SimpleGPSTracker : MonoBehaviour
     [SerializeField] private int compassSampleCount = 6;
     [Tooltip("Seconds between each compass sample.")]
     [SerializeField] private float compassSampleInterval = 0.3f;
+    [Tooltip("Reject compass samples with headingAccuracy worse than this (degrees). " +
+             "Samples reporting acc <= 0 are accepted (device không hỗ trợ field này). " +
+             "Lower = stricter. 15° cân bằng giữa loại nhiễu và đủ samples.")]
+    [SerializeField] private float maxAcceptableHeadingAccuracy = 15f;
 
     [Header("North fine-tune / lock")]
     [Tooltip("Degrees added to compass-derived yaw (after avgHeading - cameraYaw). Use ~180 if the map is flipped vs real north. Loaded/saved via PlayerPrefs when options below are on.")]
@@ -637,31 +641,50 @@ public class SimpleGPSTracker : MonoBehaviour
         // Brief warmup: compass hardware needs a moment after being enabled.
         yield return new WaitForSeconds(0.5f);
 
-        float headingSum = 0f;
+        // Circular mean: heading is on a circle (0° == 360°), so arithmetic mean
+        // breaks near the wrap boundary (e.g. samples [359, 1] should average to 0, not 180).
+        float sinSum = 0f;
+        float cosSum = 0f;
         int validSamples = 0;
 
         for (int i = 0; i < compassSampleCount; i++)
         {
             yield return new WaitForSeconds(compassSampleInterval);
-            float h = Input.compass.trueHeading;
-            // headingAccuracy == 0 on some devices even when valid; accept any non-negative heading.
-            if (h >= 0f)
+            float h   = Input.compass.trueHeading;
+            float acc = Input.compass.headingAccuracy;
+
+            // acc <= 0: device không report accuracy (một số Android) — buộc phải chấp nhận
+            // acc > maxAcceptable: sample đang bị nhiễu (gần kim loại, magnetometer chưa calibrate)
+            bool qualityOk = acc <= 0f || acc <= maxAcceptableHeadingAccuracy;
+
+            if (h >= 0f && qualityOk)
             {
-                headingSum += h;
+                float hRad = h * Mathf.Deg2Rad;
+                sinSum += Mathf.Sin(hRad);
+                cosSum += Mathf.Cos(hRad);
                 validSamples++;
+                Debug.Log($"[SimpleGPSTracker] Compass sample {i + 1}/{compassSampleCount} accepted: " +
+                          $"heading={h:F1}° accuracy={acc:F1}°");
             }
-            Debug.Log($"[SimpleGPSTracker] Compass sample {i + 1}/{compassSampleCount}: " +
-                      $"heading={h:F1}° accuracy={Input.compass.headingAccuracy:F1}°");
+            else
+            {
+                Debug.LogWarning($"[SimpleGPSTracker] Compass sample {i + 1}/{compassSampleCount} rejected: " +
+                                 $"heading={h:F1}° accuracy={acc:F1}° (> {maxAcceptableHeadingAccuracy:F0}° threshold)");
+            }
         }
 
         if (validSamples == 0)
         {
-            Debug.LogWarning("[SimpleGPSTracker] No valid compass readings — North alignment skipped.");
+            Debug.LogWarning("[SimpleGPSTracker] Tất cả compass samples bị từ chối — môi trường nhiễu từ trường nặng " +
+                             "(gần kim loại, trong nhà, hoặc magnetometer chưa calibrate). " +
+                             "Hãy ra ngoài trời và xoay điện thoại theo hình số 8 vài giây, rồi khởi động lại app. " +
+                             "North alignment skipped — Unity +Z giữ nguyên hướng mặc định.");
             _isNorthAligned = true;
             yield break;
         }
 
-        float avgHeading  = headingSum / validSamples;
+        float avgHeading = Mathf.Atan2(sinSum, cosSum) * Mathf.Rad2Deg;
+        if (avgHeading < 0f) avgHeading += 360f;
         float cameraYaw   = arCamera.transform.eulerAngles.y;
         float correction  = avgHeading - cameraYaw + extraNorthYawOffsetDegrees;
 
