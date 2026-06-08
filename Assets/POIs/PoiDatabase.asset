@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b085831797b124241a98e328ae1ca4ec, type: 3}
+  m_Name: PoiDatabase
+  m_EditorClassIdentifier: 
+  pois:
+  - id: A5
+    displayName: "T\xF2a A5"
+    latitude: 10.7734333
+    longitude: 106.6590556
+    type: building
+  - id: A2
+    displayName: "T\xF2a A2"
+    latitude: 10.7730139
+    longitude: 106.659975
+    type: building
+  - id: B9
+    displayName: "T\xF2a B9"
+    latitude: 10.7734
+    longitude: 106.660375
+    type: building
+  - id: B10
+    displayName: "T\xF2a B10"
+    latitude: 10.773675
+    longitude: 106.6608861
+    type: building
+  - id: B8
+    displayName: "T\xF2a B8"
+    latitude: 10.7737861
+    longitude: 106.6601667
+    type: building
+  - id: A4
+    displayName: "T\xF2a A4"
+    latitude: 10.7732556
+    longitude: 106.6600972
+    type: building
+  - id: A3
+    displayName: "T\xF2a A3"
+    latitude: 10.7733139
+    longitude: 106.6605583
+    type: building
+  - id: B6
+    displayName: "T\xF2a B6"
+    latitude: 10.7737806
+    longitude: 106.6593139
+    type: building
+  - id: Origin
+    displayName: "\u0110i\u1EC3m M\u1ED1c"
+    latitude: 10.7734028
+    longitude: 106.6590278
+    type: building

@@ -26,8 +26,14 @@ public class MinimapTopDownCamera : MonoBehaviour
     [Range(2f, 50f)]
     private float viewRadiusMeters = 5f;
 
+    [Header("Smoothing (chống giật minimap)")]
+    [Tooltip("Thời gian SmoothDamp khi đuổi theo camera AR. 0 = không smooth (giật theo IMU noise). 0.15 = mượt vừa. 0.3 = mượt nhiều nhưng lag.")]
+    [SerializeField] [Range(0f, 0.5f)] private float followSmoothTime = 0.15f;
+
     private Camera _cam;
     private SimpleGPSTracker _gps;
+    private Vector3 _smoothVelocity;
+    private bool _hasSmoothedPos;
 
     void Awake()
     {
@@ -48,7 +54,18 @@ public class MinimapTopDownCamera : MonoBehaviour
         if (follow == null) return;
 
         Vector3 p = follow.position;
-        transform.position = new Vector3(p.x, p.y + heightAbovePlayer, p.z);
+        Vector3 target = new Vector3(p.x, p.y + heightAbovePlayer, p.z);
+
+        if (followSmoothTime <= 0f || !_hasSmoothedPos)
+        {
+            transform.position = target;
+            _hasSmoothedPos = true;
+        }
+        else
+        {
+            transform.position = Vector3.SmoothDamp(
+                transform.position, target, ref _smoothVelocity, followSmoothTime);
+        }
         transform.rotation = Quaternion.Euler(90f, 0f, 0f);
     }
 

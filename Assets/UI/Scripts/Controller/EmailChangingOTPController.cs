@@ -26,10 +26,50 @@ public class EmailChangingOTPController : IPageController
         OTP3 = root.Q<TextField>("OTP3");
         OTP4 = root.Q<TextField>("OTP4");
 
+        // Set subtitle với email đã che
+        var subtitle = root.Q<Label>("LabelOTPSubtitle");
+        if (subtitle != null)
+        {
+            string maskedEmail = GetMaskedEmail();
+            subtitle.text = $"Chúng tôi đã gửi mã OTP đến email của bạn là {maskedEmail}. Nhập mã OTP bên dưới để xác minh.";
+        }
+
         if (ConfirmBtn != null)
         {
             ConfirmBtn.clicked += HandleConfirmOTP;
         }
+    }
+
+    private string GetMaskedEmail()
+    {
+        string email = "";
+
+        if (CurrentFlow == OTPFlowType.ChangePassword)
+        {
+            email = ChangePasswordService.cacheChangePasswordData?.email ?? "";
+        }
+        else if (CurrentFlow == OTPFlowType.Register)
+        {
+            email = RegisterPageController.CurrentData?.email ?? "";
+        }
+
+        // Fallback: lấy từ cache profile
+        if (string.IsNullOrEmpty(email) && PlayerPrefs.HasKey(AppConst.KEY_CACHE))
+        {
+            try
+            {
+                var cached = JsonUtility.FromJson<RegisterRes>(PlayerPrefs.GetString(AppConst.KEY_CACHE));
+                email = cached?.email ?? "";
+            }
+            catch { }
+        }
+
+        if (string.IsNullOrEmpty(email)) return "***@***.com";
+
+        // Che email: giữ 2 ký tự đầu + domain
+        int atIndex = email.IndexOf('@');
+        if (atIndex <= 2) return "*****" + email.Substring(atIndex);
+        return email.Substring(0, 2) + "*****" + email.Substring(atIndex);
     }
     
     public void Initialize(VisualElement root, NavigationManager navigator)

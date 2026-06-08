@@ -27,7 +27,7 @@ public class MobileNavigationHUD : MonoBehaviour
     public const string HudObjectName   = "Mobile Navigation HUD";
     private const float  AccuracyGood    = 5f;
     private const float  AccuracyPoor    = 12f;
-    private const float  ArrivalMeters   = 3f;
+    private const float  ArrivalMeters   = 1.5f;
     private const float  ToastSeconds    = 3f;
     private const float  CalibratePressSecs = 2f;
     private const float  ResetCalibratePressSecs = 5f;
@@ -50,6 +50,16 @@ public class MobileNavigationHUD : MonoBehaviour
     [SerializeField] private bool  showProximityRefinementHint;
     [Tooltip("Append ARPathFinder.PathHudDebugLine under the status panel (path built / NavMesh / GPS gate).")]
     [SerializeField] private bool  showPathBuildDebugLine = true;
+
+    [Header("Manual calibration (rủi ro — mặc định TẮT)")]
+    [Tooltip("Công tắc DUY NHẤT cho mọi hiệu chỉnh THỦ CÔNG (nút 'HIEU CHINH TAI DAY' + gesture nhấn-giữ 2s). " +
+             "MẶC ĐỊNH TẮT: user KHÔNG thể tự ý hiệu chỉnh (tránh snap nhầm khi đứng xa). " +
+             "Chỉ AutoCalibration tự chạy khi đi gần POI. Tick = mở lại cho dev/test.")]
+    [SerializeField] private bool  allowManualCalibration = false;
+    [Tooltip("Chỉ snap nếu POI gần nhất nằm trong khoảng này (m). Xa hơn → báo 'đến gần POI hơn'.")]
+    [SerializeField] private float calibrateMaxDistanceMeters = 20f;
+
+    private UnityEngine.UI.Button _calibrateButton;
 
     // --- State ---
     private float nextRefreshTime;
@@ -141,6 +151,7 @@ public class MobileNavigationHUD : MonoBehaviour
         SelectTarget(Mathf.Clamp(selectedIndex, 0, Mathf.Max(0, targets.Length - 1)));
         UpdateStatusText(true);
         if (toastText != null) toastText.gameObject.SetActive(false);
+        EnsureCalibrateButton();
     }
 
     void OnDisable()
@@ -155,6 +166,101 @@ public class MobileNavigationHUD : MonoBehaviour
         UpdateToast();
         UpdateStatusPanelLongPress();
         UpdateDropdownLongPress();
+
+        // Sync hiện/ẩn nút theo công tắc — đổi allowManualCalibration trong Inspector kể cả lúc Play.
+        if (_calibrateButton != null && _calibrateButton.gameObject.activeSelf != allowManualCalibration)
+            _calibrateButton.gameObject.SetActive(allowManualCalibration);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Calibrate button (bootstrap snap thủ công)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    private void EnsureCalibrateButton()
+    {
+        if (_calibrateButton != null) return;
+
+        Canvas canvas = GetComponent<Canvas>();
+        if (canvas == null) canvas = GetComponentInChildren<Canvas>();
+        if (canvas == null) canvas = GetComponentInParent<Canvas>();
+        if (canvas == null) return;
+
+        GameObject go = new GameObject("Calibrate Button",
+            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        go.transform.SetParent(canvas.transform, false);
+
+        RectTransform rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(1f, 0.5f);
+        rt.anchorMax = new Vector2(1f, 0.5f);
+        rt.pivot     = new Vector2(1f, 0.5f);
+        rt.anchoredPosition = new Vector2(-24f, 0f);
+        rt.sizeDelta        = new Vector2(300f, 120f);
+
+        Image bg = go.GetComponent<Image>();
+        bg.color = new Color(0.10f, 0.55f, 0.30f, 0.92f);
+
+        _calibrateButton = go.GetComponent<Button>();
+        _calibrateButton.targetGraphic = bg;
+        _calibrateButton.onClick.AddListener(SnapToNearestAnchor);
+
+        GameObject txtGo = new GameObject("Label", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        txtGo.transform.SetParent(go.transform, false);
+        RectTransform txr = txtGo.GetComponent<RectTransform>();
+        txr.anchorMin = Vector2.zero; txr.anchorMax = Vector2.one;
+        txr.offsetMin = new Vector2(10f, 8f); txr.offsetMax = new Vector2(-10f, -8f);
+        Text txt = txtGo.GetComponent<Text>();
+        txt.font      = GetDefaultFont();
+        txt.fontSize  = 32;
+        txt.fontStyle = FontStyle.Bold;
+        txt.alignment = TextAnchor.MiddleCenter;
+        txt.color     = Color.white;
+        txt.text      = "HIEU CHINH\nTAI DAY";
+
+        go.SetActive(allowManualCalibration);
+    }
+
+    /// <summary>
+    /// Bootstrap snap thủ công: tìm POI gần nhất (theo camera) trong khoảng cho phép → snap về đó.
+    /// Dùng khi GPS gần tòa nhà không tin cậy (auto-snap không tự kích hoạt được).
+    /// User PHẢI thực sự đang đứng tại POI gần nhất khi bấm.
+    /// </summary>
+    public void SnapToNearestAnchor()
+    {
+        if (gpsTracker == null) { ShowToast("GPS tracker not found!"); return; }
+        Camera cam = Camera.main;
+        if (cam == null) { ShowToast("Camera not found!"); return; }
+
+        ResolveReferences();
+        if (targets == null || targets.Length == 0) { ShowToast("Chua co POI."); return; }
+
+        Vector2 camXZ = new Vector2(cam.transform.position.x, cam.transform.position.z);
+        TargetAnchor nearest = null;
+        float best = float.MaxValue;
+        foreach (TargetAnchor t in targets)
+        {
+            if (t == null) continue;
+            Vector2 tXZ = new Vector2(t.transform.position.x, t.transform.position.z);
+            float d = Vector2.Distance(camXZ, tXZ);
+            if (d < best) { best = d; nearest = t; }
+        }
+
+        if (nearest == null) { ShowToast("Khong tim thay POI."); return; }
+        if (best > calibrateMaxDistanceMeters)
+        {
+            ShowToast($"POI gan nhat ({nearest.TargetName}) cach {best:F0}m. Den gan POI hon roi bam.");
+            return;
+        }
+
+        if (gpsTracker.CalibrateAtSurveyedPoint(nearest.targetLat, nearest.targetLon, snapToSurveyedPoint: true))
+        {
+            RecalculateAllAnchors();
+            ShowToast($"OK! Da hieu chinh tai {nearest.TargetName}. (Dam bao ban dang dung tai day)");
+            UpdateStatusText(true);
+        }
+        else
+        {
+            ShowToast("Hieu chinh that bai.");
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -167,6 +273,9 @@ public class MobileNavigationHUD : MonoBehaviour
 
         selectedIndex = Mathf.Clamp(index, 0, targets.Length - 1);
         TargetAnchor sel = targets[selectedIndex];
+
+        // Chỉ hiển thị POI vừa chọn — các POI khác sẽ tự ẩn ở TargetAnchor.Update().
+        TargetAnchor.CurrentSelectedDestination = sel;
 
         if (pathFinder != null && sel != null)
             pathFinder.SetTarget(sel.transform);
@@ -211,6 +320,7 @@ public class MobileNavigationHUD : MonoBehaviour
 
     private void UpdateStatusPanelLongPress()
     {
+        if (!allowManualCalibration) return;   // khóa hiệu chỉnh thủ công
         if (!_pressingPanel || _pressStartTime < 0f) return;
 
         float held = Time.unscaledTime - _pressStartTime;
@@ -231,6 +341,7 @@ public class MobileNavigationHUD : MonoBehaviour
 
     private void UpdateDropdownLongPress()
     {
+        if (!allowManualCalibration) return;   // khóa hiệu chỉnh thủ công
         if (!_pressingDropdown || _dropdownPressStartTime < 0f) return;
 
         float held = Time.unscaledTime - _dropdownPressStartTime;
@@ -254,14 +365,14 @@ public class MobileNavigationHUD : MonoBehaviour
             return;
         }
 
-        if (!gpsTracker.CalibrateAtOrigin())
+        if (!gpsTracker.CalibrateAtOrigin(snapToSurveyedPoint: true))
         {
             ShowToast("Calibrate goc that bai.");
             return;
         }
 
         RecalculateAllAnchors();
-        ShowToast($"[CAL GOC] OK (+/-{acc:F0}m). Doi GPS on dinh...");
+        ShowToast($"[CAL GOC - SNAP] OK (+/-{acc:F0}m). VIO mode ON, di lai bang AR tracking.");
         UpdateStatusText(true);
     }
 
@@ -280,14 +391,14 @@ public class MobileNavigationHUD : MonoBehaviour
             return;
         }
 
-        if (!gpsTracker.CalibrateAtSurveyedPoint(sel.targetLat, sel.targetLon))
+        if (!gpsTracker.CalibrateAtSurveyedPoint(sel.targetLat, sel.targetLon, snapToSurveyedPoint: true))
         {
             ShowToast("Calibrate tai Des that bai.");
             return;
         }
 
         RecalculateAllAnchors();
-        ShowToast($"[CAL {sel.TargetName}] OK (+/-{acc:F0}m)");
+        ShowToast($"[CAL {sel.TargetName} - SNAP] OK (+/-{acc:F0}m). VIO mode ON.");
         UpdateStatusText(true);
     }
 
@@ -331,7 +442,17 @@ public class MobileNavigationHUD : MonoBehaviour
 
         if (gpsTracker == null || !gpsTracker.isActiveAndEnabled)
             gpsTracker = FindFirstObjectByType<SimpleGPSTracker>(FindObjectsInactive.Exclude);
-        if (userTransform == null && gpsTracker != null) userTransform = gpsTracker.xrOrigin;
+
+        // userTransform = Main Camera (vị trí THẬT của user, có VIO local applied).
+        // KHÔNG dùng xrOrigin vì XR Origin chỉ là anchor; camera world = XR Origin + VIO local.
+        // Sai số có thể lên vài chục mét khi user đi xa nếu dùng XR Origin.
+        if (userTransform == null)
+        {
+            Camera mainCam = (gpsTracker != null) ? gpsTracker.ArCamera : null;
+            if (mainCam == null) mainCam = Camera.main;
+            if (mainCam != null) userTransform = mainCam.transform;
+            else if (gpsTracker != null) userTransform = gpsTracker.xrOrigin;  // fallback cuối
+        }
 
         if (targets == null || targets.Length == 0)
         {
@@ -351,7 +472,7 @@ public class MobileNavigationHUD : MonoBehaviour
         targetDropdown.RefreshShownValue();
     }
 
-    private void ShowToast(string msg)
+    public void ShowToast(string msg)
     {
         toastEndTime = Time.unscaledTime + ToastSeconds;
         if (toastText != null)
@@ -457,11 +578,25 @@ public class MobileNavigationHUD : MonoBehaviour
         if (!gpsTracker.HasLocationFix) return $"GPS: {gpsTracker.CurrentStatus}...";
 
         float  acc   = gpsTracker.CurrentHorizontalAccuracy;
-        string badge = acc <= AccuracyGood ? "[TOT]" : acc <= AccuracyPoor ? "[TB]" : "[YEU]";
+        // acc <= 0 nghĩa là chưa có GPS data thật (initial -1, hoặc null reading) — KHÔNG phải "TỐT"
+        string badge = acc <= 0f ? "[KHONG CO]"
+                     : acc <= AccuracyGood ? "[TOT]"
+                     : acc <= AccuracyPoor ? "[TB]"
+                     : "[YEU]";
         string cal   = gpsTracker.HasCalibration ? " [CAL]" : "";
         string lat   = gpsTracker.CurrentLatitude.ToString("F6",  CultureInfo.InvariantCulture);
         string lon   = gpsTracker.CurrentLongitude.ToString("F6", CultureInfo.InvariantCulture);
         string line  = $"GPS {badge}{cal} +/-{acc:F0}m  |  {lat}, {lon}";
+
+        // Chỉ báo trạng thái snap + chế độ tracking thực tế (VIO vs GPS-pure).
+        if (gpsTracker.HasCalibratedAtAnchor)
+        {
+            string modeLabel = gpsTracker.IsVioModeActive ? "(VIO)" : "(GPS)";
+            string accuracyHint = gpsTracker.IsVioModeActive ? "sai số ~1-2m gần điểm neo" : $"sai số GPS ±{acc:F0}m";
+            line += $"\n<size=30><color=#66ff99>● ĐÃ HIỆU CHỈNH {modeLabel} — {accuracyHint}</color></size>";
+        }
+        else
+            line += $"\n<size=30><color=#ffcc66>○ CHƯA HIỆU CHỈNH — đang dùng GPS +/-{acc:F0}m</color></size>";
 
         if (pathFinder != null && pathFinder.IsNavigationPathBlockedByGpsGate &&
             gpsTracker.TryGetPathNavigationBlock(out string code))

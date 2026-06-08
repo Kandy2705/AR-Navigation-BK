@@ -78,11 +78,30 @@ public class ARPathFinder : MonoBehaviour
     [SerializeField] private float arrowHeadLengthMeters = 0.55f;
     [SerializeField] private float arrowHeadWidthMeters = 0.38f;
 
+    [Header("Corner smoothing")]
+    [Tooltip("Làm tròn góc gấp của path bằng Chaikin corner-cutting → đường cong mềm mại. " +
+             "Đường cong nằm trong polyline gốc nên không đâm vào obstacle.")]
+    [SerializeField] private bool smoothCorners = true;
+    [Tooltip("Số lần lặp Chaikin. 1 = nhẹ, 2 = mượt (khuyến nghị), 3 = rất mượt nhưng nhiều vertex hơn.")]
+    [Range(0, 4)]
+    [SerializeField] private int smoothIterations = 2;
+
+    [Header("Minimap mirror")]
+    [Tooltip("Hiện 1 bản sao path NÂNG CAO chỉ cho minimap camera thấy, trong khi path AR vẫn sát đất. " +
+             "Giải quyết: path AR thấp (đúng tầm mắt) nhưng top-down minimap camera vẫn thấy (không bị plane che).")]
+    [SerializeField] private bool showPathOnMinimap = true;
+    [Tooltip("Nâng path mirror lên cao bao nhiêu (m) để minimap camera nhìn từ trên thấy rõ, không bị MapPlane che.")]
+    [SerializeField] private float minimapPathLiftMeters = 5f;
+    [Tooltip("Layer chỉ minimap camera render (AR camera phải loại layer này khỏi cullingMask).")]
+    [SerializeField] private string minimapLayerName = "MinimapOnly";
+
     [Header("Update Throttle")]
     [Tooltip("Minimum seconds between path recalculations.")]
     [SerializeField] private float pathUpdateInterval = 0.5f;
     [Tooltip("Minimum distance (meters) either endpoint must move before a new path is calculated.")]
     [SerializeField] private float minMoveDistanceMeters = 0.15f;
+    [Tooltip("Mesh chỉ rebuild khi corners mới lệch corners cũ > giá trị này (mét). Cao = ít rebuild = mượt nhưng path có thể không update kịp khi rẽ. Thấp = update nhạy hơn nhưng dễ flicker. Recommended 0.3-0.7m.")]
+    [SerializeField] [Range(0.05f, 2f)] private float cornerSimilarityThresholdMeters = 0.5f;
 
     private LineRenderer line;
     private Transform _pathMeshRoot;
@@ -99,6 +118,9 @@ public class ARPathFinder : MonoBehaviour
     private Vector3 lastStartPos = Vector3.positiveInfinity;
     private Vector3 lastEndPos = Vector3.positiveInfinity;
     private bool forcePathRecalcAfterTargetChange;
+
+    // Cache corners đã build để skip rebuild khi path mới gần giống path cũ (chống flicker do GPS noise).
+    private Vector3[] _lastBuiltCorners;
 
 #if DEVELOPMENT_BUILD
     private string _lastLoggedPathHudLine;
@@ -200,6 +222,9 @@ public class ARPathFinder : MonoBehaviour
             meshRenderer = _pathMeshRoot.gameObject.AddComponent<MeshRenderer>();
     }
 
+    private MeshRenderer _minimapMirrorRenderer;
+    private MeshFilter _minimapMirrorFilter;
+
     private void EnsureMeshComponents()
     {
         EnsurePathMeshRoot();
@@ -211,6 +236,32 @@ public class ARPathFinder : MonoBehaviour
         }
 
         EnsurePathMaterials();
+        EnsureMinimapMirror();
+    }
+
+    private void EnsureMinimapMirror()
+    {
+        if (!showPathOnMinimap || _minimapMirrorRenderer != null || _pathMeshRoot == null) return;
+
+        Transform existing = _pathMeshRoot.Find("MinimapPathMirror");
+        GameObject go = existing != null ? existing.gameObject : new GameObject("MinimapPathMirror");
+        go.transform.SetParent(_pathMeshRoot, false);
+        // Nâng theo WORLD +Y (hướng lên trời = về phía minimap camera top-down) bất kể _pathMeshRoot xoay.
+        // Nếu hardcode (0,lift,0) local thì khi root bị xoay, offset đi sai trục (phải chỉnh Z thủ công).
+        go.transform.localPosition = _pathMeshRoot.InverseTransformVector(Vector3.up * minimapPathLiftMeters);
+        go.transform.localRotation = Quaternion.identity;
+        go.transform.localScale = Vector3.one;
+
+        int layer = LayerMask.NameToLayer(minimapLayerName);
+        if (layer >= 0) go.layer = layer;
+
+        _minimapMirrorFilter = go.GetComponent<MeshFilter>();
+        if (_minimapMirrorFilter == null) _minimapMirrorFilter = go.AddComponent<MeshFilter>();
+        _minimapMirrorFilter.sharedMesh = pathMesh; // CHIA SẺ mesh → tự cập nhật khi path rebuild
+
+        _minimapMirrorRenderer = go.GetComponent<MeshRenderer>();
+        if (_minimapMirrorRenderer == null) _minimapMirrorRenderer = go.AddComponent<MeshRenderer>();
+        _minimapMirrorRenderer.enabled = false;
     }
 
     private void EnsurePathMaterials()
@@ -389,6 +440,7 @@ public class ARPathFinder : MonoBehaviour
         lastStartPos = Vector3.positiveInfinity;
         nextPathUpdateTime = 0f;
         forcePathRecalcAfterTargetChange = true;
+        _lastBuiltCorners = null;
         PathHudDebugLine = "Path: da dat dich, doi cap nhat...";
     }
 
@@ -479,6 +531,19 @@ public class ARPathFinder : MonoBehaviour
 
     private void ApplyCornersToRenderers(Vector3[] corners, float usedRadius)
     {
+        // Làm tròn góc gấp trước khi dựng mesh/line (chỉ khi >= 3 điểm; đoạn thẳng 2 điểm bỏ qua).
+        if (smoothCorners && corners != null && corners.Length >= 3)
+            corners = NavMeshPathRibbon.SmoothCornersChaikin(corners, smoothIterations);
+
+        // SKIP rebuild khi corners gần như giống lần trước (GPS noise → corner xê dịch vài cm).
+        // Tránh flicker mesh khi user đứng yên hoặc đi chậm.
+        if (CornersSimilarToCache(corners))
+        {
+            PathHudDebugLine = "Path: OK (cached)";
+            return;
+        }
+        CacheCorners(corners);
+
         if (useMeshPath)
         {
             EnsureMeshComponents();
@@ -508,6 +573,17 @@ public class ARPathFinder : MonoBehaviour
                 pathUvRepeatAcrossWidth);
             ApplyMaterialsForCurrentMesh();
             meshRenderer.enabled = true;
+
+            // Mirror cho minimap: dùng chung mesh + material, chỉ khác độ cao (world +Y) + layer
+            if (showPathOnMinimap && _minimapMirrorRenderer != null)
+            {
+                _minimapMirrorFilter.sharedMesh = pathMesh;
+                _minimapMirrorRenderer.sharedMaterials = meshRenderer.sharedMaterials;
+                // Re-apply offset world +Y (phòng _pathMeshRoot xoay lúc runtime)
+                _minimapMirrorRenderer.transform.localPosition =
+                    _pathMeshRoot.InverseTransformVector(Vector3.up * minimapPathLiftMeters);
+                _minimapMirrorRenderer.enabled = true;
+            }
 
             if (line != null)
             {
@@ -552,6 +628,7 @@ public class ARPathFinder : MonoBehaviour
     {
         HasPath = false;
         CurrentPathDistanceMeters = 0f;
+        _lastBuiltCorners = null;
         if (line != null)
         {
             line.positionCount = 0;
@@ -563,6 +640,8 @@ public class ARPathFinder : MonoBehaviour
             pathMesh.Clear();
         if (meshRenderer != null && useMeshPath)
             meshRenderer.enabled = false;
+        if (_minimapMirrorRenderer != null)
+            _minimapMirrorRenderer.enabled = false;
 
         if (resetThrottle)
         {
@@ -579,5 +658,29 @@ public class ARPathFinder : MonoBehaviour
         for (int i = 1; i < corners.Length; i++)
             distance += Vector3.Distance(corners[i - 1], corners[i]);
         return distance;
+    }
+
+    /// <summary>
+    /// True nếu corners mới gần như trùng corners đã build (≤ CornerSimilarityThresholdMeters mỗi điểm).
+    /// Tránh rebuild mesh khi GPS noise làm path xê dịch vài cm → hết flicker.
+    /// </summary>
+    private bool CornersSimilarToCache(Vector3[] newCorners)
+    {
+        if (_lastBuiltCorners == null || newCorners == null) return false;
+        if (_lastBuiltCorners.Length != newCorners.Length) return false;
+        for (int i = 0; i < newCorners.Length; i++)
+        {
+            if (Vector3.Distance(_lastBuiltCorners[i], newCorners[i]) > cornerSimilarityThresholdMeters)
+                return false;
+        }
+        return true;
+    }
+
+    private void CacheCorners(Vector3[] corners)
+    {
+        if (corners == null) { _lastBuiltCorners = null; return; }
+        if (_lastBuiltCorners == null || _lastBuiltCorners.Length != corners.Length)
+            _lastBuiltCorners = new Vector3[corners.Length];
+        System.Array.Copy(corners, _lastBuiltCorners, corners.Length);
     }
 }

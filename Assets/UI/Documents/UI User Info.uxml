@@ -10,7 +10,7 @@
         </ui:VisualElement>
         <ui:VisualElement class="content-scroll" style="flex-grow: 1; margin-top: 30px;">
             <ui:VisualElement class="title-section">
-                <ui:Label text="Thông" class="page-big-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-SemiBold.ttf?fileID=12800000&amp;guid=061287b66ecca5f4d9da25a0991292c6&amp;type=3#Poppins-SemiBold&quot;);" />
+                <ui:Label text="" name="LabelUserName" class="page-big-title" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-SemiBold.ttf?fileID=12800000&amp;guid=061287b66ecca5f4d9da25a0991292c6&amp;type=3#Poppins-SemiBold&quot;);" />
                 <ui:Label text="Để được tham gia thì bạn hãy hoàn thiện hồ sơ bên dưới." class="page-desc" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Poppins-Light.ttf?fileID=12800000&amp;guid=4d644c01b0cefd744a0bca86e9c81347&amp;type=3#Poppins-Light&quot;);" />
             </ui:VisualElement>
             <ui:VisualElement class="avatar-section">

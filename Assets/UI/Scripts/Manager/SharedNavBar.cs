@@ -41,6 +41,18 @@ public class SharedNavBar
         _navigator = navigator;
     }
 
+    /// <summary>
+    /// Reset trạng thái bind để có thể re-bind vào visual tree mới
+    /// (cần khi UIDocument rebuild sau disable/enable).
+    /// </summary>
+    public void Reset()
+    {
+        _isBound = false;
+        _root = null;
+        _tabButtons.Clear();
+        _currentTab = PageID.None;
+    }
+
     public bool IsTabPage(PageID pageId) => _navVisiblePages.Contains(pageId);
 
     /// <summary>

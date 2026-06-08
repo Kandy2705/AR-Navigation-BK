@@ -23,8 +23,14 @@ public class MinimapHeadingIndicator : MonoBehaviour
     [SerializeField] private Color arrowColor = new Color(1f, 1f, 1f, 0.92f);
     [SerializeField] private Color arrowHeadColor = new Color(0.35f, 0.85f, 1f, 0.95f);
 
+    [Header("Smoothing (chống rung mũi tên)")]
+    [Tooltip("Tốc độ lerp yaw (deg/giây tương đối). 0 = không smooth (rung theo IMU noise). 8 = mượt vừa. 15 = phản hồi nhanh hơn nhưng kém mượt.")]
+    [SerializeField] [Range(0f, 20f)] private float yawLerpSpeed = 8f;
+
     private RectTransform _arrowRoot;
     private RectTransform _maskRect;
+    private float _smoothedYaw;
+    private bool _hasSmoothedYaw;
 
     private static Sprite _cachedTriangleSprite;
 
@@ -117,7 +123,18 @@ public class MinimapHeadingIndicator : MonoBehaviour
         if (_arrowRoot == null) return;
 
         float yaw = headingCamera != null ? headingCamera.transform.eulerAngles.y : 0f;
-        _arrowRoot.localRotation = Quaternion.Euler(0f, 0f, -yaw);
+
+        if (yawLerpSpeed <= 0f || !_hasSmoothedYaw)
+        {
+            _smoothedYaw = yaw;
+            _hasSmoothedYaw = true;
+        }
+        else
+        {
+            _smoothedYaw = Mathf.LerpAngle(_smoothedYaw, yaw, yawLerpSpeed * Time.deltaTime);
+        }
+
+        _arrowRoot.localRotation = Quaternion.Euler(0f, 0f, -_smoothedYaw);
     }
 
     private void PlaceAboveMinimapView()

@@ -68,8 +68,10 @@ public class NavigationManager : MonoBehaviour
         // Apply caret trắng cho mọi page render qua hệ navigation mới.
         CaretStyleApplier.Apply(mainDocument.rootVisualElement);
 
-        // Bind shared nav 1 lần để không bị re-render khi chuyển trang.
+        // Re-bind shared nav mỗi lần OnEnable vì UIDocument có thể rebuild visual tree
+        // khi GameObject bị disable/enable (quay từ AR về).
         if (_navBar == null) _navBar = new SharedNavBar(this);
+        _navBar.Reset();
         _navBar.Bind(mainDocument.rootVisualElement);
 
         Navigate(firstPage);

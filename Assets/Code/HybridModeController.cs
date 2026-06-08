@@ -16,6 +16,12 @@ public class HybridModeController : MonoBehaviour
         Transition
     }
 
+    [Header("Mode lockdown")]
+    [Tooltip("Khi true: chặn mọi đường chuyển sang Indoor (Force, auto-switch, IndoorMapSwitcher, " +
+             "IndoorAutoEnterB9, Editor button). Camera + XR Origin chỉ phục vụ Outdoor. " +
+             "Code Indoor giữ nguyên — chỉ bị no-op tại ApplyMode().")]
+    [SerializeField] private bool disableIndoorMode = true;
+
     [Header("Environment Roots")]
     [SerializeField] private GameObject indoorEnvironment;
     [SerializeField] private GameObject outdoorEnvironment;
@@ -171,12 +177,18 @@ public class HybridModeController : MonoBehaviour
 
     private void Awake()
     {
-        DetachOutdoorXrRigForSharedCamera();
-
-        // Luôn deactivate ngay trong Awake để không frame nào thấy outdoor/indoor
-        // environment trước khi MainScreen hiện ra — dù activateInitialModeOnStart = true.
-        DeactivateARMode();
-        deactivatedARModeInAwake = true;
+        // Outdoor-only mode: KHÔNG deactivate AR trong Awake.
+        //
+        // Bug đã fix: code cũ gọi DeactivateARMode() ngay trong Awake. Nếu scene save
+        // với OutdoorEnvironment active, Unity sẽ chạy Awake/OnEnable trên ARSession,
+        // ARCameraManager, ARCameraBackground TRƯỚC (vì chúng là children, init trước
+        // parent), rồi method này kill chúng → ARCore native session để lại trạng thái
+        // hỏng → tap AR sau đó camera đen.
+        //
+        // Bây giờ AR Session sống từ lúc scene load. MainScreen Canvas (Screen-Space
+        // Overlay) tự nhiên che AR view khi user chưa vào AR mode.
+        currentMode = HybridMode.Outdoor;
+        deactivatedARModeInAwake = false;
     }
 
     private void Start()
@@ -186,29 +198,37 @@ public class HybridModeController : MonoBehaviour
         CreateSharedOutdoorHudIfNeeded();
         CreateRuntimeModeSwitcherIfNeeded();
         ResetTimers();
-        currentMode = HybridMode.Transition;
 
-        // Khi NavigationManager có mặt: AR được gated bởi user action (bấm nút AR).
-        // Không bao giờ tự vào AR tại Start — dù activateInitialModeOnStart = true.
+        // Outdoor-only: AR Session đã alive từ scene load (do Awake không kill nữa).
+        // Không gọi DeactivateARMode() — nó vẫn phá AR Session nếu chạy lúc này.
+        // MainScreen Canvas che AR view khi user chưa vào AR mode; NavigationManager
+        // events (OnAREntered/OnARExited) toggle HUD canvases qua HybridOutdoorNavigationRoot.
+        currentMode = HybridMode.Outdoor;
+        hasAppliedInitialMode = true;
+
+        // Thanh switcher (Outdoor / Quay về) THUẦN là GUI của AR view:
+        //   - Có NavigationManager → ẩn ban đầu (onboarding/login/home), chỉ hiện khi user bật AR.
+        //   - Không có NavigationManager (scene standalone test) → AR luôn bật → hiện luôn.
         bool navManagerPresent =
             FindFirstObjectByType<NavigationManager>(FindObjectsInactive.Include) != null;
-
-        if (activateInitialModeOnStart && !navManagerPresent)
-        {
-            // Không có NavigationManager (standalone scene): activate AR ngay.
-            SetRuntimeModeSwitcherVisible(true);
-            if (!hasAppliedInitialMode)
-                ApplyMode(initialMode, "Initialize");
-        }
-        else
-        {
-            // Có NavigationManager hoặc activateInitialModeOnStart=false:
-            // Giữ mọi thứ deactivated, chờ user bấm nút AR.
-            SetRuntimeModeSwitcherVisible(false);
-            if (!deactivatedARModeInAwake)
-                DeactivateARMode();
-        }
+        SetRuntimeModeSwitcherVisible(!navManagerPresent);
     }
+
+    private void OnEnable()
+    {
+        // Gate thanh switcher theo AR mode: hiện khi vào AR, ẩn khi quay về MainScreen.
+        NavigationManager.OnAREntered += HandleNavAREntered;
+        NavigationManager.OnARExited  += HandleNavARExited;
+    }
+
+    private void OnDisable()
+    {
+        NavigationManager.OnAREntered -= HandleNavAREntered;
+        NavigationManager.OnARExited  -= HandleNavARExited;
+    }
+
+    private void HandleNavAREntered() => SetRuntimeModeSwitcherVisible(true);
+    private void HandleNavARExited()  => SetRuntimeModeSwitcherVisible(false);
 
     private void Update()
     {
@@ -241,6 +261,9 @@ public class HybridModeController : MonoBehaviour
         }
         else if (currentMode == HybridMode.Outdoor)
         {
+            // Indoor bị khóa — không bao giờ auto-switch sang Indoor, tiết kiệm CPU + tránh log spam.
+            if (disableIndoorMode) return;
+
             if (localizationGoodTimer >= indoorSuccessRequiredTime &&
                 CanSwitch())
             {
@@ -335,20 +358,16 @@ public class HybridModeController : MonoBehaviour
             transitionCanvasGroup.interactable = false;
         }
 
+        // Outdoor-only: KHÔNG disable outdoorEnvironment GameObject — đó là chỗ ARSession
+        // sống. Disable nó = kill ARCore native = camera đen lần sau enter AR.
+        // Indoor-related roots vẫn disable (cleanup phòng hờ scene cũ còn refs).
         SetRootActiveDirect(indoorEnvironment, false);
-        SetRootActiveDirect(outdoorEnvironment, false);
         SetRootActiveDirect(indoorVisualRoot, false);
         SetRootsActiveDirect(indoorOnlyVisualRoots, false);
-        SetRootsActiveDirect(outdoorOnlyVisualRoots, false);
-        SetRootsActiveDirect(alwaysActiveRoots, false);
-        SetRootActiveDirect(_detachedOutdoorXrRigRoot, false);
 
-        // Leave indoor ARSession components enabled for a clean slate next time Indoor runs (outdoor stack is off).
-        ApplyIndoorArSessionDuplicatePolicy(outdoorStackActive: false);
-
+        // Chỉ ẩn HUD canvases của outdoor, không động vào ARSession/Camera GameObject
         if (autoManageCanvases)
         {
-            SetCanvasesEnabled(indoorEnvironment, false);
             SetCanvasesEnabled(outdoorEnvironment, false);
         }
 
@@ -379,6 +398,24 @@ public class HybridModeController : MonoBehaviour
         localizationGood = true;
     }
 
+    /// <summary>
+    /// Quay về UI (MainScreen) — dùng ARPageController.SwitchObject() nếu có,
+    /// fallback DeactivateARMode nếu không tìm thấy.
+    /// </summary>
+    public void ReturnToUI()
+    {
+        var arPageCtrl = FindFirstObjectByType<ARPageController>(FindObjectsInactive.Include);
+        if (arPageCtrl != null)
+        {
+            arPageCtrl.SwitchObject();
+        }
+        else
+        {
+            DeactivateARMode();
+            if (verboseLog) Debug.LogWarning("[HybridMode] ARPageController not found — fallback DeactivateARMode.");
+        }
+    }
+
     [ContextMenu("Hybrid/Mark Localization Failure")]
     public void DebugLocalizationFailure()
     {
@@ -392,6 +429,15 @@ public class HybridModeController : MonoBehaviour
 
     private void ApplyMode(HybridMode nextMode, string reason)
     {
+        // Khóa cứng Indoor — mọi đường (Force, auto-switch, IndoorMapSwitcher, Editor) đều qua đây.
+        if (disableIndoorMode && nextMode == HybridMode.Indoor)
+        {
+            if (verboseLog)
+                Debug.LogWarning($"[HybridMode] Indoor mode disabled — request '{reason}' bị bỏ qua. " +
+                                 $"Hiện vẫn ở mode={currentMode}.");
+            return;
+        }
+
         if (currentMode == nextMode)
         {
             return;
@@ -1634,9 +1680,10 @@ public class HybridModeController : MonoBehaviour
         rowLayout.childForceExpandWidth = true;
         rowLayout.childForceExpandHeight = true;
 
-        runtimeIndoorButton = CreateRuntimeModeButton("Indoor Button", "Indoor", buttonRow.transform, ForceIndoor);
+        // Indoor tạm ẩn — chỉ giữ Outdoor + Quay về
+        // runtimeIndoorButton = CreateRuntimeModeButton("Indoor Button", "Indoor", buttonRow.transform, ForceIndoor);
         runtimeOutdoorButton = CreateRuntimeModeButton("Outdoor Button", "Outdoor", buttonRow.transform, ForceOutdoor);
-        runtimeOffButton = CreateRuntimeModeButton("Off Button", "Off", buttonRow.transform, DeactivateARMode);
+        runtimeOffButton = CreateRuntimeModeButton("Back Button", "Quay về", buttonRow.transform, ReturnToUI);
     }
 
     private TextMeshProUGUI CreateRuntimeModeText(string objectName, Transform parent, string text, float fontSize)
@@ -1713,7 +1760,7 @@ public class HybridModeController : MonoBehaviour
 
         if (currentMode != _lastButtonMode)
         {
-            SetRuntimeModeButtonState(runtimeIndoorButton, currentMode == HybridMode.Indoor);
+            // Indoor button disabled — chỉ highlight Outdoor và Back
             SetRuntimeModeButtonState(runtimeOutdoorButton, currentMode == HybridMode.Outdoor);
             SetRuntimeModeButtonState(runtimeOffButton, currentMode == HybridMode.Transition);
             _lastButtonMode = currentMode;
@@ -1747,11 +1794,6 @@ public class HybridModeController : MonoBehaviour
 
     private void SetRuntimeModeButtonsInteractable(bool interactable)
     {
-        if (runtimeIndoorButton != null)
-        {
-            runtimeIndoorButton.interactable = interactable;
-        }
-
         if (runtimeOutdoorButton != null)
         {
             runtimeOutdoorButton.interactable = interactable;

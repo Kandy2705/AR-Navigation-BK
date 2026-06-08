@@ -56,6 +56,11 @@ public class SimpleGPSTracker : MonoBehaviour
     [Header("Precision (no VPS)")]
     [Tooltip("Max GPS accuracy allowed when calling CalibrateAtOrigin / CalibrateAtSurveyedPoint.")]
     [SerializeField] private float calibrateMaxAccuracyMeters = 5f;
+    [Tooltip("Lưu calibration offset qua các lần mở app (PlayerPrefs). " +
+             "TẮT (khuyến nghị): mỗi lần mở app bắt đầu sạch, AutoCalibration tự snap khi đi gần POI " +
+             "→ không bị ám bởi offset snap sai từ session trước (Pokemon-GO style, zero thao tác tay). " +
+             "BẬT: giữ offset — chỉ dùng nếu bạn calibrate 1 điểm chuẩn và muốn nhớ bias thiết bị.")]
+    [SerializeField] private bool persistCalibrationOffset = false;
     [Tooltip("Average several fixes before first lock while the device is nearly stationary.")]
     [SerializeField] private bool averageFirstFixWhileStationary = true;
     [SerializeField] private int firstFixAverageMinSamples = 4;
@@ -70,13 +75,33 @@ public class SimpleGPSTracker : MonoBehaviour
     [Header("Render Smoothing")]
     [Tooltip("How fast XR Origin lerps toward the GPS target every frame. Higher = more responsive, lower = smoother. Recommended: 4–8.")]
     [SerializeField] private float smoothSpeed = 5f;
+    [Tooltip("Sau khi calibrate tại anchor (CalibrateAtSurveyedPoint, snap=true): giảm smoothSpeed " +
+             "xuống mức này để VIO (AR tracking) dẫn dắt chuyển động thay vì GPS noisy. " +
+             "0.3 = GPS chỉ correct drift rất chậm; 0 = đóng băng hoàn toàn (chỉ VIO). Recommended: 0.3.")]
+    [SerializeField] private float postCalibrationSmoothSpeed = 0f;
+    [Tooltip("MA GIÁO: vào VIO mode NGAY sau fix GPS đầu (không cần snap POI). VIO dẫn chuyển động → " +
+             "MƯỢT + chính xác relative như Editor, hết giật theo GPS. Trade-off: vị trí TUYỆT ĐỐI vẫn " +
+             "lệch theo GPS first-fix (~±10m) cho tới khi đi ngang POI auto-snap sửa. Nhưng chuyển động " +
+             "mượt ngay từ đầu. Khuyến nghị BẬT.")]
+    [SerializeField] private bool useVioModeFromStart = true;
 
     [Header("NavMesh map matching")]
     [Tooltip("Snap each GPS map XZ onto the nearest walkable NavMesh point so the user avatar stays on bakeable terrain (fewer dips into obstacle volumes). Uses raw GPS if no hit.")]
     [SerializeField] private bool snapGpsPositionsToNavMesh = true;
     [Tooltip("NavMesh.SamplePosition search radius (m) around the GPS map point.")]
-    [SerializeField] private float navMeshSnapSampleRadiusMeters = 8f;
+    [SerializeField] private float navMeshSnapSampleRadiusMeters = 15f;
     [SerializeField] private bool logNavMeshSnapFallback;
+
+    [Header("Rolling average filter (optional — chỉ dùng khi VIO OFF)")]
+    [Tooltip("Average N readings gần nhất với accuracy weighting. " +
+             "TẮT mặc định vì VIO smoothing đã đủ. Bật chỉ khi disable VIO + user thường đứng yên.")]
+    [SerializeField] private bool useRollingAverageFilter = false;
+    [Tooltip("Số reading giữ trong buffer rolling. Lớn = mượt + lag khi đi. Khuyến nghị 5-10 cho mobile.")]
+    [SerializeField] [Range(3, 50)] private int rollingAverageSize = 8;
+
+    // Rolling buffer cho continuous optimization
+    private readonly System.Collections.Generic.Queue<(Vector3 pos, float accuracy)> _rollingBuffer
+        = new System.Collections.Generic.Queue<(Vector3, float)>();
 
     // PlayerPrefs keys for persisted calibration offset
     private const string PrefOffsetLat = "gps_offset_lat";
@@ -115,6 +140,14 @@ public class SimpleGPSTracker : MonoBehaviour
     private Vector3 _gpsTargetPosition;
     private Vector3 _smoothedPosition;
 
+    // --- Anchor calibration (Option A) ---
+    // _activeSmoothSpeed = smoothSpeed bình thường; tụt xuống postCalibrationSmoothSpeed sau khi snap tại anchor.
+    private float _activeSmoothSpeed = -1f;
+    private bool _hasCalibratedAtAnchor;
+
+    /// <summary>True sau khi user đã calibrate tại 1 anchor (snap XR Origin về điểm khảo sát).</summary>
+    public bool HasCalibratedAtAnchor => _hasCalibratedAtAnchor;
+
     private bool _lastFixRejectedAsJump;
     private float _lastRejectedJumpMeters = -1f;
 
@@ -139,6 +172,8 @@ public class SimpleGPSTracker : MonoBehaviour
     public double CurrentLongitude => currentLongitude;
     public float  CurrentHorizontalAccuracy => currentHorizontalAccuracy;
     public LocationServiceStatus CurrentStatus => Input.location.status;
+    /// <summary>True nếu app đang chạy ở chế độ VIO (sau snap với useVioModeFromStart = true).</summary>
+    public bool IsVioModeActive => _hasCalibratedAtAnchor && useVioModeFromStart;
     /// <summary>GPS-smoothed XZ plus optional proximity refinement toward Des.</summary>
     public Vector3 SmoothedWorldPosition => _smoothedPosition + _sessionRefinementOffset;
 
@@ -283,11 +318,24 @@ public class SimpleGPSTracker : MonoBehaviour
             yield break;
         }
 
-        // Restore persisted calibration offset
-        _offsetLat = PlayerPrefs.GetFloat(PrefOffsetLat, 0f);
-        _offsetLon = PlayerPrefs.GetFloat(PrefOffsetLon, 0f);
-        if (HasCalibration)
-            Debug.Log($"[SimpleGPSTracker] Loaded calibration offset: dLat={_offsetLat:F8} dLon={_offsetLon:F8}");
+        if (persistCalibrationOffset)
+        {
+            // Restore persisted calibration offset
+            _offsetLat = PlayerPrefs.GetFloat(PrefOffsetLat, 0f);
+            _offsetLon = PlayerPrefs.GetFloat(PrefOffsetLon, 0f);
+            if (HasCalibration)
+                Debug.Log($"[SimpleGPSTracker] Loaded calibration offset: dLat={_offsetLat:F8} dLon={_offsetLon:F8}");
+        }
+        else
+        {
+            // Không persist → mỗi session bắt đầu sạch. Xóa offset cũ trong PlayerPrefs
+            // (vd offset snap sai 32m từ lần trước) để không bị ám. AutoCalibration sẽ tự snap lại.
+            _offsetLat = 0.0;
+            _offsetLon = 0.0;
+            PlayerPrefs.DeleteKey(PrefOffsetLat);
+            PlayerPrefs.DeleteKey(PrefOffsetLon);
+            Debug.Log("[SimpleGPSTracker] persistCalibrationOffset OFF — bắt đầu sạch, offset cũ đã xóa.");
+        }
 
         // Start North alignment in parallel — compass warms up while GPS is initialising
         StartCoroutine(AlignNorthAsync());
@@ -312,8 +360,18 @@ public class SimpleGPSTracker : MonoBehaviour
             yield break;
         }
 
-        // desiredAccuracy=5 m, updateDistance=1 m — ask OS for high-quality fixes
-        Input.location.Start(5f, 1f);
+        // Nếu GpsBootstrap đã start service từ lúc app boot → skip để không reset cycle.
+        // Chỉ Start() khi đang Stopped (lần đầu / sau permission grant muộn).
+        if (Input.location.status == LocationServiceStatus.Stopped)
+        {
+            // desiredAccuracy=5 m, updateDistance=1 m — ask OS for high-quality fixes
+            Input.location.Start(5f, 1f);
+            Debug.Log("[SimpleGPSTracker] Started Input.location (no pre-warm).");
+        }
+        else
+        {
+            Debug.Log($"[SimpleGPSTracker] Pre-warmed by GpsBootstrap (status={Input.location.status}), skip Start().");
+        }
 
         int maxWait = 20;
         while (Input.location.status == LocationServiceStatus.Initializing && maxWait > 0)
@@ -347,7 +405,10 @@ public class SimpleGPSTracker : MonoBehaviour
         // ── RENDER LAYER: runs every frame ─────────────────────────────────────
         if (!_hasGpsTarget || freezeXROriginUpdate) return;
 
-        float t = smoothSpeed * Time.deltaTime;
+        // _activeSmoothSpeed = smoothSpeed bình thường, hoặc postCalibrationSmoothSpeed (chậm)
+        // sau khi calibrate tại anchor → VIO dẫn dắt, GPS chỉ correct drift rất chậm.
+        if (_activeSmoothSpeed < 0f) _activeSmoothSpeed = smoothSpeed;
+        float t = _activeSmoothSpeed * Time.deltaTime;
         _smoothedPosition.x = Mathf.Lerp(_smoothedPosition.x, _gpsTargetPosition.x, t);
         _smoothedPosition.z = Mathf.Lerp(_smoothedPosition.z, _gpsTargetPosition.z, t);
 
@@ -408,16 +469,18 @@ public class SimpleGPSTracker : MonoBehaviour
 
     private void TryAcceptGpsFix(LocationInfo data)
     {
-        // 1. Accuracy filter
-        if (data.horizontalAccuracy > accuracyThresholdMeters)
-        {
-            Debug.LogWarning($"[SimpleGPSTracker] Fix rejected — accuracy {data.horizontalAccuracy:F1} m > {accuracyThresholdMeters:F1} m threshold.");
-            return;
-        }
-
+        // LUÔN cập nhật display values (HUD), kể cả khi reading bị reject ở bước sau —
+        // user cần thấy GPS có hoạt động + accuracy thực để biết tình trạng.
         currentLatitude            = data.latitude;
         currentLongitude           = data.longitude;
         currentHorizontalAccuracy  = data.horizontalAccuracy;
+
+        // 1. Accuracy filter — chỉ chặn việc xử lý fix cho tracking, không chặn display.
+        if (data.horizontalAccuracy > accuracyThresholdMeters)
+        {
+            Debug.LogWarning($"[SimpleGPSTracker] Fix rejected for tracking — accuracy {data.horizontalAccuracy:F1} m > {accuracyThresholdMeters:F1} m threshold. (Display values updated.)");
+            return;
+        }
 
         // 2. Apply calibration offset to correct systematic GPS bias
         double calibratedLat = currentLatitude  - _offsetLat;
@@ -450,7 +513,38 @@ public class SimpleGPSTracker : MonoBehaviour
         // 5. Accept fix — update target; render layer will lerp toward it every frame
         _lastFixRejectedAsJump = false;
         _lastRejectedJumpMeters = -1f;
-        _gpsTargetPosition = mapPos;
+
+        // Rolling average filter: accuracy-weighted average của N reading gần nhất
+        // → Position tự refine theo thời gian, giảm noise √N lần.
+        if (useRollingAverageFilter)
+        {
+            _rollingBuffer.Enqueue((mapPos, data.horizontalAccuracy));
+            while (_rollingBuffer.Count > rollingAverageSize)
+                _rollingBuffer.Dequeue();
+
+            _gpsTargetPosition = ComputeWeightedAverage(_rollingBuffer);
+        }
+        else
+        {
+            _gpsTargetPosition = mapPos;
+        }
+    }
+
+    /// <summary>
+    /// Accuracy-weighted average: reading có accuracy tốt được weight cao hơn (1/acc²).
+    /// Hiệu quả √N giảm noise: 15 readings × accuracy 17m → average ~4m noise.
+    /// </summary>
+    private static Vector3 ComputeWeightedAverage(System.Collections.Generic.Queue<(Vector3 pos, float accuracy)> buffer)
+    {
+        Vector3 sum = Vector3.zero;
+        float totalWeight = 0f;
+        foreach (var (pos, acc) in buffer)
+        {
+            float weight = acc > 0f ? 1f / (acc * acc) : 1f;
+            sum += pos * weight;
+            totalWeight += weight;
+        }
+        return totalWeight > 0f ? sum / totalWeight : Vector3.zero;
     }
 
     /// <summary>
@@ -558,6 +652,11 @@ public class SimpleGPSTracker : MonoBehaviour
         _collectingFirstFixAverage = false;
         _firstFixSamplePositions.Clear();
         ClearSessionRefinementOffset();
+
+        // MA GIÁO: vào VIO mode ngay → chuyển động mượt như Editor (VIO dẫn, GPS correct chậm).
+        // Không set khi đã snap anchor (giữ smoothSpeed đã có từ snap).
+        if (useVioModeFromStart && !_hasCalibratedAtAnchor)
+            _activeSmoothSpeed = postCalibrationSmoothSpeed;
     }
 
     private void LogFirstFix(Vector3 rawPos)
@@ -716,20 +815,27 @@ public class SimpleGPSTracker : MonoBehaviour
     /// Measures the difference between what GPS reports and what MapOrigin expects,
     /// then stores it so all future GPS positions are corrected for systematic bias.
     /// </summary>
-    public bool CalibrateAtOrigin()
+    public bool CalibrateAtOrigin(bool snapToSurveyedPoint = false)
     {
         if (mapOrigin == null) return false;
-        return CalibrateAtSurveyedPoint(mapOrigin.originLat, mapOrigin.originLon);
+        return CalibrateAtSurveyedPoint(mapOrigin.originLat, mapOrigin.originLon, snapToSurveyedPoint);
     }
 
     /// <summary>
     /// Bias correction while standing at a surveyed point (MapOrigin or Des lat/lon).
     /// </summary>
-    public bool CalibrateAtSurveyedPoint(double surveyedLat, double surveyedLon)
+    /// <param name="snapToSurveyedPoint">
+    /// Option A: nếu true, ngoài việc trừ bias còn SNAP XR Origin để AR camera đứng đúng tại
+    /// điểm khảo sát (Unity XZ), rồi chuyển sang "VIO mode" (giảm GPS influence) để AR tracking
+    /// dẫn dắt chuyển động. Đây là cơ chế đạt accuracy 1-2m. Khi false: chỉ trừ bias như cũ.
+    /// </param>
+    public bool CalibrateAtSurveyedPoint(double surveyedLat, double surveyedLon, bool snapToSurveyedPoint = false)
     {
         if (!HasLocationFix || mapOrigin == null) return false;
 
-        if (currentHorizontalAccuracy > calibrateMaxAccuracyMeters)
+        // Snap mode KHÔNG phụ thuộc GPS accuracy (snap thẳng về điểm khảo sát). Bias chỉ best-effort.
+        // Bias-only mode (cũ) vẫn cần GPS tốt vì nó dựa hoàn toàn vào fix hiện tại.
+        if (!snapToSurveyedPoint && currentHorizontalAccuracy > calibrateMaxAccuracyMeters)
         {
             Debug.LogWarning($"[SimpleGPSTracker] Calibrate rejected — accuracy {currentHorizontalAccuracy:F1} m > {calibrateMaxAccuracyMeters:F1} m.");
             return false;
@@ -742,11 +848,56 @@ public class SimpleGPSTracker : MonoBehaviour
         PlayerPrefs.SetFloat(PrefOffsetLon, (float)_offsetLon);
         PlayerPrefs.Save();
 
-        ResetGpsTrackingStateAfterCalibration();
+        if (snapToSurveyedPoint)
+        {
+            SnapXrOriginToSurveyedPoint(surveyedLat, surveyedLon);
+        }
+        else
+        {
+            ResetGpsTrackingStateAfterCalibration();
+        }
 
-        Debug.Log($"[SimpleGPSTracker] Calibrated — dLat={_offsetLat:F8}  dLon={_offsetLon:F8}  " +
+        Debug.Log($"[SimpleGPSTracker] Calibrated{(snapToSurveyedPoint ? " (SNAP/VIO)" : "")} — dLat={_offsetLat:F8}  dLon={_offsetLon:F8}  " +
                   $"(≈{_offsetLat * 111320f:F1} m N,  {_offsetLon * 111320f * Mathf.Cos((float)(mapOrigin.originLat * Mathf.Deg2Rad)):F1} m E)");
         return true;
+    }
+
+    /// <summary>
+    /// Option A core: đặt render-layer state về đúng điểm khảo sát + kích hoạt one-shot camera
+    /// align có sẵn (_pendingInitialCameraGpsAlign) để AR camera world XZ trùng điểm khảo sát,
+    /// rồi chuyển sang VIO mode (smoothSpeed chậm) để AR tracking dẫn dắt chuyển động.
+    /// </summary>
+    private void SnapXrOriginToSurveyedPoint(double surveyedLat, double surveyedLon)
+    {
+        Vector3 surveyedWorld = mapOrigin.GetUnityPositionFromGPS(surveyedLat, surveyedLon);
+
+        // Ép smoothed/target về ĐÚNG điểm khảo sát (không phải GPS noisy).
+        // Render layer sẽ đặt xrOrigin = surveyedWorld; LateUpdate (_pendingInitialCameraGpsAlign)
+        // shift xrOrigin để camera world XZ = surveyedWorld — đúng path align đã hoạt động cho outdoor.
+        _smoothedPosition = surveyedWorld;
+        _gpsTargetPosition = surveyedWorld;
+        _hasGpsTarget = true;
+        _hasFirstValidFix = true;
+        _pendingInitialCameraGpsAlign = true;
+        _lastFixRejectedAsJump = false;
+        _lastRejectedJumpMeters = -1f;
+        ClearSessionRefinementOffset();
+
+        // Sau snap: chỉ vào VIO mode nếu useVioModeFromStart = true. Nếu user đã tắt VIO
+        // trong Inspector, giữ smoothSpeed bình thường (GPS-driven).
+        if (useVioModeFromStart)
+        {
+            _activeSmoothSpeed = postCalibrationSmoothSpeed;
+            Debug.Log($"[SimpleGPSTracker] SNAP → surveyed world=({surveyedWorld.x:F2}, {surveyedWorld.z:F2}). " +
+                      $"VIO mode ON (smoothSpeed {smoothSpeed}→{postCalibrationSmoothSpeed}).");
+        }
+        else
+        {
+            _activeSmoothSpeed = smoothSpeed;
+            Debug.Log($"[SimpleGPSTracker] SNAP → surveyed world=({surveyedWorld.x:F2}, {surveyedWorld.z:F2}). " +
+                      $"VIO mode OFF (giữ smoothSpeed={smoothSpeed} — GPS-driven pure).");
+        }
+        _hasCalibratedAtAnchor = true;
     }
 
     /// <summary>Clears the stored calibration offset and PlayerPrefs entries.</summary>
@@ -771,5 +922,9 @@ public class SimpleGPSTracker : MonoBehaviour
         _firstFixSamplePositions.Clear();
         ClearSessionRefinementOffset();
         lastTimestamp = -1;
+
+        // Tắt VIO mode — quay về GPS thuần (reset calibration nghĩa là bỏ anchor).
+        _activeSmoothSpeed = smoothSpeed;
+        _hasCalibratedAtAnchor = false;
     }
 }

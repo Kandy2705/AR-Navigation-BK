@@ -22,19 +22,16 @@ public class UserCapsuleFollower : MonoBehaviour
 
     void Start()
     {
-        // Tự động tìm camera nếu chưa được gán trong Inspector
+        TryResolveCamera();
         if (mainCamera == null)
-            mainCamera = Camera.main;
-
-        if (mainCamera == null)
-            Debug.LogWarning("[UserCapsuleFollower] Không tìm thấy Main Camera. " +
-                             "Hãy gán thủ công vào field 'mainCamera' trong Inspector.");
+            Debug.LogWarning("[UserCapsuleFollower] Chưa tìm thấy camera lúc Start — sẽ retry mỗi frame trong LateUpdate.");
     }
 
     void LateUpdate()
     {
-        // Chạy trong LateUpdate để đảm bảo TrackedPoseDriver đã cập nhật camera trước.
-        // Nếu dùng Update() thứ tự thực thi không được đảm bảo.
+        // Defensive: re-resolve mỗi frame nếu null. Trên device, Camera.main có thể null lúc Start
+        // (do HybridModeController retag muộn, hoặc AR session chưa init) → cần retry.
+        if (mainCamera == null) TryResolveCamera();
         if (mainCamera == null) return;
 
         Vector3 camWorldPos = mainCamera.transform.position;
@@ -45,5 +42,26 @@ public class UserCapsuleFollower : MonoBehaviour
             transform.position.y,
             camWorldPos.z
         );
+    }
+
+    private void TryResolveCamera()
+    {
+        if (mainCamera != null) return;
+
+        // 1. Camera.main (theo tag)
+        mainCamera = Camera.main;
+        if (mainCamera != null) return;
+
+        // 2. Camera trong XR Origin (đa số trường hợp AR)
+        var xrOrigin = FindFirstObjectByType<Unity.XR.CoreUtils.XROrigin>();
+        if (xrOrigin != null && xrOrigin.Camera != null)
+        {
+            mainCamera = xrOrigin.Camera;
+            return;
+        }
+
+        // 3. Cuối cùng: bất kỳ camera nào còn hoạt động
+        var anyCam = FindAnyObjectByType<Camera>();
+        if (anyCam != null) mainCamera = anyCam;
     }
 }

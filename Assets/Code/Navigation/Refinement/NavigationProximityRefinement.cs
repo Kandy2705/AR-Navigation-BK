@@ -28,8 +28,10 @@ public class NavigationProximityRefinement : MonoBehaviour
     public bool IsRefinementActive => _currentRefinement.sqrMagnitude > 0.01f;
     public float ActiveRefinementMeters => _currentRefinement.magnitude;
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void CreateForGPSMapPlane()
+    // Auto-spawn đã tắt — refinement gây hiệu ứng "POI dịch chuyển khi gần đích" + báo
+    // arrival sớm so với thực tế. Đã quyết định bỏ để giữ vị trí mọi vật cố định.
+    // Để bật lại: thêm RuntimeInitializeOnLoadMethod attribute như trước.
+    private static void CreateForGPSMapPlane_Disabled()
     {
         if (!GpsOutdoorSceneNames.Includes(SceneManager.GetActiveScene().name)) return;
         if (FindFirstObjectByType<NavigationProximityRefinement>() != null) return;

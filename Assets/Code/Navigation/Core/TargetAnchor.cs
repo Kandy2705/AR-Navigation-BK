@@ -14,6 +14,16 @@ using UnityEngine;
 /// </summary>
 public class TargetAnchor : MonoBehaviour
 {
+    /// <summary>
+    /// BẬT: chỉ POI là <see cref="CurrentSelectedDestination"/> mới hiện, các POI khác ẩn.
+    /// TẮT: tất cả POI hiện theo logic distance/occlusion thường.
+    /// MobileNavigationHUD.SelectTarget() bật flag này khi user chọn 1 điểm đích.
+    /// </summary>
+    public static bool OnlyShowSelectedDestination = true;
+
+    /// <summary>POI hiện đang được user chọn làm đích. Null = chưa chọn (mọi POI hiện).</summary>
+    public static TargetAnchor CurrentSelectedDestination = null;
+
     [Header("Tọa độ GPS của điểm đến")]
     public string displayName;
 
@@ -26,6 +36,17 @@ public class TargetAnchor : MonoBehaviour
     [Header("Hiển thị theo khoảng cách")]
     [Tooltip("Ẩn vật thể khi người dùng cách xa hơn mức này (mét). 0 = luôn hiện.")]
     [SerializeField] private float maxVisibilityMeters = 80f;
+
+    [Header("Occlusion — ẩn khi bị tòa nhà che")]
+    [Tooltip("Bật: raycast từ camera tới POI; nếu trúng occluder (cube tòa nhà) TRƯỚC khi tới POI → ẩn. " +
+             "Cube tòa nhà phải có Collider và nằm trong Occluder Mask. Trên device cube vô hình nhưng vẫn che.")]
+    [SerializeField] private bool hideWhenOccluded = false;
+    [Tooltip("Layer của các cube tòa nhà (occluder). Set đúng layer chứa Buildings/Walls.")]
+    [SerializeField] private LayerMask occluderMask = ~0;
+    [Tooltip("Chiều cao điểm ngắm trên POI khi raycast (m) — ngắm giữa capsule thay vì gốc, tránh bị tường thấp che oan.")]
+    [SerializeField] private float occlusionProbeHeight = 1f;
+    [Tooltip("Đệm (m) trừ vào khoảng cách raycast — tránh raycast tự trúng collider của chính POI.")]
+    [SerializeField] private float occlusionPadding = 0.5f;
 
     [Header("Ổn định vị trí trong Unity")]
     [Tooltip("Sau Recalculate(), giữ transform.position world cố định mỗi frame (tránh bị kéo trôi).")]
@@ -49,18 +70,54 @@ public class TargetAnchor : MonoBehaviour
 
     void Update()
     {
-        // Chỉ ẩn/hiện theo khoảng cách sau khi vị trí đã được tính đúng
-        if (!_positionReady || maxVisibilityMeters <= 0f) return;
+        if (!_positionReady) return;
+
+        // Filter theo selection: nếu user đã chọn 1 đích, các POI khác ẩn hoàn toàn.
+        if (OnlyShowSelectedDestination && CurrentSelectedDestination != null && CurrentSelectedDestination != this)
+        {
+            SetVisible(false);
+            return;
+        }
+
+        // Không feature nào bật → giữ behavior cũ (luôn hiện sau Recalculate)
+        if (maxVisibilityMeters <= 0f && !hideWhenOccluded) return;
 
         if (_mainCamera == null) _mainCamera = Camera.main;
         if (_mainCamera == null) return;
 
-        // So sánh khoảng cách XZ (bỏ qua chiều cao) để tránh lỗi khi mặt đất không bằng phẳng
-        Vector2 playerXZ = new Vector2(_mainCamera.transform.position.x, _mainCamera.transform.position.z);
-        Vector2 anchorXZ = new Vector2(transform.position.x, transform.position.z);
-        float dist = Vector2.Distance(playerXZ, anchorXZ);
+        // 1. Visibility theo khoảng cách (XZ, bỏ chiều cao để tránh lỗi mặt đất gồ ghề)
+        bool withinDistance = true;
+        if (maxVisibilityMeters > 0f)
+        {
+            Vector2 playerXZ = new Vector2(_mainCamera.transform.position.x, _mainCamera.transform.position.z);
+            Vector2 anchorXZ = new Vector2(transform.position.x, transform.position.z);
+            withinDistance = Vector2.Distance(playerXZ, anchorXZ) <= maxVisibilityMeters;
+        }
 
-        SetVisible(dist <= maxVisibilityMeters);
+        // 2. Occlusion: bị tòa nhà che → ẩn
+        bool occluded = hideWhenOccluded && IsOccludedByBuilding(_mainCamera);
+
+        SetVisible(withinDistance && !occluded);
+    }
+
+    /// <summary>
+    /// Raycast từ camera tới POI (ngắm giữa capsule). Nếu trúng occluder (cube tòa nhà) trước khi
+    /// tới POI → POI đang bị che → trả về true. Cube vô hình trên device vẫn chặn nhờ Collider.
+    /// </summary>
+    private bool IsOccludedByBuilding(Camera cam)
+    {
+        Vector3 camPos = cam.transform.position;
+        Vector3 probe = transform.position + Vector3.up * occlusionProbeHeight;
+        Vector3 toPoi = probe - camPos;
+        float dist = toPoi.magnitude;
+        if (dist <= occlusionPadding) return false;
+
+        return Physics.Raycast(
+            camPos,
+            toPoi.normalized,
+            dist - occlusionPadding,
+            occluderMask,
+            QueryTriggerInteraction.Ignore);
     }
 
     void LateUpdate()

@@ -24,7 +24,9 @@
       "mcp__mcp-unity__execute_menu_item",
       "Bash(find Library/PackageCache/com.multiset.sdk* -name \"*.asmdef\")",
       "Bash(find Library/PackageCache/com.multiset.sdk* -name \"link.xml\")",
-      "Bash(find *)"
+      "Bash(find *)",
+      "Bash(git checkout *)",
+      "Bash(git stash *)"
     ]
   },
   "enabledMcpjsonServers": [

@@ -8,6 +8,7 @@ public class ProfileController : IPageController
     private readonly ProfileService Service = new ProfileService();
     
     // UI Elements
+    private Label _labelUserName;
     private TextField _userName;
     private TextField _userPhone;
     private TextField _userGender;
@@ -19,6 +20,7 @@ public class ProfileController : IPageController
     public void Initialize(VisualElement root, NavigationManager navigator)
     {
         // 1. Ánh xạ UI (Binding)
+        _labelUserName = root.Q<Label>("LabelUserName");
         _userName = root.Q<TextField>("input-name");   
         _userPhone = root.Q<TextField>("input-phone"); 
         _userGender = root.Q<TextField>("input-gender"); 
@@ -44,6 +46,7 @@ public class ProfileController : IPageController
     }
 
     private void UpdateUI(RegisterRes data){
+        if (_labelUserName != null) _labelUserName.text = data.name ?? "";
         if (_userName != null) _userName.value = data.name;
         if (_userPhone != null) _userPhone.value = data.phone;
         if (_userGender != null) _userGender.value = data.gender;

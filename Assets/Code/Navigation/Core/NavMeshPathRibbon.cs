@@ -10,6 +10,37 @@ using UnityEngine.Rendering;
 /// </summary>
 public static class NavMeshPathRibbon
 {
+    /// <summary>
+    /// Chaikin corner-cutting: làm tròn các góc gấp của polyline thành đường cong mềm.
+    /// Giữ nguyên điểm ĐẦU và CUỐI (start = user, end = target). Đường cong nằm TRONG
+    /// polyline gốc → không phình ra ngoài đâm vào obstacle (an toàn cho navigation, khác Catmull-Rom).
+    ///
+    /// Mỗi iteration thay mỗi đoạn P[i]→P[i+1] bằng 2 điểm (1/4 và 3/4) → cắt góc. Lặp N lần
+    /// để mượt hơn (point count ~×2 mỗi lần). N=2 thường đủ mượt.
+    /// </summary>
+    public static Vector3[] SmoothCornersChaikin(Vector3[] points, int iterations)
+    {
+        if (points == null || points.Length < 3 || iterations <= 0)
+            return points;
+
+        List<Vector3> current = new List<Vector3>(points);
+        for (int iter = 0; iter < iterations; iter++)
+        {
+            var next = new List<Vector3>(current.Count * 2);
+            next.Add(current[0]); // giữ điểm đầu
+            for (int i = 0; i < current.Count - 1; i++)
+            {
+                Vector3 p0 = current[i];
+                Vector3 p1 = current[i + 1];
+                next.Add(Vector3.Lerp(p0, p1, 0.25f)); // Q = 3/4 p0 + 1/4 p1
+                next.Add(Vector3.Lerp(p0, p1, 0.75f)); // R = 1/4 p0 + 3/4 p1
+            }
+            next.Add(current[current.Count - 1]); // giữ điểm cuối
+            current = next;
+        }
+        return current.ToArray();
+    }
+
     /// <param name="worldYOffset">Extra Y added in world space after corner position (e.g. lift above NavMesh).</param>
     /// <param name="borderWidthMeters">If &lt;= 0, single full-width strip (one submesh). If &gt; 0, left/right border strips in meters.</param>
     public static void BuildMesh(

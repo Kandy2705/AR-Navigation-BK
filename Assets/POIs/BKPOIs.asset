@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b085831797b124241a98e328ae1ca4ec, type: 3}
+  m_Name: BKPOIs
+  m_EditorClassIdentifier: 
+  pois:
+  - id: 0
+    displayName: "G\xF3c 1"
+    latitude: 10.7484556
+    longitude: 106.7132583
+    type: 
+  - id: 1
+    displayName: "G\xF3c 2"
+    latitude: 10.7484583
+    longitude: 106.7133416
+    type: 
+  - id: 2
+    displayName: "G\xF3c 3"
+    latitude: 10.7483583
+    longitude: 106.7133416
+    type: 
+  - id: 3
+    displayName: "G\xF3c 4"
+    latitude: 10.7483611
+    longitude: 106.7132583
+    type: 

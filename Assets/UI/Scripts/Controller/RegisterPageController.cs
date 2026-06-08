@@ -38,10 +38,9 @@ public class RegisterPageController : IPageController
         _genderInput = root.Q<TextField>("GenderInput");
         _birthdayInput = root.Q<TextField>("BirthdayInput");
         _nameInput = root.Q<TextField>("UsernameInput");
-        //_passInput = root.Q<TextField>("NewPasswordField");
+        errorText = root.Q<Label>("ErrorLabel");
 
         _basicInfoCompleteButton = root.Q<Button>("ContinueButton");
-        //_btnRegister = root.Q<Button>("NewPassChangeButton");
 
         if (_basicInfoCompleteButton != null)
         {
@@ -51,55 +50,35 @@ public class RegisterPageController : IPageController
     private void HandleRegister()
     {
         // A. Gom dữ liệu
-        bool isFailed = false;
-
         var myData = CurrentData;
-        myData.gender = _genderInput.value;
-        myData.birthday = ConvertToBackendDate(_birthdayInput.value);
-        myData.phone = _phoneNumberInput.value;
-        myData.email = _emailInput.value;
-        myData.name = _nameInput.value;
+        myData.gender = _genderInput?.value ?? "";
+        myData.birthday = ConvertToBackendDate(_birthdayInput?.value ?? "");
+        myData.phone = _phoneNumberInput?.value ?? "";
+        myData.email = _emailInput?.value ?? "";
+        myData.name = _nameInput?.value ?? "";
 
         Debug.Log("Đang gửi: " + myData.email);
         Debug.Log("Dữ liệu hiện tại " + myData.Data);
 
-        if(myData.name == null) 
+        // Validation
+        string error = null;
+        if (string.IsNullOrEmpty(myData.name)) error = "Vui lòng nhập đầy đủ họ tên";
+        else if (string.IsNullOrEmpty(myData.phone)) error = "Vui lòng nhập số điện thoại";
+        else if (string.IsNullOrEmpty(myData.email)) error = "Vui lòng nhập email";
+        else if (string.IsNullOrEmpty(myData.gender)) error = "Vui lòng nhập giới tính";
+        else if (string.IsNullOrEmpty(myData.birthday)) error = "Vui lòng nhập ngày sinh";
+
+        if (error != null)
         {
-            errorText.text = "Vui lòng nhập đầy đủ họ tên"; 
-            isFailed = true;
-        }
-        if(myData.phone == null) {
-            errorText.text = "Vui lòng nhập số điện thoại";  
-            isFailed = true;
-        }
-        if(myData.email == null) {
-            errorText.text = "Vui lòng nhập email";  
-            isFailed = true;
-        }
-        if(myData.gender == null) {
-            errorText.text = "Vui lòng nhập giới tính";  
-            isFailed = true;
-        }
-        if(myData.birthday == null) {
-            errorText.text = "Vui lòng nhập ngày sinh";  
-            isFailed = true;
+            if (errorText != null) errorText.text = error;
+            return;
         }
 
-        if(isFailed) return;
+        // Clear error nếu có
+        if (errorText != null) errorText.text = "";
 
         EmailChangingOTPController.CurrentFlow = OTPFlowType.Register;
         navigationManager.Navigate(PageID.OTPPage, false);
-        
-        // // B. Gọi API
-        // RestClient.Post(BASE_API, myData)
-        // .Then(response => 
-        // {
-        //     Debug.Log("Thành công rồi! Server trả về: " + response.Text);
-        // })
-        // .Catch(error => 
-        // {
-        //     Debug.LogError("Lỗi: " + error.Message);
-        // });
     }
 
     // Hàm biến hình: Từ "01/01/2000" -> "2000-01-01T00:00:00.000Z"

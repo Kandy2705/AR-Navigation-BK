@@ -19,8 +19,20 @@ public class MinimapExpandOnTap : MonoBehaviour
         "Độ dày viền Border quanh vùng map khi đang mở (pixel theo layout RectTransform, ~reference 1080). Giữ nhỏ để không ‘nuốt’ view.")]
     [SerializeField] [Range(4f, 32f)] private float expandedBorderRimPx = 10f;
 
-    [Tooltip("Nhân orthographicSize khi mở rộng (&lt;1 = zoom gần mặt đất hơn). Mặc định 1 = chỉ phóng UI; bật &lt;1 nếu muốn “phóng” thêm nội dung camera.")]
-    [SerializeField] [Range(0.35f, 1f)] private float expandedOrthoMultiplier = 1f;
+    [Tooltip("Nhân orthographicSize khi mở rộng. >1 = ZOOM OUT (thấy nhiều khu vực hơn — như mở full map). <1 = zoom in. " +
+             "Khuyến nghị 4-8 để thấy toàn khuôn viên khi tap mở rộng.")]
+    [SerializeField] [Range(0.35f, 15f)] private float expandedOrthoMultiplier = 6f;
+
+    [Header("User icon (red dot) khi expand")]
+    [Tooltip("Drag user icon Transform vào (capsule đỏ trên minimap). Để trống = tự tìm theo tag 'Player' hoặc GameObject tên chứa 'Capsule'/'UserIcon'.")]
+    [SerializeField] private Transform userIconTransform;
+    [Tooltip("Nhân VISUAL khi expand. Scale thực = expandedOrthoMultiplier × giá trị này. " +
+             "1.0 = giữ nguyên size hiển thị (cancel zoom out). 1.5 = to gấp 1.5x. 2 = to gấp 2x. " +
+             "VD ortho 6× × visual 1.5 = icon localScale 9× → to gấp 1.5 lần size gốc khi expand.")]
+    [SerializeField] [Range(0.5f, 3f)] private float expandedIconVisualMultiplier = 1.5f;
+
+    private Vector3 _iconScaleBeforeExpand = Vector3.zero;
+    private bool _iconScaleSaved;
 
     [SerializeField] private MinimapTopDownCamera minimapTopDownCamera;
 
@@ -332,6 +344,7 @@ public class MinimapExpandOnTap : MonoBehaviour
         }
 
         ApplyOrthoForExpanded(true);
+        ApplyIconScaleForExpanded(true);
         if (_backdrop != null)
         {
             _backdrop.SetActive(true);
@@ -383,6 +396,7 @@ public class MinimapExpandOnTap : MonoBehaviour
         }
 
         ApplyOrthoForExpanded(false);
+        ApplyIconScaleForExpanded(false);
         if (_backdrop != null)
             _backdrop.SetActive(false);
 
@@ -425,6 +439,69 @@ public class MinimapExpandOnTap : MonoBehaviour
             minimapTopDownCamera.RestoreInspectorViewRadius();
             _orthoBeforeExpand = -1f;
         }
+    }
+
+    /// <summary>
+    /// Scale user icon (capsule đỏ) khi minimap mở rộng → dễ thấy vị trí mình trên map to.
+    /// expandPhase=true: tăng scale × expandedIconScaleMultiplier; false: restore scale gốc.
+    /// </summary>
+    private void ApplyIconScaleForExpanded(bool expandPhase)
+    {
+        Transform icon = ResolveUserIcon();
+        if (icon == null)
+        {
+            Debug.LogWarning("[MinimapExpandOnTap] Không tìm thấy user icon để scale — drag vào field 'User Icon Transform' để chỉ định.");
+            return;
+        }
+
+        if (expandPhase)
+        {
+            if (!_iconScaleSaved)
+            {
+                _iconScaleBeforeExpand = icon.localScale;
+                _iconScaleSaved = true;
+            }
+            // Scale thực = ortho zoom × visual multiplier → bù lại zoom out để icon vẫn to hơn size gốc
+            float effective = expandedOrthoMultiplier * expandedIconVisualMultiplier;
+            icon.localScale = _iconScaleBeforeExpand * effective;
+            Debug.Log($"[MinimapExpandOnTap] Scaled icon '{icon.name}' × {effective:F1} (ortho {expandedOrthoMultiplier} × visual {expandedIconVisualMultiplier})");
+        }
+        else if (_iconScaleSaved)
+        {
+            icon.localScale = _iconScaleBeforeExpand;
+            _iconScaleSaved = false;
+        }
+    }
+
+    private Transform ResolveUserIcon()
+    {
+        if (userIconTransform != null) return userIconTransform;
+
+        // Tự tìm: ƯU TIÊN GameObject tên "Icon" là con của Main Camera (cấu trúc XR Origin > Main Camera > Icon)
+        Camera mainCam = Camera.main;
+        if (mainCam != null)
+        {
+            Transform iconChild = mainCam.transform.Find("Icon");
+            if (iconChild != null) { userIconTransform = iconChild; return userIconTransform; }
+        }
+
+        // Fallback: tag Player
+        GameObject byTag = GameObject.FindGameObjectWithTag("Player");
+        if (byTag != null) { userIconTransform = byTag.transform; return userIconTransform; }
+
+        // Fallback cuối: tên chứa "Icon" / "Capsule" / "UserIcon" (loại trừ "POI" và "Indoor")
+        foreach (Transform t in FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        {
+            if (t == null) continue;
+            string n = t.name;
+            if (n.Contains("POI") || n.Contains("Indoor")) continue; // tránh nhầm POI capsule
+            if (n == "Icon" || n.Contains("Capsule") || n.Contains("UserIcon") || n.Contains("User Icon"))
+            {
+                userIconTransform = t;
+                return userIconTransform;
+            }
+        }
+        return null;
     }
 
     private void OnDisable()
