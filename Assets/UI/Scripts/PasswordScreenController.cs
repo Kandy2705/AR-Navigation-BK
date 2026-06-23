@@ -3,8 +3,17 @@ using UnityEngine.UIElements;
 
 public class PasswordScreenController : MonoBehaviour
 {
+    private static bool IsForceIndoorTestMode()
+    {
+        var hybrid = FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
+        return hybrid != null && hybrid.ForceIndoorTestModeEnabled;
+    }
+
     private void OnEnable()
     {
+        // Trong indoor test mode, không cần bind password toggle.
+        if (IsForceIndoorTestMode()) return;
+
         var root = GetComponent<UIDocument>().rootVisualElement;
 
         // --- Cặp 1: Mật khẩu cũ ---
@@ -26,7 +35,7 @@ public class PasswordScreenController : MonoBehaviour
 
         if (inputField == null || toggleBtn == null) 
         {
-            Debug.LogError($"Không tìm thấy {inputName} hoặc {btnName}");
+            Debug.LogWarning($"PasswordScreenController: Không tìm thấy '{inputName}' hoặc '{btnName}' trên page hiện tại — skip.");
             return;
         }
 
@@ -36,15 +45,9 @@ public class PasswordScreenController : MonoBehaviour
         // 3. Gán sự kiện Click
         toggleBtn.clicked += () => 
         {
-            // Đảo ngược trạng thái mật khẩu
             inputField.isPasswordField = !inputField.isPasswordField;
-            
-            // (Tùy chọn) Đổi hình con mắt bằng cách đổi class
-            // Bạn cần tạo class .eye-open trong USS có ảnh mắt mở
             toggleBtn.ToggleInClassList("eye-open"); 
-            
-            // Focus lại vào input để gõ tiếp
-            inputField.Q("unity-text-input").Focus();
+            if (inputField.isPasswordField) inputField.Focus();
         };
     }
 }

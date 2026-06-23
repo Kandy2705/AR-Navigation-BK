@@ -49,6 +49,13 @@ public class PasswordConfirmController : IPageController
 
     private void HandleConfirmRegister()
     {
+        if (HybridModeController.ShouldBypassApiInEditor())
+        {
+            Debug.Log("[PasswordConfirmController] [EDITOR_BYPASS] Bỏ qua API register → navigate Login.");
+            navigationManager.Navigate(PageID.Login, false);
+            return;
+        }
+
         var myData = RegisterPageController.CurrentData;
 
         myData.password = _passwordInput.value;

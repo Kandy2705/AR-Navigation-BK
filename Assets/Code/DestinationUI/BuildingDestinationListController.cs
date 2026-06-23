@@ -166,12 +166,22 @@ namespace Project.DestinationUI
 
         public void StartNavigationTo(POI poi)
         {
+            // Đảm bảo đang ở Indoor mode để NavMesh indoor active.
+            if (!EnsureIndoorMode())
+            {
+                Debug.LogWarning("[DestinationUI] Cannot start indoor navigation: HybridModeController not found or Indoor mode unavailable.");
+                return;
+            }
+
             if (!PrepareNavigationStart(poi))
             {
                 return;
             }
 
             NavigationController.instance.SetPOIForNavigation(poi);
+
+            // Xoá target của outdoor ARPathFinder để nó không render GPS path ribbon chồng lên indoor path.
+            ClearOutdoorPathFinders();
 
             if (destinationSelectUI != null)
             {
@@ -183,6 +193,76 @@ namespace Project.DestinationUI
                 NavigationUIController.instance.stopButton.SetActive(true);
                 NavigationUIController.instance.navigationProgressSlider.SetActive(true);
             }
+        }
+
+        static System.Type s_hybridModeControllerType;
+        static System.Type hybridModeControllerType
+        {
+            get
+            {
+                if (s_hybridModeControllerType == null)
+                    s_hybridModeControllerType = System.Type.GetType("HybridModeController, Assembly-CSharp");
+                return s_hybridModeControllerType;
+            }
+        }
+
+        static System.Type s_arPathFinderType;
+        static System.Type arPathFinderType
+        {
+            get
+            {
+                if (s_arPathFinderType == null)
+                    s_arPathFinderType = System.Type.GetType("ARPathFinder, Assembly-CSharp");
+                return s_arPathFinderType;
+            }
+        }
+
+        bool EnsureIndoorMode()
+        {
+            var type = hybridModeControllerType;
+            if (type == null)
+            {
+                Debug.LogWarning("[DestinationUI] HybridModeController type not found.");
+                return false;
+            }
+
+            var hybrid = FindFirstObjectByType(type, FindObjectsInactive.Include) as MonoBehaviour;
+            if (hybrid == null) return false;
+
+            var forceIndoorMethod = type.GetMethod("ForceIndoor", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (forceIndoorMethod == null)
+            {
+                Debug.LogWarning("[DestinationUI] ForceIndoor method not found.");
+                return false;
+            }
+
+            forceIndoorMethod.Invoke(hybrid, null);
+            Debug.Log("[DestinationUI] Switched to Indoor mode for indoor navigation.");
+            return true;
+        }
+
+        static void ClearOutdoorPathFinders()
+        {
+            var type = arPathFinderType;
+            if (type == null)
+            {
+                Debug.LogWarning("[DestinationUI] ARPathFinder type not found.");
+                return;
+            }
+
+            var setTargetMethod = type.GetMethod("SetTarget", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (setTargetMethod == null)
+            {
+                Debug.LogWarning("[DestinationUI] ARPathFinder.SetTarget method not found.");
+                return;
+            }
+
+            var finders = FindObjectsByType(type, FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var finder in finders)
+            {
+                if (finder != null) setTargetMethod.Invoke(finder, new object[] { null });
+            }
+            Debug.Log("[DestinationUI] Cleared outdoor ARPathFinder targets.");
         }
 
         DestinationRowUI SpawnRow(int index)

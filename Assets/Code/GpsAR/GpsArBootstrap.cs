@@ -104,7 +104,27 @@ namespace TestAR.GpsAR
             startTime = Time.time;
 
             if (xrOrigin == null) xrOrigin = FindFirstObjectByType<XROrigin>(FindObjectsInactive.Include);
-            if (gpsMarker == null) gpsMarker = FindFirstObjectByType<GPSMarker>(FindObjectsInactive.Include);
+            if (gpsMarker == null)
+            {
+                gpsMarker = FindFirstObjectByType<GPSMarker>(FindObjectsInactive.Include);
+                if (gpsMarker != null)
+                {
+                    Debug.Log($"[GpsArBootstrap] Auto-resolved GPSMarker = '{gpsMarker.name}'.");
+                }
+                else
+                {
+                    Debug.LogError(
+                        "[GpsArBootstrap] GPSMarker not found in scene. " +
+                        "Assign GpsArBootstrap.gpsMarker in Inspector or add a GPSMarker component. " +
+                        "GPS stability gate and AnchoredPOI will not advance until this is resolved.");
+                }
+            }
+            if (xrOrigin == null)
+            {
+                Debug.LogError(
+                    "[GpsArBootstrap] XR Origin not found in scene. " +
+                    "Assign GpsArBootstrap.xrOrigin in Inspector or add Unity.XR.CoreUtils.XROrigin to the scene.");
+            }
 
             ApplyXrOriginHygiene();
             ApplyGpsMarkerHygiene();

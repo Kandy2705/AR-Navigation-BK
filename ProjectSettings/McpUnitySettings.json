@@ -3,6 +3,6 @@
     "RequestTimeoutSeconds": 10,
     "AutoStartServer": true,
     "EnableInfoLogs": true,
-    "NpmExecutablePath": "C:\\Program Files\\nodejs\\node.exe",
+    "NpmExecutablePath": "/Users/kandy2705/bin/npm-unity",
     "AllowRemoteConnections": false
 }

@@ -69,6 +69,16 @@ public class LoginPageController : IPageController
 
     private void HandleLogin()
     {
+        if (HybridModeController.ShouldBypassApiInEditor())
+        {
+            Debug.Log("[LoginPageController] [EDITOR_BYPASS] Bỏ qua API login → dummy token + navigate MainSettings.");
+            PlayerPrefs.SetString("ACCESS_TOKEN", "editor-bypass-token");
+            PlayerPrefs.SetString("REFRESH_TOKEN", "editor-bypass-token");
+            PlayerPrefs.Save();
+            OnLoginClicked();
+            return;
+        }
+
         if (RestClient.DefaultRequestHeaders.ContainsKey("Authorization"))
         {
             Debug.Log("À anh Thanh, Hóa ra là còn Authorization à!");

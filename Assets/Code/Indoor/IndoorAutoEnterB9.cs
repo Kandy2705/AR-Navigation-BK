@@ -35,6 +35,15 @@ public class IndoorAutoEnterB9 : MonoBehaviour
     [SerializeField] private bool disableMeshVizOnBuildOnly = true;
     [SerializeField] private bool verboseLog = true;
 
+    /// <summary>
+    /// Cho phép <see cref="HybridModeController"/> set building map từ xa (khi forceIndoorTestMode).
+    /// Gọi TRƯỚC khi update cycle chạy để tránh conflict giữa selectedIndoorMap và defaultBuilding.
+    /// </summary>
+    public void OverrideDefaultBuilding(BuildingId building)
+    {
+        defaultBuilding = building;
+    }
+
     private HybridModeController.HybridMode _lastMode = (HybridModeController.HybridMode)(-1);
     private bool _switchToCalled;
     private bool _localizeSuccessHandled;

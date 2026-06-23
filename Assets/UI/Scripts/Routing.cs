@@ -240,13 +240,19 @@ public class Routing : MonoBehaviour
         var inputField = root.Q<PlaceHolder>(inputName);
         var toggleBtn = root.Q<Button>(btnName);
 
+        if (inputField == null || toggleBtn == null)
+        {
+            Debug.LogWarning($"Routing: Không tìm thấy '{inputName}' hoặc '{btnName}' trên page hiện tại — skip.");
+            return;
+        }
+
         inputField.isPasswordField = true;
     
         toggleBtn.clicked += () => 
         {
             inputField.isPasswordField = !inputField.isPasswordField;
             toggleBtn.ToggleInClassList("eye-open"); 
-            inputField.Q("unity-text-input").Focus();
+            if (inputField.isPasswordField) inputField.Focus();
         };
     }
 }

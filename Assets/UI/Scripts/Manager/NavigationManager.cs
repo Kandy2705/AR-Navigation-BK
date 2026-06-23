@@ -35,7 +35,11 @@ public class NavigationManager : MonoBehaviour
         PageID.MainSettings, PageID.HistoryPage, PageID.ARPage 
     };
 
+    private bool _bypassedAuthOnStart;
 
+    [Header("Test / Debug")]
+    [Tooltip("Khi true: auto vào ARPage ngay sau khi UI load (bỏ qua login/onboarding). Dùng để test indoor nhanh.")]
+    [SerializeField] private bool skipToARForTest = false;
 
     void Awake()
     {
@@ -74,7 +78,28 @@ public class NavigationManager : MonoBehaviour
         _navBar.Reset();
         _navBar.Bind(mainDocument.rootVisualElement);
 
-        Navigate(firstPage);
+        // Auto-bypass auth UI khi skipToARForTest hoặc forceIndoorTestMode=true.
+        // Tránh load WelcomePage/Login/Register hoàn toàn, vào thẳng AR để test indoor.
+        bool shouldBypassAuth = !_bypassedAuthOnStart && (skipToARForTest || IsForceIndoorTestMode());
+        if (shouldBypassAuth)
+        {
+            _bypassedAuthOnStart = true;
+            firstPage = PageID.MainSettings; // Return target sau khi AR test — tránh quay về WelcomePage.
+
+            // Tắt legacy UIRouter để nó không tự enable UI Onboarding/Welcome/Login.
+            DisableLegacyUIForTest();
+
+            mainDocument.rootVisualElement.schedule.Execute(() =>
+            {
+                Debug.Log("[NavigationManager] [INDOOR_TEST] Bypass auth UI → entering AR directly.");
+                EnterARPage();
+            }).ExecuteLater(100);
+        }
+        else
+        {
+            Navigate(firstPage);
+        }
+
         // Thông báo outdoor nav nên ẩn khi MainScreen đang active.
         // Lúc khởi động đầu tiên chưa ai subscribe nên hoàn toàn an toàn.
         OnARExited?.Invoke();
@@ -265,7 +290,12 @@ public class NavigationManager : MonoBehaviour
     {
         var inputField = root.Q<PlaceHolder>(inputName);
         var toggleBtn = root.Q<Button>(btnName);
-        Debug.Log($"Input field: {inputName}, Toggle button: {btnName}");
+
+        if (inputField == null || toggleBtn == null)
+        {
+            Debug.LogWarning($"NavigationManager: Không tìm thấy '{inputName}' hoặc '{btnName}' trên page hiện tại — skip.");
+            return;
+        }
 
         inputField.isPasswordField = true;
     
@@ -273,7 +303,7 @@ public class NavigationManager : MonoBehaviour
         {
             inputField.isPasswordField = !inputField.isPasswordField;
             toggleBtn.ToggleInClassList("eye-open"); 
-            inputField.Q("unity-text-input").Focus();
+            if (inputField.isPasswordField) inputField.Focus();
         };
     }
 
@@ -297,5 +327,30 @@ public class NavigationManager : MonoBehaviour
             eyeIcon.RemoveFromClassList("icon-eye-open");
             eyeIcon.AddToClassList("icon-eye-closed");
         }
+    }
+
+    private void DisableLegacyUIForTest()
+    {
+        // UIRouter (legacy): active trong scene, Awake() gọi ShowOnboarding().
+        // Tắt GameObject để nó không mở UI Onboarding/Welcome/Login.
+        var uiRouter = FindFirstObjectByType<UIRouter>(FindObjectsInactive.Include);
+        if (uiRouter != null && uiRouter.gameObject.activeInHierarchy)
+        {
+            uiRouter.gameObject.SetActive(false);
+            Debug.Log("[NavigationManager] [INDOOR_TEST] Disabled UIRouter (legacy UI).");
+        }
+    }
+
+    private bool IsForceIndoorTestMode()
+    {
+        if (hybridModeController != null)
+            return hybridModeController.ForceIndoorTestModeEnabled;
+        var hybrid = FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
+        if (hybrid != null)
+        {
+            hybridModeController = hybrid;
+            return hybrid.ForceIndoorTestModeEnabled;
+        }
+        return false;
     }
 }

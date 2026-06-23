@@ -16,11 +16,34 @@ public class HybridModeController : MonoBehaviour
         Transition
     }
 
-    [Header("Mode lockdown")]
-    [Tooltip("Khi true: chặn mọi đường chuyển sang Indoor (Force, auto-switch, IndoorMapSwitcher, " +
-             "IndoorAutoEnterB9, Editor button). Camera + XR Origin chỉ phục vụ Outdoor. " +
-             "Code Indoor giữ nguyên — chỉ bị no-op tại ApplyMode().")]
-    [SerializeField] private bool disableIndoorMode = true;
+    [Header("Indoor Mode Configuration")]
+    [Tooltip("Master toggle: bật indoor mode. Khi false, mọi đường vào Indoor đều bị chặn (Outdoor-only).")]
+    [SerializeField] private bool enableIndoorMode = false;
+
+    [Tooltip("Khi true: bỏ qua Outdoor, vào thẳng Indoor localization bằng Multiset SDK khi AR được bật. " +
+             "Dùng để test indoor trong tòa nhà mà không qua GPS handover.")]
+    [SerializeField] private bool forceIndoorTestMode = false;
+
+    [Tooltip("Chọn map indoor khi forceIndoorTestMode = true.")]
+    [SerializeField] private BuildingId selectedIndoorMap = BuildingId.B9;
+
+    /// <summary>Public accessor để NavigationManager check flag mà không cần Inspector ref.</summary>
+    public bool ForceIndoorTestModeEnabled => forceIndoorTestMode;
+
+    [Header("Editor Test Options")]
+    [Tooltip("Khi true + trong Unity Editor: bỏ qua API call ở màn login/register, navigate thẳng đến trang kế tiếp.")]
+    [SerializeField] private bool bypassApiCallsInEditor = true;
+
+    /// <summary>Static check: đang trong Editor AND bypassApiCallsInEditor=true.</summary>
+    public static bool ShouldBypassApiInEditor()
+    {
+#if UNITY_EDITOR
+        var instance = FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
+        return instance != null && instance.bypassApiCallsInEditor;
+#else
+        return false;
+#endif
+    }
 
     [Header("Environment Roots")]
     [SerializeField] private GameObject indoorEnvironment;
@@ -80,6 +103,8 @@ public class HybridModeController : MonoBehaviour
     [SerializeField] private bool keepIndoorActiveWhileOutdoor = false;
     [Tooltip("Keep outdoor runtime alive during Indoor mode (usually false).")]
     [SerializeField] private bool keepOutdoorActiveWhileIndoor = false;
+    [Tooltip("When true: IndoorEnvironment và outdoor environment luôn active đồng thời, không tắt cái nào. Ghi đè keepIndoorActiveWhileOutdoor + keepOutdoorActiveWhileIndoor.")]
+    [SerializeField] private bool alwaysKeepBothEnvironmentsActive = true;
     [Tooltip("Roots that must stay active across modes, such as AR Session, XR Origin, ARCamera, and shared UI.")]
     [SerializeField] private List<GameObject> alwaysActiveRoots = new List<GameObject>();
 
@@ -157,6 +182,7 @@ public class HybridModeController : MonoBehaviour
     private float gpsGoodTimer;
     private float lastSwitchTime = -999f;
     private float lastGpsAccuracy = -1f;
+    private float _relocalizeLogTimer;
     private bool hasAppliedInitialMode;
     private CanvasGroup transitionCanvasGroup;
     private TextMeshProUGUI transitionText;
@@ -193,6 +219,22 @@ public class HybridModeController : MonoBehaviour
 
     private void Start()
     {
+        // forceIndoorTestMode: tự bật enableIndoorMode để vào thẳng Indoor khi AR start.
+        // Phải check TRƯỚC CreateRuntimeModeSwitcherIfNeeded() để nút Indoor được tạo.
+        if (forceIndoorTestMode)
+        {
+            enableIndoorMode = true;
+            Debug.Log("[HybridMode] [INDOOR_TEST] forceIndoorTestMode=true — sẽ vào thẳng Indoor khi AR bật.");
+        }
+
+        // Auto-resolve SimpleGPSTracker nếu chưa gán trong Inspector.
+        if (simpleGpsTracker == null)
+        {
+            simpleGpsTracker = FindFirstObjectByType<SimpleGPSTracker>(FindObjectsInactive.Include);
+            if (simpleGpsTracker != null && verboseLog)
+                Debug.Log("[HybridMode] Auto-resolved SimpleGPSTracker: " + simpleGpsTracker.name);
+        }
+
         CachePresentationReferences();
         CreateTransitionOverlayIfNeeded();
         CreateSharedOutdoorHudIfNeeded();
@@ -232,6 +274,21 @@ public class HybridModeController : MonoBehaviour
 
     private void Update()
     {
+        // RELOCALIZING log — chạy bất kể autoSwitchEnabled
+        if (currentMode == HybridMode.Indoor && !localizationGood)
+        {
+            _relocalizeLogTimer += Time.deltaTime;
+            if (_relocalizeLogTimer >= 5f)
+            {
+                _relocalizeLogTimer = 0f;
+                Debug.Log($"[HybridMode] [RELOCALIZING] Chờ VPS localization... hãy giữ camera hướng vào tòa nhà.");
+            }
+        }
+        else
+        {
+            _relocalizeLogTimer = 0f;
+        }
+
         if (!autoSwitchEnabled)
         {
             return;
@@ -261,8 +318,8 @@ public class HybridModeController : MonoBehaviour
         }
         else if (currentMode == HybridMode.Outdoor)
         {
-            // Indoor bị khóa — không bao giờ auto-switch sang Indoor, tiết kiệm CPU + tránh log spam.
-            if (disableIndoorMode) return;
+            // Indoor bị khóa — không auto-switch khi enableIndoorMode=false.
+            if (!enableIndoorMode) return;
 
             if (localizationGoodTimer >= indoorSuccessRequiredTime &&
                 CanSwitch())
@@ -287,7 +344,8 @@ public class HybridModeController : MonoBehaviour
         localizationGood = true;
         if (verboseLog)
         {
-            Debug.Log("[HybridMode] LocalizationSuccess");
+            string modeTag = GetModeTag(currentMode);
+            Debug.Log($"[HybridMode] [{modeTag}] LocalizationSuccess — pose indoor đã được cập nhật từ Multiset VPS.");
         }
     }
 
@@ -296,13 +354,16 @@ public class HybridModeController : MonoBehaviour
         localizationGood = false;
         if (verboseLog)
         {
-            Debug.Log("[HybridMode] LocalizationFailure");
+            string modeTag = GetModeTag(currentMode);
+            Debug.Log($"[HybridMode] [{modeTag}] LOCALIZATION_FAILED — VPS không nhận diện được môi trường. " +
+                      "Hãy đảm bảo camera thấy đủ feature points của tòa nhà.");
         }
     }
 
     [ContextMenu("Hybrid/Force Indoor")]
     public void ForceIndoor()
     {
+        enableIndoorMode = true;
         SetRuntimeModeSwitcherVisible(true);
         RequestModeWithPermissions(HybridMode.Indoor, "ForceIndoor");
     }
@@ -321,7 +382,16 @@ public class HybridModeController : MonoBehaviour
         CreateTransitionOverlayIfNeeded();
         currentMode = HybridMode.Transition;
         SetRuntimeModeSwitcherVisible(true);
-        RequestModeWithPermissions(initialMode, "ApplyInitialMode");
+
+        HybridMode targetMode = initialMode;
+        if (forceIndoorTestMode)
+        {
+            targetMode = HybridMode.Indoor;
+            enableIndoorMode = true;
+            Debug.Log("[HybridMode] [INDOOR_TEST] Override initial mode → Indoor (forceIndoorTestMode=true).");
+        }
+
+        RequestModeWithPermissions(targetMode, "ApplyInitialMode");
     }
 
     public void SetRuntimeModeSwitcherVisible(bool visible)
@@ -422,6 +492,46 @@ public class HybridModeController : MonoBehaviour
         localizationGood = false;
     }
 
+    private string GetModeTag(HybridMode mode)
+    {
+        if (mode == HybridMode.Indoor && forceIndoorTestMode)
+            return "INDOOR_TEST";
+        if (mode == HybridMode.Indoor)
+            return "INDOOR_VPS";
+        if (mode == HybridMode.Outdoor)
+            return "OUTDOOR_GPS";
+        if (mode == HybridMode.Transition)
+            return "TRANSITION";
+        return "UNKNOWN";
+    }
+
+    private void TriggerIndoorTestMode()
+    {
+        // 1. Sync IndoorAutoEnterB9.defaultBuilding TRƯỚC để tránh conflict.
+        var autoEnter = FindFirstObjectByType<IndoorAutoEnterB9>(FindObjectsInactive.Include);
+        if (autoEnter != null)
+        {
+            autoEnter.OverrideDefaultBuilding(selectedIndoorMap);
+            Debug.Log($"[HybridMode] [INDOOR_TEST] IndoorAutoEnterB9.defaultBuilding ← {selectedIndoorMap}.");
+        }
+
+        // 2. Kích hoạt building indoor ngay lập tức (load map, set VPS code).
+        var switcher = FindFirstObjectByType<IndoorMapSwitcher>(FindObjectsInactive.Include);
+        if (switcher == null)
+        {
+            Debug.LogWarning("[HybridMode] [INDOOR_TEST] Không tìm thấy IndoorMapSwitcher trong scene.");
+            return;
+        }
+
+        bool ok = switcher.SwitchTo(selectedIndoorMap);
+        Debug.Log($"[HybridMode] [INDOOR_TEST] IndoorMapSwitcher.SwitchTo({selectedIndoorMap}) => {(ok ? "OK" : "FAILED")}.");
+
+        if (autoEnter != null)
+        {
+            Debug.Log("[HybridMode] [INDOOR_TEST] IndoorAutoEnterB9 sẽ subscribe LocalizationSuccess và xử lý re-anchor NavMesh.");
+        }
+    }
+
     private bool CanSwitch()
     {
         return Time.time - lastSwitchTime >= switchCooldown;
@@ -429,12 +539,12 @@ public class HybridModeController : MonoBehaviour
 
     private void ApplyMode(HybridMode nextMode, string reason)
     {
-        // Khóa cứng Indoor — mọi đường (Force, auto-switch, IndoorMapSwitcher, Editor) đều qua đây.
-        if (disableIndoorMode && nextMode == HybridMode.Indoor)
+        // Gate Indoor: chỉ cho vào khi enableIndoorMode=true.
+        if (!enableIndoorMode && nextMode == HybridMode.Indoor)
         {
             if (verboseLog)
                 Debug.LogWarning($"[HybridMode] Indoor mode disabled — request '{reason}' bị bỏ qua. " +
-                                 $"Hiện vẫn ở mode={currentMode}.");
+                                 $"enableIndoorMode=false. Hiện vẫn ở mode={currentMode}.");
             return;
         }
 
@@ -450,6 +560,7 @@ public class HybridModeController : MonoBehaviour
         }
 
         SetEnvironmentActive(nextMode);
+        SyncIndoorCameraToOutdoorMount(nextMode);
         ApplyXROriginFreezeForMode(nextMode);
 
         // Resolve MainCamera while hierarchy matches mode, before canvases / listeners (avoids wrong Camera.main on presentation step).
@@ -461,6 +572,7 @@ public class HybridModeController : MonoBehaviour
         RebindOutdoorNavigationCameras(nextMode);
 
         SetModePresentation(nextMode);
+        ManageARCameraComponents(nextMode);
 
         currentMode = nextMode;
 
@@ -472,7 +584,14 @@ public class HybridModeController : MonoBehaviour
 
         if (verboseLog)
         {
-            Debug.Log($"[HybridMode] -> {currentMode} | reason={reason} | gpsAccuracy={lastGpsAccuracy:F1}m");
+            string modeTag = GetModeTag(currentMode);
+            Debug.Log($"[HybridMode] [{modeTag}] -> {currentMode} | reason={reason} | gpsAccuracy={lastGpsAccuracy:F1}m");
+        }
+
+        // Nếu forceIndoorTestMode, tự động trigger IndoorMapSwitcher + load map indoor.
+        if (nextMode == HybridMode.Indoor && forceIndoorTestMode)
+        {
+            TriggerIndoorTestMode();
         }
     }
 
@@ -620,8 +739,8 @@ public class HybridModeController : MonoBehaviour
 
     private void SetEnvironmentActive(HybridMode mode)
     {
-        bool indoorActive = mode == HybridMode.Indoor || keepIndoorActiveWhileOutdoor;
-        bool outdoorActive = mode == HybridMode.Outdoor || keepOutdoorActiveWhileIndoor;
+        bool indoorActive = alwaysKeepBothEnvironmentsActive || mode == HybridMode.Indoor || keepIndoorActiveWhileOutdoor;
+        bool outdoorActive = alwaysKeepBothEnvironmentsActive || mode == HybridMode.Outdoor || keepOutdoorActiveWhileIndoor;
 
         if (indoorEnvironment != null)
         {
@@ -734,7 +853,8 @@ public class HybridModeController : MonoBehaviour
             Debug.Log($"[HybridMode] Shared XR rig detached to scene root: {_detachedOutdoorXrRigRoot.name}");
         }
 
-        if (disableIndoorXROriginDuplicates && indoorEnvironment != null)
+        // Khi both environments luôn on, indoor XR Origin cần sống để VPS tracking.
+        if (!alwaysKeepBothEnvironmentsActive && disableIndoorXROriginDuplicates && indoorEnvironment != null)
         {
             foreach (XROrigin indoorXr in indoorEnvironment.GetComponentsInChildren<XROrigin>(true))
             {
@@ -761,6 +881,9 @@ public class HybridModeController : MonoBehaviour
         {
             return;
         }
+
+        // Khi alwaysKeepBothEnvironmentsActive: cả 2 environment cùng chạy → không disable indoor session.
+        if (alwaysKeepBothEnvironmentsActive) return;
 
         foreach (ARSession session in indoorEnvironment.GetComponentsInChildren<ARSession>(true))
         {
@@ -855,6 +978,12 @@ public class HybridModeController : MonoBehaviour
             return;
         }
 
+        // Khi alwaysKeepBothEnvironmentsActive: cả 2 luôn chạy đồng thời, skip toàn bộ toggle visual/canvas/audio.
+        if (alwaysKeepBothEnvironmentsActive)
+        {
+            return;
+        }
+
         bool indoorVisible  = mode == HybridMode.Indoor;
         bool outdoorVisible = mode == HybridMode.Outdoor;
 
@@ -880,10 +1009,6 @@ public class HybridModeController : MonoBehaviour
             EnforceSingleAudioListener(mode);
         }
 
-        // Quản lý ARCameraManager + ARCameraBackground để tránh camera đen khi switch mode.
-        // Khi có 2 XR Origin (indoor + outdoor/SharedARRig), phải tắt AR camera components
-        // của camera không dùng để AR Session không bị confused về camera feed.
-        ManageARCameraComponents(mode);
     }
 
     /// <summary>
@@ -975,6 +1100,33 @@ public class HybridModeController : MonoBehaviour
         }
 
         return LastResortFindPresentationCamera();
+    }
+
+    /// <summary>
+    /// Khi chuyển qua Indoor, reparent indoor camera vào outdoor XR Origin mount
+    /// để cả 2 camera ở cùng world position → không giật camera, WASD vẫn move được.
+    /// </summary>
+    private void SyncIndoorCameraToOutdoorMount(HybridMode nextMode)
+    {
+        if (nextMode != HybridMode.Indoor) return;
+        if (!hasCachedPresentationReferences) CachePresentationReferences();
+
+        Camera indoorCam = indoorMainCamera;
+        if (indoorCam == null && indoorEnvironment != null)
+            indoorCam = FindPreferredCamera(indoorEnvironment, "ARCamera");
+
+        Camera outdoorCam = ResolveOutdoorPresentationCamera();
+        if (outdoorCam == null) outdoorCam = LastResortFindPresentationCamera();
+        if (outdoorCam == null || outdoorCam.transform.parent == null) return;
+        if (indoorCam == null || ReferenceEquals(indoorCam, outdoorCam)) return;
+
+        Transform mount = outdoorCam.transform.parent;
+        indoorCam.transform.SetParent(mount, false);
+        indoorCam.transform.localPosition = Vector3.zero;
+        indoorCam.transform.localRotation = Quaternion.identity;
+
+        if (verboseLog)
+            Debug.Log($"[HybridMode] Indoor camera '{indoorCam.name}' reparented to '{mount.name}' @ identity.");
     }
 
     /// <summary>
@@ -1680,8 +1832,10 @@ public class HybridModeController : MonoBehaviour
         rowLayout.childForceExpandWidth = true;
         rowLayout.childForceExpandHeight = true;
 
-        // Indoor tạm ẩn — chỉ giữ Outdoor + Quay về
-        // runtimeIndoorButton = CreateRuntimeModeButton("Indoor Button", "Indoor", buttonRow.transform, ForceIndoor);
+        if (enableIndoorMode)
+        {
+            runtimeIndoorButton = CreateRuntimeModeButton("Indoor Button", "Indoor", buttonRow.transform, ForceIndoor);
+        }
         runtimeOutdoorButton = CreateRuntimeModeButton("Outdoor Button", "Outdoor", buttonRow.transform, ForceOutdoor);
         runtimeOffButton = CreateRuntimeModeButton("Back Button", "Quay về", buttonRow.transform, ReturnToUI);
     }
@@ -1747,9 +1901,10 @@ public class HybridModeController : MonoBehaviour
                 accuracyText = accuracy > 0f ? $"{accuracy:0.#}m" : "N/A";
             }
 
+            string modeTag = GetModeTag(currentMode);
             string newText = !string.IsNullOrEmpty(runtimePermissionStatus)
                 ? runtimePermissionStatus
-                : $"{currentMode} | GPS {gpsStatus} | {accuracyText}";
+                : $"[{modeTag}] {currentMode} | GPS {gpsStatus} | {accuracyText}";
 
             if (newText != _lastStatusText)
             {
@@ -1760,7 +1915,8 @@ public class HybridModeController : MonoBehaviour
 
         if (currentMode != _lastButtonMode)
         {
-            // Indoor button disabled — chỉ highlight Outdoor và Back
+            if (runtimeIndoorButton != null)
+                SetRuntimeModeButtonState(runtimeIndoorButton, currentMode == HybridMode.Indoor);
             SetRuntimeModeButtonState(runtimeOutdoorButton, currentMode == HybridMode.Outdoor);
             SetRuntimeModeButtonState(runtimeOffButton, currentMode == HybridMode.Transition);
             _lastButtonMode = currentMode;
@@ -1794,6 +1950,11 @@ public class HybridModeController : MonoBehaviour
 
     private void SetRuntimeModeButtonsInteractable(bool interactable)
     {
+        if (runtimeIndoorButton != null)
+        {
+            runtimeIndoorButton.interactable = interactable;
+        }
+
         if (runtimeOutdoorButton != null)
         {
             runtimeOutdoorButton.interactable = interactable;

@@ -17,8 +17,20 @@ public class UIRouter : MonoBehaviour
 
     private void Awake()
     {
-        // Optional: ensure initial state
+        // Nếu đang ở indoor test mode, không mở bất kỳ UI legacy nào.
+        if (IsForceIndoorTestMode())
+        {
+            Debug.Log("[UIRouter] [INDOOR_TEST] forceIndoorTestMode=true → bỏ qua ShowOnboarding().");
+            return;
+        }
+
         ShowOnboarding();
+    }
+
+    private static bool IsForceIndoorTestMode()
+    {
+        var hybrid = FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
+        return hybrid != null && hybrid.ForceIndoorTestModeEnabled;
     }
 
     public void ShowOnboarding()
