@@ -51,9 +51,13 @@ public class MobileNavigationHUD : MonoBehaviour
     [SerializeField] private int   selectedIndex;
     [SerializeField] private float refreshIntervalSeconds = 0.2f;
     [Tooltip("Extra line Gan Des snap—useful when tuning proximity refinement; hides for cleaner passenger UI.")]
-    [SerializeField] private bool  showProximityRefinementHint;
-    [Tooltip("Append ARPathFinder.PathHudDebugLine under the status panel (path built / NavMesh / GPS gate).")]
-    [SerializeField] private bool  showPathBuildDebugLine = true;
+    [SerializeField] private bool  showProximityRefinementHint = false;
+    [Tooltip("Append ARPathFinder.PathHudDebugLine under the status panel. Mặc định TẮT (passenger UI sạch).")]
+    [SerializeField] private bool  showPathBuildDebugLine = false;
+
+    [Header("Passenger UI")]
+    [Tooltip("Status gọn: chỉ điểm đến + khoảng cách (+ GPS 1 dòng ngắn). Bỏ path debug / bearing dài.")]
+    [SerializeField] private bool passengerCompactStatus = true;
 
     [Header("Hybrid destination catalog (Outdoor + Indoor)")]
     [Tooltip("Dùng HybridDestinationService: dropdown gồm cả TargetAnchor outdoor + POI indoor. Tắt = chỉ outdoor anchors (legacy).")]
@@ -319,6 +323,21 @@ public class MobileNavigationHUD : MonoBehaviour
         int maxIdx = GetSelectableCount() - 1;
         if (maxIdx >= 0)
             SelectTarget(Mathf.Clamp(selectedIndex, 0, maxIdx));
+        UpdateStatusText(true);
+    }
+
+    /// <summary>
+    /// UI sạch cho user: tắt path debug, compact status, ẩn nút hiệu chỉnh.
+    /// Gọi từ <see cref="CleanPassengerUi"/>.
+    /// </summary>
+    public void ApplyPassengerCleanMode()
+    {
+        showPathBuildDebugLine = false;
+        showProximityRefinementHint = false;
+        passengerCompactStatus = true;
+        allowManualCalibration = false;
+        if (_calibrateButton != null)
+            _calibrateButton.gameObject.SetActive(false);
         UpdateStatusText(true);
     }
 
@@ -752,7 +771,7 @@ public class MobileNavigationHUD : MonoBehaviour
         }
 
         string distText = dist >= 0f ? $"{dist:F0} m" : "--";
-        string gpsLine       = BuildGpsLine();
+        string gpsLine       = passengerCompactStatus ? BuildGpsLineCompact() : BuildGpsLine();
         string refineLine    = showProximityRefinementHint ? ("\n" + BuildRefinementLine()) : "";
         string pathDbgLine   = string.Empty;
         if (showPathBuildDebugLine && pathFinder != null)
@@ -779,16 +798,55 @@ public class MobileNavigationHUD : MonoBehaviour
                 ArrivalBanner.EnsureExists().Show(cleanName, "hud:" + cleanName);
             }
             wasArrived = true;
-            statusText.text = $"<b>>>> DA DEN NOI! <<<</b>\n<b>{targetName}</b>  ({distText})\n{gpsLine}{refineLine}{pathDbgLine}";
+            if (passengerCompactStatus)
+            {
+                statusText.text = $"<b>Đã đến nơi</b>\n{ShortDestinationName(targetName)}  ·  {distText}";
+            }
+            else
+            {
+                statusText.text = $"<b>>>> DA DEN NOI! <<<</b>\n<b>{targetName}</b>  ({distText})\n{gpsLine}{refineLine}{pathDbgLine}";
+            }
         }
         else
         {
             wasArrived = false;
-            statusText.text =
-                $"<b>Diem den:</b>  {targetName}\n" +
-                $"<b>Khoang cach:</b>  {distText}  {bearingText}\n" +
-                $"{gpsLine}{refineLine}{pathDbgLine}";
+            if (passengerCompactStatus)
+            {
+                // Gọn: 2–3 dòng, không path debug / bearing dài.
+                string shortName = ShortDestinationName(targetName);
+                statusText.text =
+                    $"<b>{shortName}</b>\n" +
+                    $"Còn {distText}\n" +
+                    $"<size=26>{gpsLine}</size>";
+            }
+            else
+            {
+                statusText.text =
+                    $"<b>Diem den:</b>  {targetName}\n" +
+                    $"<b>Khoang cach:</b>  {distText}  {bearingText}\n" +
+                    $"{gpsLine}{refineLine}{pathDbgLine}";
+            }
         }
+    }
+
+    private static string ShortDestinationName(string raw)
+    {
+        if (string.IsNullOrEmpty(raw)) return "Chưa chọn đích";
+        // "[Ngoài] Tòa B9" / "[Trong] B9 · B9-101" → bỏ prefix kỹ thuật nếu quá dài
+        string s = raw.Replace("[Ngoài] ", "").Replace("[Trong] ", "");
+        return s;
+    }
+
+    private string BuildGpsLineCompact()
+    {
+        if (gpsTracker == null) return "GPS: --";
+        if (!gpsTracker.HasLocationFix) return $"GPS: {gpsTracker.CurrentStatus}…";
+        float acc = gpsTracker.CurrentHorizontalAccuracy;
+        string badge = acc <= 0f ? "—"
+                     : acc <= AccuracyGood ? "tốt"
+                     : acc <= AccuracyPoor ? "TB"
+                     : "yếu";
+        return acc <= 0f ? $"GPS {badge}" : $"GPS {badge} ±{acc:F0}m";
     }
 
     private string BuildRefinementLine()

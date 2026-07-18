@@ -4,6 +4,21 @@ Nhật ký kỹ thuật để lần sau đọc lại biết đã làm gì, vì s
 
 ---
 
+## 2026-07-18 (7) — Dọn UI chồng panel (passenger clean)
+
+### Vấn đề
+Nhiều overlay debug + status dài + Shared AR UI + mode switcher status → UI "tùm lum".
+
+### Cách làm
+- `CleanPassengerUi` auto trên HybridGPSMap: tắt HybridState/MultisetPose/OnScreen/GPSMapWorld debug, HybridRuntimeDiagnose
+- `MobileNavigationHUD`: `showPathBuildDebugLine=false`, `passengerCompactStatus=true` (status 2–3 dòng)
+- Ẩn Shared AR UI + status line mode switcher
+- `ApplyPassengerCleanMode()` public
+
+Dev cần debug: disable `CleanPassengerUi` hoặc tick lại showPathBuildDebugLine.
+
+---
+
 ## 2026-07-18 (6) — Đến nơi → tắt chỉ đường (Google Maps style)
 
 ### Hành vi
