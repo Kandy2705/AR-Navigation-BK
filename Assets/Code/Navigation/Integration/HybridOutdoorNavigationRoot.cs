@@ -20,6 +20,10 @@ public class HybridOutdoorNavigationRoot : MonoBehaviour
     [Tooltip("Optional. HUD canvases only — hybrid mode toggles this subtree, not the whole outdoorNavigationContentRoot. Keep ARPathFinder outside this subtree so path updates in all modes.")]
     [SerializeField] private GameObject outdoorHudVisualSubtree;
 
+    [Header("Minimap")]
+    [Tooltip("Khi Indoor: vẫn giữ minimap bật (policy HybridUiSync). HUD outdoor khác có thể ẩn.")]
+    [SerializeField] private bool keepMinimapWhenIndoor = true;
+
     private HybridModeController.HybridMode _lastMode = (HybridModeController.HybridMode)(-1);
 
     // NavigationManager-based AR gating
@@ -171,11 +175,30 @@ public class HybridOutdoorNavigationRoot : MonoBehaviour
         if (UsesSplitHudToggle)
         {
             outdoorNavigationContentRoot.SetActive(true);
-            outdoorHudVisualSubtree.SetActive(nowOutdoor);
+            if (keepMinimapWhenIndoor)
+            {
+                // Outdoor UI primary: giữ full outdoor HUD (status + dropdown + minimap) cả khi Indoor.
+                outdoorHudVisualSubtree.SetActive(true);
+                SetOutdoorChromeVisible(true);
+                EnsureMinimapActive();
+            }
+            else
+            {
+                outdoorHudVisualSubtree.SetActive(nowOutdoor);
+            }
         }
         else
         {
-            ToggleTarget.SetActive(nowOutdoor);
+            if (keepMinimapWhenIndoor)
+            {
+                ToggleTarget.SetActive(true);
+                SetOutdoorChromeVisible(true);
+                EnsureMinimapActive();
+            }
+            else
+            {
+                ToggleTarget.SetActive(nowOutdoor);
+            }
         }
 
         if (nowOutdoor && !wasOutdoor)
@@ -187,6 +210,79 @@ public class HybridOutdoorNavigationRoot : MonoBehaviour
             {
                 foreach (GPSStartupOverlay overlay in OverlaySearchTransform.GetComponentsInChildren<GPSStartupOverlay>(true))
                     overlay.RestartSessionForHybridReentry();
+            }
+        }
+        else if (!nowOutdoor && keepMinimapWhenIndoor)
+        {
+            MinimapHeadingIndicator.TryEnsureForActiveScene();
+            EnsureMinimapActive();
+        }
+    }
+
+    /// <summary>Policy HybridUiSync: minimap cả Outdoor + Indoor.</summary>
+    public void SetKeepMinimapWhenIndoor(bool keep) => keepMinimapWhenIndoor = keep;
+
+    private void SetOutdoorChromeVisible(bool visible)
+    {
+        Transform search = OverlaySearchTransform;
+        if (search == null) return;
+
+        // Ẩn status / dropdown outdoor khi Indoor; minimap giữ.
+        foreach (Transform child in search.GetComponentsInChildren<Transform>(true))
+        {
+            if (child == null) continue;
+            string n = child.name;
+            bool isMinimap = n.IndexOf("Minimap", System.StringComparison.OrdinalIgnoreCase) >= 0
+                             || n.IndexOf("Circle Mask", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            if (isMinimap) continue;
+
+            bool isChrome = n.IndexOf("Status", System.StringComparison.OrdinalIgnoreCase) >= 0
+                            || n.IndexOf("Dropdown", System.StringComparison.OrdinalIgnoreCase) >= 0
+                            || n.IndexOf("Mobile Navigation", System.StringComparison.OrdinalIgnoreCase) >= 0
+                            || n.IndexOf("Destination Search", System.StringComparison.OrdinalIgnoreCase) >= 0
+                            || n.IndexOf("GPS Accuracy", System.StringComparison.OrdinalIgnoreCase) >= 0
+                            || n.IndexOf("GPS Startup", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            if (isChrome && child.gameObject.activeSelf != visible)
+            {
+                // Don't disable whole Mobile Navigation HUD root if it parents minimap — only leaf chrome.
+                if (n.IndexOf("Mobile Navigation", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    // Hide status + dropdown children only
+                    foreach (Transform c in child)
+                    {
+                        if (c.name.IndexOf("Minimap", System.StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                        c.gameObject.SetActive(visible);
+                    }
+                    continue;
+                }
+                child.gameObject.SetActive(visible);
+            }
+        }
+    }
+
+    private void EnsureMinimapActive()
+    {
+        Transform search = OverlaySearchTransform;
+        if (search != null)
+        {
+            foreach (Transform t in search.GetComponentsInChildren<Transform>(true))
+            {
+                if (t == null) continue;
+                if (t.name.IndexOf("Minimap", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    || t.name == "Minimap Circle Mask")
+                {
+                    if (!t.gameObject.activeSelf) t.gameObject.SetActive(true);
+                }
+            }
+        }
+
+        // Scene-wide fallback
+        foreach (var t in Resources.FindObjectsOfTypeAll<Transform>())
+        {
+            if (t == null || !t.gameObject.scene.IsValid()) continue;
+            if (t.name == "Minimap Canvas" || t.name == "Minimap Circle Mask")
+            {
+                if (!t.gameObject.activeSelf) t.gameObject.SetActive(true);
             }
         }
     }

@@ -13,6 +13,7 @@ namespace Project.DestinationUI
 
         POI poi;
         BuildingDestinationListController controller;
+        System.Action pendingAction;
 
         public void BindFromExistingListItem()
         {
@@ -30,9 +31,48 @@ namespace Project.DestinationUI
             sdkListItem.enabled = false;
         }
 
+        /// <summary>
+        /// Row generic cho list đích chung (outdoor + indoor catalog) — bấm cả hàng để chạy action.
+        /// </summary>
+        public void SetupActionRow(string label, System.Action onSelect, BuildingDestinationListController owner)
+        {
+            poi = null;
+            pendingAction = onSelect;
+            controller = owner;
+
+            if (title != null)
+            {
+                title.text = label ?? "";
+            }
+
+            if (distance != null)
+            {
+                distance.gameObject.SetActive(false);
+            }
+
+            if (startNavigationButton != null)
+            {
+                startNavigationButton.SetActive(true);
+            }
+
+            ClearButtonListeners();
+            if (itemSelectButton != null)
+            {
+                itemSelectButton.onClick.AddListener(() => pendingAction?.Invoke());
+            }
+
+            Button goButton = startNavigationButton != null ? startNavigationButton.GetComponent<Button>() : null;
+            if (goButton != null)
+            {
+                goButton.onClick.RemoveAllListeners();
+                goButton.onClick.AddListener(() => pendingAction?.Invoke());
+            }
+        }
+
         public void SetupBuilding(BuildingPoiGroup building, BuildingDestinationListController owner)
         {
             poi = null;
+            pendingAction = null;
             controller = owner;
 
             if (title != null)
@@ -60,6 +100,7 @@ namespace Project.DestinationUI
         public void SetupPOI(POI targetPoi, BuildingDestinationListController owner)
         {
             poi = targetPoi;
+            pendingAction = null;
             controller = owner;
 
             if (title != null)

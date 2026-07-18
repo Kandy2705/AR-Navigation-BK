@@ -44,15 +44,42 @@ public class CleanPassengerUi : MonoBehaviour
             StartCoroutine(ApplyDeferred());
     }
 
+    private bool _arActive;
+
+    private void OnEnable()
+    {
+        NavigationManager.OnAREntered += HandleArEntered;
+        NavigationManager.OnARExited += HandleArExited;
+        _arActive = FindFirstObjectByType<NavigationManager>(FindObjectsInactive.Include) == null;
+    }
+
+    private void OnDisable()
+    {
+        NavigationManager.OnAREntered -= HandleArEntered;
+        NavigationManager.OnARExited -= HandleArExited;
+    }
+
+    private void HandleArEntered()
+    {
+        _arActive = true;
+        Apply();
+    }
+
+    private void HandleArExited() => _arActive = false;
+
     private IEnumerator ApplyDeferred()
     {
         // Chờ các RuntimeInitialize + Awake khác spawn HUD/overlay.
         yield return null;
         yield return null;
-        Apply();
-        // Lần 2 sau 0.5s — bắt overlay spawn trễ (Hybrid Hub setup window, etc.).
+        // Debug overlays có thể dọn ngay; compact HUD chỉ khi AR.
+        if (disableDebugOverlays)
+            DisableDebugOverlays();
+        if (_arActive) Apply();
         yield return new WaitForSecondsRealtime(0.5f);
-        Apply();
+        if (disableDebugOverlays)
+            DisableDebugOverlays();
+        if (_arActive) Apply();
     }
 
     [ContextMenu("Apply Clean Passenger UI")]
@@ -62,6 +89,10 @@ public class CleanPassengerUi : MonoBehaviour
 
         if (disableDebugOverlays)
             DisableDebugOverlays();
+
+        // Không ép HUD outdoor khi đang MainScreen.
+        if (!_arActive && FindFirstObjectByType<NavigationManager>(FindObjectsInactive.Include) != null)
+            return;
 
         if (compactNavigationHud)
             CompactNavigationHud();

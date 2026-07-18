@@ -754,7 +754,11 @@ public class HybridModeController : MonoBehaviour
 
         if (indoorVisualRoot != null)
         {
-            SetRootActiveIfNotProtected(indoorVisualRoot, mode == HybridMode.Indoor);
+            // UI Home Screen / Multiset stack: bật khi Indoor (VPS + map).
+            // Outdoor primary HUD không cần Multiset chrome — OutdoorUiPrimaryHud ẩn canvas UI.
+            // Khi alwaysKeepBothEnvironmentsActive, environment root vẫn sống; visual root theo mode.
+            bool showIndoorUi = mode == HybridMode.Indoor;
+            SetRootActiveIfNotProtected(indoorVisualRoot, showIndoorUi);
         }
 
         SetRootsActive(alwaysActiveRoots, true);

@@ -64,6 +64,13 @@ public class MobileNavigationHUD : MonoBehaviour
     [SerializeField] private bool useHybridDestinationCatalog = true;
     [Tooltip("Tạo ô search phía trên dropdown nếu scene chưa có.")]
     [SerializeField] private bool createSearchFieldIfMissing = true;
+    [Tooltip("Mặc định KHÔNG chọn đích / không vẽ path — user phải chọn trong dropdown.")]
+    [SerializeField] private bool requireUserToPickDestination = true;
+    [Tooltip("Dòng placeholder index 0 trong dropdown.")]
+    [SerializeField] private string noneDestinationLabel = "— Chọn điểm đến —";
+
+    /// <summary>True khi user đã chọn đích thật (không phải placeholder).</summary>
+    public bool HasActiveDestination { get; private set; }
 
     [Header("Manual calibration (rủi ro — mặc định TẮT)")]
     [Tooltip("Công tắc DUY NHẤT cho mọi hiệu chỉnh THỦ CÔNG (nút 'HIEU CHINH TAI DAY' + gesture nhấn-giữ 2s). " +
@@ -130,8 +137,8 @@ public class MobileNavigationHUD : MonoBehaviour
         hud.EnsureSearchField(canvas.transform);
         hud.BuildDropdownOptions();
         dropdown.onValueChanged.AddListener(hud.SelectTarget);
-        if (hud._catalogShown.Count > 0 || (hud.targets != null && hud.targets.Length > 0))
-            hud.SelectTarget(0);
+        // Mặc định idle — không auto chỉ đường.
+        hud.ShowIdleNoDestination();
 
         SetupStatusPanelLongPress(statusBg, hud);
         SetupDropdownLongPress(dropdown, hud);
@@ -174,16 +181,26 @@ public class MobileNavigationHUD : MonoBehaviour
         }
 
         BuildDropdownOptions();
-        int maxIdx = GetSelectableCount() - 1;
-        if (maxIdx >= 0)
-            SelectTarget(Mathf.Clamp(selectedIndex, 0, maxIdx));
+        if (requireUserToPickDestination)
+            ShowIdleNoDestination();
+        else
+        {
+            int maxIdx = GetSelectableCount() - 1;
+            if (maxIdx >= 0)
+                SelectTarget(Mathf.Clamp(selectedIndex, 0, maxIdx));
+        }
     }
 
     void Start()
     {
-        int maxIdx = GetSelectableCount() - 1;
-        if (maxIdx >= 0)
-            SelectTarget(Mathf.Clamp(selectedIndex, 0, maxIdx));
+        if (requireUserToPickDestination)
+            ShowIdleNoDestination();
+        else
+        {
+            int maxIdx = GetSelectableCount() - 1;
+            if (maxIdx >= 0)
+                SelectTarget(Mathf.Clamp(selectedIndex, 0, maxIdx));
+        }
         UpdateStatusText(true);
         if (toastText != null) toastText.gameObject.SetActive(false);
         EnsureCalibrateButton();
@@ -320,9 +337,34 @@ public class MobileNavigationHUD : MonoBehaviour
             _destService?.RefreshCatalog();
         }
         BuildDropdownOptions();
-        int maxIdx = GetSelectableCount() - 1;
-        if (maxIdx >= 0)
-            SelectTarget(Mathf.Clamp(selectedIndex, 0, maxIdx));
+        // Giữ idle nếu chưa chọn; không auto Apply dest đầu tiên.
+        if (requireUserToPickDestination && !HasActiveDestination)
+            ShowIdleNoDestination();
+        else if (HasActiveDestination)
+        {
+            int maxIdx = GetSelectableCount() - 1;
+            if (maxIdx >= 0)
+                SelectTarget(Mathf.Clamp(selectedIndex, 0, maxIdx));
+        }
+        UpdateStatusText(true);
+    }
+
+    /// <summary>Idle: chưa chỉ đường, chờ user chọn dropdown.</summary>
+    public void ShowIdleNoDestination()
+    {
+        HasActiveDestination = false;
+        selectedIndex = 0;
+        wasArrived = false;
+
+        HybridDestinationService.Instance?.Clear();
+        if (pathFinder != null) pathFinder.ClearNavigationVisuals();
+        TargetAnchor.CurrentSelectedDestination = null;
+
+        if (targetDropdown != null)
+        {
+            targetDropdown.SetValueWithoutNotify(0);
+            targetDropdown.RefreshShownValue();
+        }
         UpdateStatusText(true);
     }
 
@@ -344,14 +386,29 @@ public class MobileNavigationHUD : MonoBehaviour
     public void SelectTarget(int index)
     {
         // ── Hybrid catalog: outdoor + indoor ─────────────────────────────────
-        if (useHybridDestinationCatalog && _catalogShown.Count > 0)
+        // Dropdown: [0]=placeholder "Chọn điểm đến", [1..]=catalog
+        if (useHybridDestinationCatalog)
         {
-            selectedIndex = Mathf.Clamp(index, 0, _catalogShown.Count - 1);
-            var entry = _catalogShown[selectedIndex];
+            if (requireUserToPickDestination && index <= 0)
+            {
+                ShowIdleNoDestination();
+                return;
+            }
+
+            int catalogIndex = requireUserToPickDestination ? index - 1 : index;
+            if (_catalogShown.Count == 0 || catalogIndex < 0 || catalogIndex >= _catalogShown.Count)
+            {
+                ShowIdleNoDestination();
+                return;
+            }
+
+            selectedIndex = index;
+            var entry = _catalogShown[catalogIndex];
             var svc = _destService != null ? _destService : HybridDestinationService.EnsureExists();
             if (svc != null && entry != null)
             {
                 svc.Apply(entry);
+                HasActiveDestination = true;
                 ShowToast(entry.isIndoor
                     ? $"Den: {entry.displayName} (trong {entry.building})"
                     : $"Den: {entry.displayName}");
@@ -368,8 +425,17 @@ public class MobileNavigationHUD : MonoBehaviour
         // ── Legacy: TargetAnchor only ────────────────────────────────────────
         if (targets == null || targets.Length == 0) return;
 
-        selectedIndex = Mathf.Clamp(index, 0, targets.Length - 1);
-        TargetAnchor sel = targets[selectedIndex];
+        if (requireUserToPickDestination && index <= 0)
+        {
+            ShowIdleNoDestination();
+            return;
+        }
+
+        int ti = requireUserToPickDestination ? index - 1 : index;
+        if (ti < 0 || ti >= targets.Length) { ShowIdleNoDestination(); return; }
+
+        selectedIndex = index;
+        TargetAnchor sel = targets[ti];
 
         // Chỉ hiển thị POI vừa chọn — các POI khác sẽ tự ẩn ở TargetAnchor.Update().
         TargetAnchor.CurrentSelectedDestination = sel;
@@ -381,6 +447,8 @@ public class MobileNavigationHUD : MonoBehaviour
         var hybridSvc = HybridDestinationService.Instance ?? FindFirstObjectByType<HybridDestinationService>(FindObjectsInactive.Include);
         if (hybridSvc != null && sel != null)
             hybridSvc.ApplyOutdoorAnchor(sel);
+
+        HasActiveDestination = sel != null;
 
         if (targetDropdown != null && targetDropdown.value != selectedIndex)
             targetDropdown.SetValueWithoutNotify(selectedIndex);
@@ -414,7 +482,11 @@ public class MobileNavigationHUD : MonoBehaviour
                     && e.isIndoor == entry.isIndoor);
                 if (idx < 0) idx = 0;
                 if (_catalogShown.Count > 0)
-                    SelectTarget(Mathf.Clamp(idx, 0, _catalogShown.Count - 1));
+                {
+                    // Dropdown index = catalog index + 1 khi có placeholder.
+                    int dropdownIndex = requireUserToPickDestination ? idx + 1 : idx;
+                    SelectTarget(dropdownIndex);
+                }
             }
             else
             {
@@ -600,9 +672,11 @@ public class MobileNavigationHUD : MonoBehaviour
 
     private int GetSelectableCount()
     {
-        if (useHybridDestinationCatalog && _catalogShown.Count > 0)
-            return _catalogShown.Count;
-        return targets != null ? targets.Length : 0;
+        int n = useHybridDestinationCatalog
+            ? _catalogShown.Count
+            : (targets != null ? targets.Length : 0);
+        if (requireUserToPickDestination) n += 1; // placeholder
+        return n;
     }
 
     private void EnsureSearchField(Transform canvasOrSelf)
@@ -693,17 +767,32 @@ public class MobileNavigationHUD : MonoBehaviour
             }
 
             targetDropdown.ClearOptions();
+            var labels = new List<string>();
+            if (requireUserToPickDestination)
+                labels.Add(noneDestinationLabel);
+
             if (_catalogShown.Count == 0)
             {
-                targetDropdown.AddOptions(new List<string> { "(Khong co diem den)" });
+                if (!requireUserToPickDestination)
+                    labels.Add("(Khong co diem den)");
+                targetDropdown.AddOptions(labels);
                 targetDropdown.SetValueWithoutNotify(0);
                 targetDropdown.RefreshShownValue();
                 return;
             }
 
-            targetDropdown.AddOptions(
-                _catalogShown.Select((e, i) => e != null ? $"{i + 1}. {e.UiLabel}" : "Missing").ToList());
-            selectedIndex = Mathf.Clamp(selectedIndex, 0, _catalogShown.Count - 1);
+            for (int i = 0; i < _catalogShown.Count; i++)
+            {
+                var e = _catalogShown[i];
+                labels.Add(e != null ? e.UiLabel : "Missing");
+            }
+            targetDropdown.AddOptions(labels);
+
+            if (requireUserToPickDestination && !HasActiveDestination)
+                selectedIndex = 0;
+            else
+                selectedIndex = Mathf.Clamp(selectedIndex, 0, labels.Count - 1);
+
             targetDropdown.SetValueWithoutNotify(selectedIndex);
             targetDropdown.RefreshShownValue();
             return;
@@ -713,9 +802,16 @@ public class MobileNavigationHUD : MonoBehaviour
         if (targets == null) return;
         _catalogShown.Clear();
         targetDropdown.ClearOptions();
-        targetDropdown.AddOptions(
-            targets.Select((t, i) => t != null ? $"{i + 1}. {t.TargetName}" : "Missing Target").ToList());
-        targetDropdown.SetValueWithoutNotify(Mathf.Clamp(selectedIndex, 0, Mathf.Max(0, targets.Length - 1)));
+        var legacy = new List<string>();
+        if (requireUserToPickDestination)
+            legacy.Add(noneDestinationLabel);
+        legacy.AddRange(targets.Select((t, i) => t != null ? t.TargetName : "Missing Target"));
+        targetDropdown.AddOptions(legacy);
+        if (requireUserToPickDestination && !HasActiveDestination)
+            selectedIndex = 0;
+        else
+            selectedIndex = Mathf.Clamp(selectedIndex, 0, Mathf.Max(0, legacy.Count - 1));
+        targetDropdown.SetValueWithoutNotify(selectedIndex);
         targetDropdown.RefreshShownValue();
     }
 
@@ -750,7 +846,14 @@ public class MobileNavigationHUD : MonoBehaviour
         string bearingText;
         bool arrived;
 
-        if (useHybridDestinationCatalog && _catalogShown.Count > 0)
+        if (!HasActiveDestination && requireUserToPickDestination)
+        {
+            targetName = noneDestinationLabel;
+            dist = -1f;
+            bearingText = "";
+            arrived = false;
+        }
+        else if (useHybridDestinationCatalog && _catalogShown.Count > 0)
         {
             var entry = GetSelectedCatalogEntry();
             targetName = entry != null ? entry.UiLabel : "None";
@@ -812,12 +915,21 @@ public class MobileNavigationHUD : MonoBehaviour
             wasArrived = false;
             if (passengerCompactStatus)
             {
-                // Gọn: 2–3 dòng, không path debug / bearing dài.
-                string shortName = ShortDestinationName(targetName);
-                statusText.text =
-                    $"<b>{shortName}</b>\n" +
-                    $"Còn {distText}\n" +
-                    $"<size=26>{gpsLine}</size>";
+                if (!HasActiveDestination && requireUserToPickDestination)
+                {
+                    statusText.text =
+                        $"<b>Chưa chọn điểm đến</b>\n" +
+                        $"Chọn trong danh sách bên dưới\n" +
+                        $"<size=26>{gpsLine}</size>";
+                }
+                else
+                {
+                    string shortName = ShortDestinationName(targetName);
+                    statusText.text =
+                        $"<b>{shortName}</b>\n" +
+                        $"Còn {distText}\n" +
+                        $"<size=26>{gpsLine}</size>";
+                }
             }
             else
             {
@@ -872,9 +984,10 @@ public class MobileNavigationHUD : MonoBehaviour
 
     private HybridDestinationService.Entry GetSelectedCatalogEntry()
     {
-        if (_catalogShown.Count == 0) return null;
-        selectedIndex = Mathf.Clamp(selectedIndex, 0, _catalogShown.Count - 1);
-        return _catalogShown[selectedIndex];
+        if (!HasActiveDestination || _catalogShown.Count == 0) return null;
+        int catalogIndex = requireUserToPickDestination ? selectedIndex - 1 : selectedIndex;
+        if (catalogIndex < 0 || catalogIndex >= _catalogShown.Count) return null;
+        return _catalogShown[catalogIndex];
     }
 
     private float GetDistanceMeters(TargetAnchor target)

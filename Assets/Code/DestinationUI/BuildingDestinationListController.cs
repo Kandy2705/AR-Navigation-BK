@@ -25,14 +25,37 @@ namespace Project.DestinationUI
         [SerializeField] float targetNavMeshSampleDistance = 3f;
         [SerializeField] bool snapTargetColliderToNavMesh = true;
 
+        [Header("Unified catalog (HybridGPSMap)")]
+        [Tooltip("1 list chung outdoor+indoor từ HybridDestinationService (không phân tầng tòa).")]
+        [SerializeField] bool unifiedCatalogMode = false;
+
         readonly List<GameObject> spawnedRows = new();
         BuildingPoiGroup selectedBuilding;
         ViewMode currentMode = ViewMode.Buildings;
 
+        // Cached catalog rows for unified mode (display + apply action via reflection).
+        readonly List<CatalogRowData> unifiedRows = new();
+
         enum ViewMode
         {
             Buildings,
-            Pois
+            Pois,
+            Unified
+        }
+
+        struct CatalogRowData
+        {
+            public string title;
+            public string subtitle;
+            public bool isIndoor;
+            public object hybridEntry; // HybridDestinationService.Entry boxed
+            public POI multisetPoi;
+        }
+
+        /// <summary>Bật list đích chung outdoor+indoor (HybridUiSync).</summary>
+        public void EnableUnifiedCatalogMode(bool enabled)
+        {
+            unifiedCatalogMode = enabled;
         }
 
         public void Toggle()
@@ -51,6 +74,12 @@ namespace Project.DestinationUI
             destinationSelectUI.SetActive(true);
             ResetSearchTextOnly();
 
+            if (unifiedCatalogMode)
+            {
+                RenderUnifiedCatalog();
+                return;
+            }
+
             // Auto-sync buildings từ BuildingSceneBindings nếu list rỗng hoặc poiRoot null.
             AutoSyncBuildingsIfNeeded();
 
@@ -62,6 +91,11 @@ namespace Project.DestinationUI
             if (currentMode == ViewMode.Pois)
             {
                 ResetSearchTextOnly();
+                if (unifiedCatalogMode)
+                {
+                    RenderUnifiedCatalog();
+                    return;
+                }
                 RenderBuildings();
                 return;
             }
@@ -78,12 +112,19 @@ namespace Project.DestinationUI
 
             ResetSearchTextOnly();
             ClearRows();
-            currentMode = ViewMode.Buildings;
+            currentMode = unifiedCatalogMode ? ViewMode.Unified : ViewMode.Buildings;
             selectedBuilding = null;
+            unifiedRows.Clear();
         }
 
         public void RenderBuildings()
         {
+            if (unifiedCatalogMode)
+            {
+                RenderUnifiedCatalog();
+                return;
+            }
+
             currentMode = ViewMode.Buildings;
             selectedBuilding = null;
 
@@ -97,6 +138,222 @@ namespace Project.DestinationUI
             }
 
             ResizeContent(filteredBuildings.Count);
+        }
+
+        /// <summary>
+        /// List phẳng: [Ngoài] … + [Trong] … từ HybridDestinationService (reflection).
+        /// Search field lọc theo tên.
+        /// </summary>
+        public void RenderUnifiedCatalog()
+        {
+            currentMode = ViewMode.Unified;
+            selectedBuilding = null;
+            unifiedRows.Clear();
+            ClearRows();
+
+            string search = GetSearchText() ?? "";
+            if (!TryLoadHybridCatalog(search, unifiedRows))
+            {
+                // Fallback legacy: outdoor group + buildings
+                AutoSyncBuildingsIfNeeded();
+                AppendOutdoorFallbackRows(search);
+                foreach (var b in FilterBuildings(search))
+                {
+                    unifiedRows.Add(new CatalogRowData
+                    {
+                        title = b.displayName,
+                        subtitle = "Tòa nhà → chọn phòng",
+                        isIndoor = true,
+                        multisetPoi = null,
+                        hybridEntry = b,
+                    });
+                }
+            }
+
+            for (int i = 0; i < unifiedRows.Count; i++)
+            {
+                var data = unifiedRows[i];
+                DestinationRowUI row = SpawnRow(i);
+                int captured = i;
+                string label = data.isIndoor
+                    ? $"[Trong] {data.title}"
+                    : $"[Ngoài] {data.title}";
+                if (!string.IsNullOrEmpty(data.subtitle) && data.hybridEntry is BuildingPoiGroup)
+                    label = data.title; // building drill-down row
+                row.SetupActionRow(label, () => OnUnifiedRowClicked(captured), this);
+            }
+
+            ResizeContent(unifiedRows.Count);
+        }
+
+        void OnUnifiedRowClicked(int index)
+        {
+            if (index < 0 || index >= unifiedRows.Count) return;
+            var data = unifiedRows[index];
+
+            // Building group fallback → drill into POIs
+            if (data.hybridEntry is BuildingPoiGroup group)
+            {
+                RenderPOIs(group);
+                return;
+            }
+
+            if (data.multisetPoi != null)
+            {
+                StartNavigationTo(data.multisetPoi);
+                return;
+            }
+
+            // Outdoor TargetAnchor fallback rows store MonoBehaviour component as hybridEntry.
+            if (data.hybridEntry is MonoBehaviour mb
+                && mb.GetType().Name == "TargetAnchor")
+            {
+                StartNavigationToOutdoorAnchorObject(mb);
+                return;
+            }
+
+            if (TryApplyHybridCatalogEntry(data.hybridEntry))
+            {
+                Close();
+                return;
+            }
+
+            Debug.LogWarning($"[DestinationUI] Unified row '{data.title}' apply failed.");
+        }
+
+        bool TryLoadHybridCatalog(string search, List<CatalogRowData> into)
+        {
+            try
+            {
+                System.Type svcType = null;
+                foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    svcType = asm.GetType("ARNav.Hybrid.HybridDestinationService");
+                    if (svcType != null) break;
+                }
+                if (svcType == null) return false;
+
+                var ensure = svcType.GetMethod("EnsureExists",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                object svc = ensure?.Invoke(null, null);
+                if (svc == null) return false;
+
+                var searchMethod = svcType.GetMethod("Search",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (searchMethod == null) return false;
+
+                var list = searchMethod.Invoke(svc, new object[] { search }) as System.Collections.IList;
+                if (list == null) return false;
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    object entry = list[i];
+                    if (entry == null) continue;
+                    var et = entry.GetType();
+                    string displayName = et.GetField("displayName")?.GetValue(entry) as string
+                                        ?? et.GetProperty("displayName")?.GetValue(entry) as string
+                                        ?? "Điểm đến";
+                    bool isIndoor = false;
+                    var indoorField = et.GetField("isIndoor");
+                    if (indoorField != null) isIndoor = (bool)indoorField.GetValue(entry);
+                    var indoorProp = et.GetProperty("isIndoor");
+                    if (indoorProp != null) isIndoor = (bool)indoorProp.GetValue(entry);
+
+                    object indoorPoiObj = et.GetField("indoorPoi")?.GetValue(entry);
+                    POI poi = indoorPoiObj as POI;
+
+                    into.Add(new CatalogRowData
+                    {
+                        title = displayName,
+                        subtitle = isIndoor ? "Indoor" : "Outdoor",
+                        isIndoor = isIndoor,
+                        hybridEntry = entry,
+                        multisetPoi = poi,
+                    });
+                }
+
+                return into.Count > 0;
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[DestinationUI] Load hybrid catalog failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        bool TryApplyHybridCatalogEntry(object entry)
+        {
+            if (entry == null) return false;
+            try
+            {
+                System.Type svcType = null;
+                foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    svcType = asm.GetType("ARNav.Hybrid.HybridDestinationService");
+                    if (svcType != null) break;
+                }
+                if (svcType == null) return false;
+
+                var ensure = svcType.GetMethod("EnsureExists",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                object svc = ensure?.Invoke(null, null);
+                if (svc == null) return false;
+
+                var apply = svcType.GetMethod("Apply",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (apply == null) return false;
+
+                // Entry is nested class — Apply(Entry)
+                object result = apply.Invoke(svc, new[] { entry });
+                return result is bool ok && ok;
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[DestinationUI] Apply catalog entry failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        void AppendOutdoorFallbackRows(string search)
+        {
+            // TargetAnchor sống ở Assembly-CSharp — không reference type trực tiếp.
+            System.Type anchorType = null;
+            foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (asm.GetName().Name != "Assembly-CSharp") continue;
+                anchorType = asm.GetType("TargetAnchor");
+                if (anchorType != null) break;
+            }
+            if (anchorType == null) return;
+
+            UnityEngine.Object[] anchors;
+            try
+            {
+                anchors = FindObjectsByType(anchorType, FindObjectsInactive.Include, FindObjectsSortMode.None);
+            }
+            catch
+            {
+                anchors = Resources.FindObjectsOfTypeAll(anchorType);
+            }
+
+            string q = Normalize(search);
+            for (int i = 0; i < anchors.Length; i++)
+            {
+                var a = anchors[i] as MonoBehaviour;
+                if (a == null || !a.gameObject.scene.IsValid()) continue;
+                string name = a.gameObject.name;
+                var prop = anchorType.GetProperty("TargetName");
+                if (prop != null) name = prop.GetValue(a) as string ?? name;
+                if (!string.IsNullOrEmpty(q) && !Normalize(name).Contains(q)) continue;
+                unifiedRows.Add(new CatalogRowData
+                {
+                    title = name,
+                    subtitle = "Outdoor",
+                    isIndoor = false,
+                    hybridEntry = a,
+                    multisetPoi = null,
+                });
+            }
         }
 
         public void RenderPOIs(BuildingPoiGroup building)
@@ -136,6 +393,12 @@ namespace Project.DestinationUI
                 placeholder.SetActive(!hasSearch);
             }
 
+            if (unifiedCatalogMode || currentMode == ViewMode.Unified)
+            {
+                RenderUnifiedCatalog();
+                return;
+            }
+
             if (currentMode == ViewMode.Buildings)
             {
                 RenderBuildings();
@@ -152,6 +415,12 @@ namespace Project.DestinationUI
         {
             ResetSearchTextOnly();
 
+            if (unifiedCatalogMode || currentMode == ViewMode.Unified)
+            {
+                RenderUnifiedCatalog();
+                return;
+            }
+
             if (currentMode == ViewMode.Buildings)
             {
                 RenderBuildings();
@@ -162,6 +431,69 @@ namespace Project.DestinationUI
             {
                 RenderPOIs(selectedBuilding);
             }
+        }
+
+        /// <summary>
+        /// Apply outdoor TargetAnchor (object from Assembly-CSharp) via HybridDestinationService reflection.
+        /// </summary>
+        public void StartNavigationToOutdoorAnchorObject(object anchor)
+        {
+            if (anchor == null) return;
+            try
+            {
+                System.Type svcType = null;
+                foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    svcType = asm.GetType("ARNav.Hybrid.HybridDestinationService");
+                    if (svcType != null) break;
+                }
+                if (svcType != null)
+                {
+                    var ensure = svcType.GetMethod("EnsureExists",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                    object svc = ensure?.Invoke(null, null);
+                    var apply = svcType.GetMethod("ApplyOutdoorAnchor",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    if (svc != null && apply != null)
+                    {
+                        apply.Invoke(svc, new[] { anchor });
+                        Close();
+                        return;
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[DestinationUI] Outdoor anchor apply failed: {ex.Message}");
+            }
+
+            // Direct ARPathFinder.SetTarget via reflection
+            try
+            {
+                System.Type finderType = null;
+                foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    if (asm.GetName().Name != "Assembly-CSharp") continue;
+                    finderType = asm.GetType("ARPathFinder");
+                    if (finderType != null) break;
+                }
+                if (finderType != null)
+                {
+                    var setTarget = finderType.GetMethod("SetTarget",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    var finders = FindObjectsByType(finderType, FindObjectsInactive.Include, FindObjectsSortMode.None);
+                    Transform tf = (anchor as Component)?.transform;
+                    foreach (var f in finders)
+                    {
+                        if (f != null && setTarget != null) setTarget.Invoke(f, new object[] { tf });
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[DestinationUI] ARPathFinder fallback failed: {ex.Message}");
+            }
+            Close();
         }
 
         public void StartNavigationTo(POI poi)

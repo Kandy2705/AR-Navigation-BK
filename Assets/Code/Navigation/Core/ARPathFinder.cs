@@ -444,6 +444,15 @@ public class ARPathFinder : MonoBehaviour
         PathHudDebugLine = "Path: da dat dich, doi cap nhat...";
     }
 
+    /// <summary>
+    /// Material ribbon center (chevron xanh) — dùng để đồng bộ Multiset LineRenderer / shared style.
+    /// </summary>
+    public Material GetOrCreateSharedPathMaterial()
+    {
+        EnsurePathMaterials();
+        return _runtimeCenterMat;
+    }
+
     /// <returns>True if a route was drawn.</returns>
     private bool TryUpdatePath()
     {

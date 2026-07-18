@@ -4,6 +4,95 @@ Nhật ký kỹ thuật để lần sau đọc lại biết đã làm gì, vì s
 
 ---
 
+## 2026-07-18 (12) — Idle dest + UI bấm được + chỉ tab AR
+
+### User
+1. Mặc định **chưa chỉ đường** — phải chọn đích  
+2. UI **không bấm được**  
+3. UI indoor/outdoor **chỉ** khi tab **AR chỉ đường**
+
+### Fix
+- `MobileNavigationHUD`: placeholder `— Chọn điểm đến —`, `ShowIdleNoDestination()`, không auto `SelectTarget(0)`
+- `OutdoorUiPrimaryHud`: `_arActive` false khi có NavigationManager; `HideArNavigationUi` on OnARExited; `EnsureUiClickable` (EventSystem, GraphicRaycaster, tắt Multiset raycast)
+- `HybridUiSync` / `CleanPassengerUi`: chỉ Apply HUD khi AR active
+
+---
+
+## 2026-07-18 (11) — Đồng bộ visual đường dẫn indoor/outdoor
+
+### Vấn đề
+Outdoor: ARPathFinder mesh ribbon (chevron xanh). Indoor Multiset: ShowPath LineRenderer material mặc định → 2 style.
+
+### Cách
+- `UnifiedPathVisual.cs` (HybridGPSMap): **SingleArPathFinder**
+  - Tắt ShowPath + LineRenderer Multiset
+  - Đảm bảo HybridArPathFinderBridge → ARPathFinder vẽ cả indoor/outdoor dest
+  - Tắt HybridPathRenderer debug
+- Fallback mode `StyleMultisetToMatchOutdoor`: copy material chevron outdoor lên LineRenderer Multiset
+- `ARPathFinder.GetOrCreateSharedPathMaterial()` public
+
+---
+
+## 2026-07-18 (10) — UI outdoor làm chuẩn cả 2 mode
+
+### User
+Đồng bộ UI **outdoor hết** (dễ quản). Vẫn hỏi VPS Multiset có chạy khi vào tòa không (mới test Editor).
+
+### UI
+- `OutdoorUiPrimaryHud.cs` — primary: MobileNavigationHUD status+dropdown+search+minimap
+- Ẩn Multiset chrome (Header/TroLy/Capture/Destinations…) — **không** kill Map Space / VPS managers
+- Tắt auto `MultisetCanvasPrimaryHud`
+- `HybridOutdoorNavigationRoot`: outdoor chrome **luôn hiện** khi keepMinimapWhenIndoor
+- Mode switcher vẫn ẩn
+
+### VPS (trả lời user)
+- **Editor:** LocalizeFrame thường **không** chạy thật (cần simulation scan / invalid selection). Không chứng minh VPS field.
+- **Device Android + camera + map Multiset đã scan + mạng:** mới là test VPS thật.
+- Stack indoor (MapLocalizationManager, Map Space, map code B9/B10) vẫn có khi ForceIndoor / auto enter — path hybrid dùng pose khi gate ready.
+
+---
+
+## 2026-07-18 (9) — Multiset Canvas = HUD chính (style ảnh indoor)
+
+### User request
+UI indoor Multiset (canvas: xóa chỉ đường, Lịch sử/Cài đặt, minimap tròn, TroLy, FAB, Điểm đến) — **muốn dùng UI giống vậy** cho hybrid, không outdoor HUD tùm lum.
+
+### Làm
+- `MultisetCanvasPrimaryHud.cs`: ép **UI Home Screen + Canvas** bật khi AR (Outdoor+Indoor); ẩn status/dropdown outdoor; wire xóa đường / Điểm đến / Quay về; unified list
+- `HybridModeController`: `indoorVisualRoot` active cả Outdoor (không chỉ Indoor)
+- `HybridUiSync`: tắt FAB Điểm đến trùng (Multiset đã có)
+
+### Verify
+Play HybridGPSMap → vào AR → thấy canvas Multiset (header đỏ/tím, minimap, avatar, Điểm đến) ở Outdoor lẫn Indoor.
+
+---
+
+## 2026-07-18 (8) — Đồng bộ UI indoor/outdoor (policy user)
+
+### Policy đã chốt
+1. **Ưu tiên Indoor UI** (list Destinations Multiset)
+2. **1 list đích chung** outdoor+indoor
+3. **Full Multiset UI** khi Indoor
+4. **Minimap cả 2 mode**
+5. **Ẩn** thanh Indoor/Outdoor/Quay về (auto switch)
+6. **Chỉ HybridGPSMap**
+
+### Implementation
+| File | Việc |
+|------|------|
+| `HybridUiSync.cs` | **Mới** — enforce policy, FAB "Điểm đến", ẩn mode bar + outdoor dropdown |
+| `HybridOutdoorNavigationRoot.cs` | `keepMinimapWhenIndoor`, chrome outdoor ẩn khi indoor |
+| `BuildingDestinationListController.cs` | `unifiedCatalogMode` + `RenderUnifiedCatalog` (HybridDestinationService) |
+| `DestinationRowUI.cs` | `SetupActionRow` cho row catalog |
+
+### UX
+- Outdoor: status gọn + **nút Điểm đến** → list chung; ẩn dropdown outdoor
+- Indoor: full Multiset UI + cùng list chung
+- Minimap: không tắt khi vào Indoor
+- Mode: auto (entrance/VPS), không nút switcher
+
+---
+
 ## 2026-07-18 (7) — Dọn UI chồng panel (passenger clean)
 
 ### Vấn đề
