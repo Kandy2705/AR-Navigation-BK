@@ -582,7 +582,7 @@ public class ARPathFinder : MonoBehaviour
                 // Re-apply offset world +Y (phòng _pathMeshRoot xoay lúc runtime)
                 _minimapMirrorRenderer.transform.localPosition =
                     _pathMeshRoot.InverseTransformVector(Vector3.up * minimapPathLiftMeters);
-                _minimapMirrorRenderer.enabled = true;
+                SetMinimapMirrorActive(true);
             }
 
             if (line != null)
@@ -640,14 +640,71 @@ public class ARPathFinder : MonoBehaviour
             pathMesh.Clear();
         if (meshRenderer != null && useMeshPath)
             meshRenderer.enabled = false;
-        if (_minimapMirrorRenderer != null)
-            _minimapMirrorRenderer.enabled = false;
+
+        // Tắt hẳn MinimapPathMirror GO (không chỉ disable renderer) — đến nơi / clear dest
+        // để minimap không còn thấy đường kẻ.
+        SetMinimapMirrorActive(false);
 
         if (resetThrottle)
         {
             lastStartPos = Vector3.positiveInfinity;
             lastEndPos = Vector3.positiveInfinity;
             nextPathUpdateTime = 0f;
+        }
+    }
+
+    /// <summary>
+    /// Bật/tắt GameObject MinimapPathMirror + MeshRenderer.
+    /// Clear dest / đến nơi → false; có path mới → true.
+    /// </summary>
+    private void SetMinimapMirrorActive(bool active)
+    {
+        // Resolve GO kể cả khi field renderer chưa gán (scene đã có child sẵn).
+        Transform mirrorTf = null;
+        if (_minimapMirrorRenderer != null)
+            mirrorTf = _minimapMirrorRenderer.transform;
+        else if (_pathMeshRoot != null)
+            mirrorTf = _pathMeshRoot.Find("MinimapPathMirror");
+
+        if (mirrorTf == null && pathMesh != null)
+        {
+            // Fallback: tìm theo tên dưới component
+            var found = transform.Find(PathMeshRootName + "/MinimapPathMirror");
+            if (found != null) mirrorTf = found;
+        }
+
+        if (mirrorTf != null && mirrorTf.gameObject.activeSelf != active)
+            mirrorTf.gameObject.SetActive(active);
+
+        if (_minimapMirrorRenderer != null)
+            _minimapMirrorRenderer.enabled = active;
+
+        // Nếu bật lại nhưng renderer ref mất — re-ensure khi showPathOnMinimap.
+        if (active && showPathOnMinimap && _minimapMirrorRenderer == null)
+        {
+            EnsureMinimapMirror();
+            if (_minimapMirrorRenderer != null)
+            {
+                _minimapMirrorRenderer.gameObject.SetActive(true);
+                _minimapMirrorRenderer.enabled = true;
+            }
+        }
+    }
+
+    /// <summary>Public: tắt path + MinimapPathMirror (gọi từ ArrivalWatcher khi đến nơi).</summary>
+    public void ClearNavigationVisuals()
+    {
+        SetTarget(null);
+        ClearPath(resetThrottle: true);
+        // Force-disable mọi MinimapPathMirror con (phòng instance lạ).
+        if (_pathMeshRoot != null)
+        {
+            for (int i = 0; i < _pathMeshRoot.childCount; i++)
+            {
+                var c = _pathMeshRoot.GetChild(i);
+                if (c != null && c.name == "MinimapPathMirror")
+                    c.gameObject.SetActive(false);
+            }
         }
     }
 

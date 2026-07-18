@@ -14,7 +14,8 @@ namespace ARNav.Hybrid
     ///   - dest indoor, state ∈ {Outdoor, ApproachingEntrance}:
     ///         Phase 1 = user → entrance.linkedIndoorStartTransform (hoặc anchor pos).
     ///   - dest indoor, state == TransitionScanning:
-    ///         pause path (no waypoints).
+    ///         provisional path user → POI (mặc định) trong lúc VPS warm-up;
+    ///         hoặc Pause nếu provisionalIndoorPathWhileScanning = false.
     ///   - dest indoor, state ∈ {Indoor, Relocalization}:
     ///         Phase 2 = user (campus pose từ VPS) → POI.
     ///   - dest outdoor, user đang indoor (Indoor/Relocalization):
@@ -66,8 +67,17 @@ namespace ARNav.Hybrid
         [Tooltip("Recompute ngay khi user di chuyển quá Y mét so với origin lần tính trước.")]
         [SerializeField] private float recomputeMinUserDeltaMeters = 0.3f;
 
+        [Tooltip("Recompute ngay khi target (POI/entrance) nhảy quá X mét so với lần tính trước — " +
+                 "quan trọng lúc Map Space align / POI snap sau VPS.")]
+        [SerializeField] private float recomputeMinTargetDeltaMeters = 0.5f;
+
         [Tooltip("Cho phép fallback straight-line khi không sample được NavMesh.")]
         [SerializeField] private bool allowStraightLineFallback = true;
+
+        [Header("Handover (vào tòa)")]
+        [Tooltip("Trong TransitionScanning: vẫn vẽ path provisional tới POI indoor thay vì Pause (ẩn path). " +
+                 "Giảm cảm giác 'chờ điểm đích/path di chuyển quá lâu' khi VPS còn warm-up.")]
+        [SerializeField] private bool provisionalIndoorPathWhileScanning = true;
 
         [Header("Debug")]
         [SerializeField] private bool verboseLog = false;
@@ -108,6 +118,7 @@ namespace ARNav.Hybrid
         private NavMeshPath _path;
         private float _nextRecomputeTime;
         private Vector3 _lastComputeOrigin;
+        private Vector3 _lastComputeTarget = Vector3.positiveInfinity;
 
         // ---------------------------------------------------------------------
         // Public API
@@ -149,13 +160,22 @@ namespace ARNav.Hybrid
             }
 
             var (nextPhase, nextSource, target, originOverride) = ResolvePhase();
-            if (nextPhase != CurrentPhase || nextSource != CurrentSource)
+            bool phaseOrSourceChanged = nextPhase != CurrentPhase || nextSource != CurrentSource;
+            if (phaseOrSourceChanged)
             {
                 ChangePhase(nextPhase, nextSource, $"state={manager.CurrentState}, dest indoor={destination.isIndoor}");
+                // Phase handover (Outdoor→Entrance→Indoor) phải recompute ngay, không chờ interval.
+                _nextRecomputeTime = 0f;
             }
 
             if (nextPhase == RoutePhase.Pause || nextPhase == RoutePhase.None)
             {
+                if (phaseOrSourceChanged)
+                {
+                    _corners.Clear();
+                    IsStraightLineFallback = false;
+                    CurrentTarget = target;
+                }
                 return;
             }
 
@@ -163,13 +183,18 @@ namespace ARNav.Hybrid
             CurrentOrigin = origin;
             CurrentTarget = target;
 
-            bool dueRecompute = Time.time >= _nextRecomputeTime
+            float targetDeltaSq = recomputeMinTargetDeltaMeters * recomputeMinTargetDeltaMeters;
+            bool targetJumped = (_lastComputeTarget - target).sqrMagnitude > targetDeltaSq;
+            bool dueRecompute = phaseOrSourceChanged
+                                || Time.time >= _nextRecomputeTime
                                 || (origin - _lastComputeOrigin).sqrMagnitude
-                                    > recomputeMinUserDeltaMeters * recomputeMinUserDeltaMeters;
+                                    > recomputeMinUserDeltaMeters * recomputeMinUserDeltaMeters
+                                || targetJumped;
             if (dueRecompute)
             {
                 _nextRecomputeTime = Time.time + recomputeIntervalSeconds;
                 _lastComputeOrigin = origin;
+                _lastComputeTarget = target;
                 ComputePath(origin, target);
             }
         }
@@ -214,6 +239,12 @@ namespace ARNav.Hybrid
                     return (RoutePhase.OutdoorToEntrance, RouteSource.Outdoor, target, null);
                 }
                 case HybridNavigationState.TransitionScanning:
+                    // Trước đây Pause → path biến mất đến khi VPS stable (có thể vài–chục giây).
+                    // Provisional: vẫn route user → POI indoor ngay khi đã vào cửa.
+                    if (provisionalIndoorPathWhileScanning)
+                    {
+                        return (RoutePhase.IndoorToPoi, RouteSource.Indoor, destination.CampusPosition, null);
+                    }
                     return (RoutePhase.Pause, RouteSource.HandoverPause, destination.CampusPosition, null);
                 case HybridNavigationState.Indoor:
                 case HybridNavigationState.Relocalization:

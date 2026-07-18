@@ -62,8 +62,8 @@ namespace ARNav.Hybrid
         [Tooltip("Confidence tối thiểu để chấp nhận pose VPS (range tuỳ SDK; thường 0..1).")]
         [SerializeField] private float minAcceptedConfidence = 0.5f;
 
-        [Tooltip("Số lần localize success liên tiếp trước khi accept pose ổn định.")]
-        [SerializeField] private int requiredConsecutiveSuccesses = 2;
+        [Tooltip("Số lần localize success liên tiếp trước khi accept pose ổn định. 1 = vào Indoor sớm hơn.")]
+        [SerializeField] private int requiredConsecutiveSuccesses = 1;
 
         [Header("Floors (optional)")]
         [SerializeField] private List<FloorMetadata> floors = new List<FloorMetadata>();

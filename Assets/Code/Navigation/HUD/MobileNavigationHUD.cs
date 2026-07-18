@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using ARNav.Hybrid;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -42,6 +44,8 @@ public class MobileNavigationHUD : MonoBehaviour
     public Text     statusText;
     public Dropdown targetDropdown;
     public Text     toastText;
+    [Tooltip("Optional: gõ tên điểm đến (B9, P101, toilet…) để lọc dropdown. Tự tạo runtime nếu bật createSearchFieldIfMissing.")]
+    public InputField destinationSearchField;
 
     [Header("Display")]
     [SerializeField] private int   selectedIndex;
@@ -50,6 +54,12 @@ public class MobileNavigationHUD : MonoBehaviour
     [SerializeField] private bool  showProximityRefinementHint;
     [Tooltip("Append ARPathFinder.PathHudDebugLine under the status panel (path built / NavMesh / GPS gate).")]
     [SerializeField] private bool  showPathBuildDebugLine = true;
+
+    [Header("Hybrid destination catalog (Outdoor + Indoor)")]
+    [Tooltip("Dùng HybridDestinationService: dropdown gồm cả TargetAnchor outdoor + POI indoor. Tắt = chỉ outdoor anchors (legacy).")]
+    [SerializeField] private bool useHybridDestinationCatalog = true;
+    [Tooltip("Tạo ô search phía trên dropdown nếu scene chưa có.")]
+    [SerializeField] private bool createSearchFieldIfMissing = true;
 
     [Header("Manual calibration (rủi ro — mặc định TẮT)")]
     [Tooltip("Công tắc DUY NHẤT cho mọi hiệu chỉnh THỦ CÔNG (nút 'HIEU CHINH TAI DAY' + gesture nhấn-giữ 2s). " +
@@ -75,6 +85,11 @@ public class MobileNavigationHUD : MonoBehaviour
     private bool  _pressingDropdown;
     private float _dropdownPressStartTime = -1f;
     private bool  _desCalibrateFired;
+
+    // Hybrid catalog entries currently shown in dropdown (filtered by search).
+    private readonly List<HybridDestinationService.Entry> _catalogShown = new List<HybridDestinationService.Entry>();
+    private HybridDestinationService _destService;
+    private string _lastSearch = "";
 
     // ──────────────────────────────────────────────────────────────────────────
     // Runtime auto-creation
@@ -108,9 +123,11 @@ public class MobileNavigationHUD : MonoBehaviour
         hud.toastText      = toast;
 
         hud.ResolveReferences();
+        hud.EnsureSearchField(canvas.transform);
         hud.BuildDropdownOptions();
         dropdown.onValueChanged.AddListener(hud.SelectTarget);
-        hud.SelectTarget(0);
+        if (hud._catalogShown.Count > 0 || (hud.targets != null && hud.targets.Length > 0))
+            hud.SelectTarget(0);
 
         SetupStatusPanelLongPress(statusBg, hud);
         SetupDropdownLongPress(dropdown, hud);
@@ -126,6 +143,7 @@ public class MobileNavigationHUD : MonoBehaviour
     void Awake()
     {
         ResolveReferences();
+        EnsureSearchField(transform);
         BuildDropdownOptions();
     }
 
@@ -134,6 +152,7 @@ public class MobileNavigationHUD : MonoBehaviour
         // HybridGPSMap: HUD often starts inactive under OutdoorNavigationUI — when Outdoor turns on, rebind
         // pathFinder/gpsTracker so we do not keep a stale inactive ARPathFinder (PathHudDebugLine never updates).
         ResolveReferences();
+        EnsureSearchField(transform);
 
         if (targetDropdown != null)
         {
@@ -142,13 +161,25 @@ public class MobileNavigationHUD : MonoBehaviour
             targetDropdown.onValueChanged.AddListener(SelectTarget);
         }
 
-        if (targets != null && targets.Length > 0 && pathFinder != null)
-            SelectTarget(Mathf.Clamp(selectedIndex, 0, targets.Length - 1));
+        if (destinationSearchField != null)
+        {
+            destinationSearchField.onValueChanged.RemoveListener(OnDestinationSearchChanged);
+            destinationSearchField.onValueChanged.AddListener(OnDestinationSearchChanged);
+            destinationSearchField.onEndEdit.RemoveListener(OnDestinationSearchEndEdit);
+            destinationSearchField.onEndEdit.AddListener(OnDestinationSearchEndEdit);
+        }
+
+        BuildDropdownOptions();
+        int maxIdx = GetSelectableCount() - 1;
+        if (maxIdx >= 0)
+            SelectTarget(Mathf.Clamp(selectedIndex, 0, maxIdx));
     }
 
     void Start()
     {
-        SelectTarget(Mathf.Clamp(selectedIndex, 0, Mathf.Max(0, targets.Length - 1)));
+        int maxIdx = GetSelectableCount() - 1;
+        if (maxIdx >= 0)
+            SelectTarget(Mathf.Clamp(selectedIndex, 0, maxIdx));
         UpdateStatusText(true);
         if (toastText != null) toastText.gameObject.SetActive(false);
         EnsureCalibrateButton();
@@ -158,6 +189,11 @@ public class MobileNavigationHUD : MonoBehaviour
     {
         if (targetDropdown != null)
             targetDropdown.onValueChanged.RemoveListener(SelectTarget);
+        if (destinationSearchField != null)
+        {
+            destinationSearchField.onValueChanged.RemoveListener(OnDestinationSearchChanged);
+            destinationSearchField.onEndEdit.RemoveListener(OnDestinationSearchEndEdit);
+        }
     }
 
     void Update()
@@ -267,8 +303,50 @@ public class MobileNavigationHUD : MonoBehaviour
     // Public API
     // ──────────────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Gọi sau khi spawn TargetAnchor mới (vd Outdoor B9/B10) để dropdown/catalog cập nhật.
+    /// </summary>
+    public void RebuildDestinationList()
+    {
+        targets = null; // force re-find TargetAnchors
+        ResolveReferences();
+        if (useHybridDestinationCatalog)
+        {
+            _destService = HybridDestinationService.EnsureExists();
+            _destService?.RefreshCatalog();
+        }
+        BuildDropdownOptions();
+        int maxIdx = GetSelectableCount() - 1;
+        if (maxIdx >= 0)
+            SelectTarget(Mathf.Clamp(selectedIndex, 0, maxIdx));
+        UpdateStatusText(true);
+    }
+
     public void SelectTarget(int index)
     {
+        // ── Hybrid catalog: outdoor + indoor ─────────────────────────────────
+        if (useHybridDestinationCatalog && _catalogShown.Count > 0)
+        {
+            selectedIndex = Mathf.Clamp(index, 0, _catalogShown.Count - 1);
+            var entry = _catalogShown[selectedIndex];
+            var svc = _destService != null ? _destService : HybridDestinationService.EnsureExists();
+            if (svc != null && entry != null)
+            {
+                svc.Apply(entry);
+                ShowToast(entry.isIndoor
+                    ? $"Den: {entry.displayName} (trong {entry.building})"
+                    : $"Den: {entry.displayName}");
+            }
+
+            if (targetDropdown != null && targetDropdown.value != selectedIndex)
+                targetDropdown.SetValueWithoutNotify(selectedIndex);
+
+            wasArrived = false;
+            UpdateStatusText(true);
+            return;
+        }
+
+        // ── Legacy: TargetAnchor only ────────────────────────────────────────
         if (targets == null || targets.Length == 0) return;
 
         selectedIndex = Mathf.Clamp(index, 0, targets.Length - 1);
@@ -280,11 +358,50 @@ public class MobileNavigationHUD : MonoBehaviour
         if (pathFinder != null && sel != null)
             pathFinder.SetTarget(sel.transform);
 
+        // Đồng bộ hybrid coordinator nếu có (không hardcode dest).
+        var hybridSvc = HybridDestinationService.Instance ?? FindFirstObjectByType<HybridDestinationService>(FindObjectsInactive.Include);
+        if (hybridSvc != null && sel != null)
+            hybridSvc.ApplyOutdoorAnchor(sel);
+
         if (targetDropdown != null && targetDropdown.value != selectedIndex)
             targetDropdown.SetValueWithoutNotify(selectedIndex);
 
         wasArrived = false;
         UpdateStatusText(true);
+    }
+
+    /// <summary>Gõ tên → lọc list. Enter: apply match đầu tiên.</summary>
+    public void OnDestinationSearchChanged(string query)
+    {
+        _lastSearch = query ?? "";
+        BuildDropdownOptions();
+    }
+
+    public void OnDestinationSearchEndEdit(string query)
+    {
+        _lastSearch = query ?? "";
+        if (string.IsNullOrWhiteSpace(_lastSearch)) return;
+
+        // Enter / done: nếu chỉ còn 1 kết quả (hoặc exact) → chọn luôn.
+        if (useHybridDestinationCatalog)
+        {
+            var svc = HybridDestinationService.EnsureExists();
+            if (svc != null && svc.TryFindByName(_lastSearch, out var entry))
+            {
+                // Rebuild full list then select matching index in shown list.
+                BuildDropdownOptions();
+                int idx = _catalogShown.FindIndex(e =>
+                    e != null && string.Equals(e.displayName, entry.displayName, StringComparison.OrdinalIgnoreCase)
+                    && e.isIndoor == entry.isIndoor);
+                if (idx < 0) idx = 0;
+                if (_catalogShown.Count > 0)
+                    SelectTarget(Mathf.Clamp(idx, 0, _catalogShown.Count - 1));
+            }
+            else
+            {
+                ShowToast($"Khong tim thay: {_lastSearch}");
+            }
+        }
     }
 
     // Called from EventTrigger PointerDown on status panel background
@@ -462,9 +579,120 @@ public class MobileNavigationHUD : MonoBehaviour
         }
     }
 
+    private int GetSelectableCount()
+    {
+        if (useHybridDestinationCatalog && _catalogShown.Count > 0)
+            return _catalogShown.Count;
+        return targets != null ? targets.Length : 0;
+    }
+
+    private void EnsureSearchField(Transform canvasOrSelf)
+    {
+        if (destinationSearchField != null || !createSearchFieldIfMissing) return;
+        if (targetDropdown == null) return;
+
+        // Place search field just above the dropdown panel.
+        Transform parent = targetDropdown.transform.parent != null
+            ? targetDropdown.transform.parent
+            : (canvasOrSelf != null ? canvasOrSelf : transform);
+
+        GameObject go = new GameObject("Destination Search",
+            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(InputField));
+        go.transform.SetParent(parent, false);
+
+        RectTransform rt = go.GetComponent<RectTransform>();
+        RectTransform dd = targetDropdown.GetComponent<RectTransform>();
+        if (dd != null)
+        {
+            // Copy dropdown anchors, sit above it.
+            rt.anchorMin = dd.anchorMin;
+            rt.anchorMax = dd.anchorMax;
+            rt.pivot = dd.pivot;
+            rt.sizeDelta = new Vector2(dd.sizeDelta.x, 56f);
+            rt.anchoredPosition = dd.anchoredPosition + new Vector2(0f, (dd.sizeDelta.y * 0.5f) + 36f);
+        }
+        else
+        {
+            rt.anchorMin = new Vector2(0.5f, 0f);
+            rt.anchorMax = new Vector2(0.5f, 0f);
+            rt.pivot = new Vector2(0.5f, 0f);
+            rt.anchoredPosition = new Vector2(0f, 200f);
+            rt.sizeDelta = new Vector2(640f, 56f);
+        }
+
+        Image bg = go.GetComponent<Image>();
+        bg.color = new Color(0.08f, 0.10f, 0.14f, 0.92f);
+
+        GameObject textGo = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        textGo.transform.SetParent(go.transform, false);
+        RectTransform tr = textGo.GetComponent<RectTransform>();
+        tr.anchorMin = Vector2.zero;
+        tr.anchorMax = Vector2.one;
+        tr.offsetMin = new Vector2(16f, 6f);
+        tr.offsetMax = new Vector2(-16f, -6f);
+        Text text = textGo.GetComponent<Text>();
+        text.font = GetDefaultFont();
+        text.fontSize = 28;
+        text.color = Color.white;
+        text.alignment = TextAnchor.MiddleLeft;
+        text.supportRichText = false;
+
+        GameObject phGo = new GameObject("Placeholder", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        phGo.transform.SetParent(go.transform, false);
+        RectTransform pr = phGo.GetComponent<RectTransform>();
+        pr.anchorMin = Vector2.zero;
+        pr.anchorMax = Vector2.one;
+        pr.offsetMin = new Vector2(16f, 6f);
+        pr.offsetMax = new Vector2(-16f, -6f);
+        Text ph = phGo.GetComponent<Text>();
+        ph.font = GetDefaultFont();
+        ph.fontSize = 26;
+        ph.fontStyle = FontStyle.Italic;
+        ph.color = new Color(1f, 1f, 1f, 0.45f);
+        ph.alignment = TextAnchor.MiddleLeft;
+        ph.text = "Tim diem den (vd B9, P101, toilet)…";
+
+        destinationSearchField = go.GetComponent<InputField>();
+        destinationSearchField.textComponent = text;
+        destinationSearchField.placeholder = ph;
+        destinationSearchField.lineType = InputField.LineType.SingleLine;
+        destinationSearchField.contentType = InputField.ContentType.Standard;
+    }
+
     private void BuildDropdownOptions()
     {
-        if (targetDropdown == null || targets == null) return;
+        if (targetDropdown == null) return;
+
+        if (useHybridDestinationCatalog)
+        {
+            _destService = HybridDestinationService.EnsureExists();
+            _catalogShown.Clear();
+            if (_destService != null)
+            {
+                var found = _destService.Search(_lastSearch);
+                _catalogShown.AddRange(found);
+            }
+
+            targetDropdown.ClearOptions();
+            if (_catalogShown.Count == 0)
+            {
+                targetDropdown.AddOptions(new List<string> { "(Khong co diem den)" });
+                targetDropdown.SetValueWithoutNotify(0);
+                targetDropdown.RefreshShownValue();
+                return;
+            }
+
+            targetDropdown.AddOptions(
+                _catalogShown.Select((e, i) => e != null ? $"{i + 1}. {e.UiLabel}" : "Missing").ToList());
+            selectedIndex = Mathf.Clamp(selectedIndex, 0, _catalogShown.Count - 1);
+            targetDropdown.SetValueWithoutNotify(selectedIndex);
+            targetDropdown.RefreshShownValue();
+            return;
+        }
+
+        // Legacy outdoor-only
+        if (targets == null) return;
+        _catalogShown.Clear();
         targetDropdown.ClearOptions();
         targetDropdown.AddOptions(
             targets.Select((t, i) => t != null ? $"{i + 1}. {t.TargetName}" : "Missing Target").ToList());
@@ -498,12 +726,32 @@ public class MobileNavigationHUD : MonoBehaviour
         if (!force && Time.unscaledTime < nextRefreshTime) return;
         nextRefreshTime = Time.unscaledTime + refreshIntervalSeconds;
 
-        TargetAnchor sel     = GetSelectedTarget();
-        string targetName    = sel != null ? sel.TargetName : "None";
-        float  dist          = GetDistanceMeters(sel);
-        string distText      = dist >= 0f ? $"{dist:F0} m" : "--";
-        string bearingText   = BuildBearingText(sel);
-        bool   arrived       = sel != null && userTransform != null && dist >= 0f && dist < ArrivalMeters;
+        string targetName;
+        float dist;
+        string bearingText;
+        bool arrived;
+
+        if (useHybridDestinationCatalog && _catalogShown.Count > 0)
+        {
+            var entry = GetSelectedCatalogEntry();
+            targetName = entry != null ? entry.UiLabel : "None";
+            dist = GetDistanceMetersToCatalog(entry);
+            bearingText = BuildBearingTextToPoint(entry != null && entry.targetTransform != null
+                ? entry.targetTransform.position
+                : (entry != null ? entry.explicitCampusPosition : Vector3.zero),
+                entry != null);
+            arrived = entry != null && userTransform != null && dist >= 0f && dist < ArrivalMeters;
+        }
+        else
+        {
+            TargetAnchor sel = GetSelectedTarget();
+            targetName = sel != null ? sel.TargetName : "None";
+            dist = GetDistanceMeters(sel);
+            bearingText = BuildBearingText(sel);
+            arrived = sel != null && userTransform != null && dist >= 0f && dist < ArrivalMeters;
+        }
+
+        string distText = dist >= 0f ? $"{dist:F0} m" : "--";
         string gpsLine       = BuildGpsLine();
         string refineLine    = showProximityRefinementHint ? ("\n" + BuildRefinementLine()) : "";
         string pathDbgLine   = string.Empty;
@@ -524,6 +772,12 @@ public class MobileNavigationHUD : MonoBehaviour
 
         if (arrived)
         {
+            // Rising edge → banner giữa màn hình (ArrivalWatcher cũng watch; gọi thêm an toàn idempotent).
+            if (!wasArrived)
+            {
+                string cleanName = targetName ?? "Điểm đến";
+                ArrivalBanner.EnsureExists().Show(cleanName, "hud:" + cleanName);
+            }
             wasArrived = true;
             statusText.text = $"<b>>>> DA DEN NOI! <<<</b>\n<b>{targetName}</b>  ({distText})\n{gpsLine}{refineLine}{pathDbgLine}";
         }
@@ -548,9 +802,21 @@ public class MobileNavigationHUD : MonoBehaviour
 
     private TargetAnchor GetSelectedTarget()
     {
+        if (useHybridDestinationCatalog && _catalogShown.Count > 0)
+        {
+            var e = GetSelectedCatalogEntry();
+            return e != null ? e.outdoorAnchor : null;
+        }
         if (targets == null || targets.Length == 0) return null;
         selectedIndex = Mathf.Clamp(selectedIndex, 0, targets.Length - 1);
         return targets[selectedIndex];
+    }
+
+    private HybridDestinationService.Entry GetSelectedCatalogEntry()
+    {
+        if (_catalogShown.Count == 0) return null;
+        selectedIndex = Mathf.Clamp(selectedIndex, 0, _catalogShown.Count - 1);
+        return _catalogShown[selectedIndex];
     }
 
     private float GetDistanceMeters(TargetAnchor target)
@@ -561,10 +827,37 @@ public class MobileNavigationHUD : MonoBehaviour
         return Vector3.Distance(userTransform.position, target.transform.position);
     }
 
+    private float GetDistanceMetersToCatalog(HybridDestinationService.Entry entry)
+    {
+        if (entry == null || userTransform == null) return -1f;
+        Vector3 pos = entry.targetTransform != null ? entry.targetTransform.position : entry.explicitCampusPosition;
+        if (pathFinder != null && entry.targetTransform != null
+            && pathFinder.TargetNode == entry.targetTransform && pathFinder.CurrentPathDistanceMeters > 0f)
+            return pathFinder.CurrentPathDistanceMeters;
+
+        // Hybrid route distance if available
+        var route = FindFirstObjectByType<HybridRouteCoordinator>(FindObjectsInactive.Include);
+        if (route != null && route.Corners != null && route.Corners.Count >= 2)
+        {
+            float sum = 0f;
+            for (int i = 1; i < route.Corners.Count; i++)
+                sum += Vector3.Distance(route.Corners[i - 1], route.Corners[i]);
+            if (sum > 0.1f) return sum;
+        }
+
+        return Vector3.Distance(userTransform.position, pos);
+    }
+
     private string BuildBearingText(TargetAnchor target)
     {
         if (target == null || userTransform == null) return string.Empty;
-        Vector3 dir = target.transform.position - userTransform.position;
+        return BuildBearingTextToPoint(target.transform.position, true);
+    }
+
+    private string BuildBearingTextToPoint(Vector3 worldPos, bool valid)
+    {
+        if (!valid || userTransform == null) return string.Empty;
+        Vector3 dir = worldPos - userTransform.position;
         dir.y = 0f;
         if (dir.sqrMagnitude < 0.01f) return string.Empty;
         float bearing = (Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg + 360f) % 360f;

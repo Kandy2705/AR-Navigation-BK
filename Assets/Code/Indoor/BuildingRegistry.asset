@@ -17,13 +17,13 @@ MonoBehaviour:
     displayName: "T\xF2a B9"
     mapsetCode: MAP_9LME2PB7Y3EN
     kind: 0
-    entranceLatitude: 0
-    entranceLongitude: 0
+    entranceLatitude: 10.7734
+    entranceLongitude: 106.660375
     entranceTriggerRadiusMeters: 30
   - id: 10
     displayName: "T\xF2a B10"
     mapsetCode: MSET_AWDJFJNAVVFM
     kind: 1
-    entranceLatitude: 0
-    entranceLongitude: 0
+    entranceLatitude: 10.773675
+    entranceLongitude: 106.6608861
     entranceTriggerRadiusMeters: 30

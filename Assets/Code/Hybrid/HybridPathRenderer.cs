@@ -27,8 +27,12 @@ namespace ARNav.Hybrid
         [SerializeField] private Color pauseColor = new Color(1f, 0.85f, 0.4f);
 
         [Header("Smoothing")]
-        [Tooltip("Số giây crossfade alpha khi source đổi (chống teleport visual giữa phase).")]
-        [SerializeField] private float crossfadeSeconds = 0.7f;
+        [Tooltip("Số giây crossfade alpha khi source đổi. Thấp = path indoor hiện nhanh sau handover.")]
+        [SerializeField] private float crossfadeSeconds = 0.2f;
+
+        [Tooltip("Khi source đổi (Outdoor↔Indoor): swap màu + corners ngay, chỉ fade-in ngắn. " +
+                 "Tắt = chờ fade-out hết rồi mới swap (chậm hơn, UX 'path trễ' khi vào tòa).")]
+        [SerializeField] private bool snapSourceOnChange = true;
 
         private LineRenderer _line;
         private HybridRouteCoordinator.RouteSource _displayedSource = HybridRouteCoordinator.RouteSource.None;
@@ -66,8 +70,18 @@ namespace ARNav.Hybrid
 
         private void HandleSourceChanged(HybridRouteCoordinator.RouteSource prev, HybridRouteCoordinator.RouteSource next)
         {
-            // Trigger fade out → swap color → fade in trong Update.
-            _alphaTarget = 0f;
+            if (snapSourceOnChange)
+            {
+                // Handover: hiện path mới ngay (alpha reset ngắn), không chờ fade-out full.
+                _displayedSource = next;
+                _alpha = 0f;
+                _alphaTarget = 1f;
+            }
+            else
+            {
+                // Legacy: fade out → swap color → fade in.
+                _alphaTarget = 0f;
+            }
         }
 
         private void Update()
@@ -77,14 +91,19 @@ namespace ARNav.Hybrid
             var src = coordinator.CurrentSource;
             var corners = coordinator.Corners;
             bool drawable = src != HybridRouteCoordinator.RouteSource.None
+                            && src != HybridRouteCoordinator.RouteSource.HandoverPause
                             && corners != null && corners.Count >= 2;
 
             // Crossfade alpha target.
             _alphaTarget = drawable ? 1f : 0f;
 
-            // Sau khi alpha tới 0 và source khác → swap visible source rồi fade lên.
-            if (src != _displayedSource && _alpha < 0.05f)
+            if (snapSourceOnChange)
             {
+                if (src != _displayedSource) _displayedSource = src;
+            }
+            else if (src != _displayedSource && _alpha < 0.05f)
+            {
+                // Sau khi alpha tới 0 và source khác → swap visible source rồi fade lên.
                 _displayedSource = src;
             }
 

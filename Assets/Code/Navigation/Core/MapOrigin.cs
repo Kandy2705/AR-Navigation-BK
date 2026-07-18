@@ -21,6 +21,20 @@ public class MapOrigin : MonoBehaviour
         return new Vector3((float)enu.e, 0f, (float)enu.n);
     }
 
+    /// <summary>
+    /// Ngược của <see cref="GetUnityPositionFromGPS"/>: world XZ (East, North) → lat/lon WGS84.
+    /// Dùng khi đặt TargetAnchor theo EntranceAnchor world position đã canh trên map.
+    /// </summary>
+    public void GetGPSFromUnityPosition(Vector3 unityPos, out double lat, out double lon)
+    {
+        // Xấp xỉ local ENU flat (đủ cho campus ~km).
+        double metersPerDegLat = 111320.0;
+        double metersPerDegLon = 111320.0 * System.Math.Cos(originLat * System.Math.PI / 180.0);
+        if (System.Math.Abs(metersPerDegLon) < 1e-6) metersPerDegLon = 1e-6;
+        lat = originLat + (unityPos.z / metersPerDegLat);
+        lon = originLon + (unityPos.x / metersPerDegLon);
+    }
+
     private ECEF LatLonAltToECEF(double latDeg, double lonDeg, double altitude)
     {
         double latR = latDeg * Mathf.Deg2Rad;

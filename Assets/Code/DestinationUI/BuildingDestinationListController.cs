@@ -166,7 +166,35 @@ namespace Project.DestinationUI
 
         public void StartNavigationTo(POI poi)
         {
-            // Đảm bảo đang ở Indoor mode để NavMesh indoor active.
+            if (poi == null)
+            {
+                Debug.LogWarning("[DestinationUI] Cannot start navigation: selected POI is null.", this);
+                return;
+            }
+
+            // ── Preferred: HybridDestinationService (HybridGPSMap hybrid path) ──
+            // Không ForceIndoor ngay — Outdoor→Entrance→Indoor do HybridLocalizationManager.
+            // Không phụ thuộc hardcode destination Inspector.
+            if (TryApplyHybridDestination(poi))
+            {
+                if (destinationSelectUI != null)
+                {
+                    destinationSelectUI.SetActive(false);
+                }
+
+                if (NavigationUIController.instance != null)
+                {
+                    if (NavigationUIController.instance.stopButton != null)
+                        NavigationUIController.instance.stopButton.SetActive(true);
+                    if (NavigationUIController.instance.navigationProgressSlider != null)
+                        NavigationUIController.instance.navigationProgressSlider.SetActive(true);
+                }
+
+                Debug.Log($"[DestinationUI] Hybrid destination applied for POI '{poi.poiName}'.");
+                return;
+            }
+
+            // ── Legacy Multiset-only path (ManScene / no hybrid service) ──
             if (!EnsureIndoorMode())
             {
                 Debug.LogWarning("[DestinationUI] Cannot start indoor navigation: HybridModeController not found or Indoor mode unavailable.");
@@ -192,6 +220,73 @@ namespace Project.DestinationUI
             {
                 NavigationUIController.instance.stopButton.SetActive(true);
                 NavigationUIController.instance.navigationProgressSlider.SetActive(true);
+            }
+        }
+
+        /// <summary>
+        /// Gọi HybridDestinationService.ApplyIndoorPoi qua reflection
+        /// (Project.DestinationUI assembly không reference Assembly-CSharp).
+        /// </summary>
+        bool TryApplyHybridDestination(POI poi)
+        {
+            try
+            {
+                System.Type svcType = null;
+                foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    svcType = asm.GetType("ARNav.Hybrid.HybridDestinationService");
+                    if (svcType != null) break;
+                }
+                if (svcType == null) return false;
+
+                var ensure = svcType.GetMethod("EnsureExists",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                object svc = ensure != null ? ensure.Invoke(null, null) : null;
+                if (svc == null)
+                {
+                    // Fallback FindObjectOfType
+                    var find = typeof(UnityEngine.Object).GetMethod(
+                        "FindFirstObjectByType",
+                        new[] { typeof(FindObjectsInactive) });
+                    // Use Resources scan
+                    foreach (var mb in Resources.FindObjectsOfTypeAll<MonoBehaviour>())
+                    {
+                        if (mb != null && mb.GetType() == svcType && mb.gameObject.scene.IsValid())
+                        {
+                            svc = mb;
+                            break;
+                        }
+                    }
+                }
+                if (svc == null) return false;
+
+                var apply = svcType.GetMethod("ApplyIndoorPoi",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (apply == null) return false;
+
+                // BuildingId hint from selected building display name if possible.
+                object buildingHint = System.Enum.ToObject(
+                    apply.GetParameters().Length > 1
+                        ? apply.GetParameters()[1].ParameterType
+                        : typeof(int),
+                    0);
+
+                if (selectedBuilding != null && !string.IsNullOrEmpty(selectedBuilding.displayName))
+                {
+                    string dn = selectedBuilding.displayName;
+                    if (dn.IndexOf("B9", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                        buildingHint = System.Enum.ToObject(apply.GetParameters()[1].ParameterType, 9);
+                    else if (dn.IndexOf("B10", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                        buildingHint = System.Enum.ToObject(apply.GetParameters()[1].ParameterType, 10);
+                }
+
+                object result = apply.Invoke(svc, new object[] { poi, buildingHint });
+                return result is bool ok && ok;
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[DestinationUI] Hybrid ApplyIndoorPoi failed (fallback Multiset): {ex.Message}");
+                return false;
             }
         }
 

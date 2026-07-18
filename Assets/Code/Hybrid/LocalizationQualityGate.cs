@@ -32,11 +32,13 @@ namespace ARNav.Hybrid
         [Tooltip("Confidence VPS tối thiểu (range tuỳ SDK). 0 = không lọc.")]
         [SerializeField] private float indoorMinConfidence = 0.5f;
 
-        [Tooltip("Số lần localize success liên tiếp (dựa trên freshness ticks).")]
-        [SerializeField] private int indoorRequiredConsecutiveSuccesses = 2;
+        [Tooltip("Số lần localize success liên tiếp (dựa trên freshness ticks). " +
+                 "1 = accept sớm hơn khi vào tòa (path/phase Indoor hiện nhanh).")]
+        [SerializeField] private int indoorRequiredConsecutiveSuccesses = 1;
 
-        [Tooltip("Số giây pose indoor phải fresh liên tục.")]
-        [SerializeField] private float indoorStableSeconds = 1.5f;
+        [Tooltip("Số giây pose indoor phải fresh liên tục trước khi IndoorReady. " +
+                 "Thấp hơn = handover Outdoor→Indoor nhanh hơn; quá thấp dễ flicker.")]
+        [SerializeField] private float indoorStableSeconds = 0.6f;
 
         [Tooltip("Số giây pose indoor mất trước khi coi là lost.")]
         [SerializeField] private float indoorLostGraceSeconds = 2.5f;
@@ -192,9 +194,11 @@ namespace ARNav.Hybrid
 
             var last = indoorProvider.Last;
             float minConf = activeProfile != null ? activeProfile.MinAcceptedConfidence : indoorMinConfidence;
+            // Profile có thể siết chặt hơn; gate field là floor tối thiểu. Dùng Min để không
+            // vô tình cộng dồn "max(2,1)=2" làm handover vào tòa chậm hơn default mới.
             int requiredHits = activeProfile != null
-                ? Mathf.Max(activeProfile.RequiredConsecutiveSuccesses, indoorRequiredConsecutiveSuccesses)
-                : indoorRequiredConsecutiveSuccesses;
+                ? Mathf.Max(1, Mathf.Min(activeProfile.RequiredConsecutiveSuccesses, indoorRequiredConsecutiveSuccesses))
+                : Mathf.Max(1, indoorRequiredConsecutiveSuccesses);
 
             bool fresh = indoorProvider.HasFreshPose;
             bool confOk = last.Confidence >= minConf;

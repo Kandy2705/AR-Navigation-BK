@@ -12,6 +12,9 @@ namespace ARNav.Hybrid
     ///
     /// Hide LineRenderer debug bằng cách disable component <see cref="HybridPathRenderer"/>.
     /// Cả 2 có thể chạy song song để debug — không xung đột.
+    ///
+    /// Khi phase handover (vào tòa) hoặc target nhảy xa: force <see cref="ARPathFinder.SetTarget"/>
+    /// lại để bypass throttle pathUpdateInterval — path ribbon không "bò" chậm.
     /// </summary>
     [DisallowMultipleComponent]
     public class HybridArPathFinderBridge : MonoBehaviour
@@ -22,7 +25,12 @@ namespace ARNav.Hybrid
         [Tooltip("GameObject runtime giữ position = CurrentTarget — dùng làm targetNode cho ARPathFinder.")]
         [SerializeField] private string targetMarkerName = "HybridRouteTarget";
 
+        [Tooltip("Target nhảy > X mét → force SetTarget lại (bỏ throttle ARPathFinder).")]
+        [SerializeField] private float forceRetargetDeltaMeters = 0.75f;
+
         private Transform _targetMarker;
+        private Vector3 _lastPushedTarget = Vector3.positiveInfinity;
+        private bool _forceRetarget;
 
         private void OnEnable()
         {
@@ -32,16 +40,23 @@ namespace ARNav.Hybrid
 
             var go = new GameObject(targetMarkerName);
             _targetMarker = go.transform;
+            _lastPushedTarget = Vector3.positiveInfinity;
+            _forceRetarget = true;
 
             if (coordinator != null)
             {
                 coordinator.OnPhaseChanged += HandlePhaseChanged;
+                coordinator.OnSourceChanged += HandleSourceChanged;
             }
         }
 
         private void OnDisable()
         {
-            if (coordinator != null) coordinator.OnPhaseChanged -= HandlePhaseChanged;
+            if (coordinator != null)
+            {
+                coordinator.OnPhaseChanged -= HandlePhaseChanged;
+                coordinator.OnSourceChanged -= HandleSourceChanged;
+            }
             if (_targetMarker != null) Destroy(_targetMarker.gameObject);
         }
 
@@ -53,18 +68,39 @@ namespace ARNav.Hybrid
                 || coordinator.CurrentPhase == HybridRouteCoordinator.RoutePhase.Pause)
             {
                 if (arPathFinder.TargetNode == _targetMarker) arPathFinder.SetTarget(null);
+                _lastPushedTarget = Vector3.positiveInfinity;
                 return;
             }
-            _targetMarker.position = coordinator.CurrentTarget;
-            if (arPathFinder.TargetNode != _targetMarker)
+
+            Vector3 target = coordinator.CurrentTarget;
+            _targetMarker.position = target;
+
+            float jump = (_lastPushedTarget - target).magnitude;
+            bool needForce = _forceRetarget || jump >= forceRetargetDeltaMeters
+                             || arPathFinder.TargetNode != _targetMarker;
+
+            if (needForce)
+            {
+                // SetTarget luôn force recalc (reset throttle) — kể cả khi cùng Transform.
+                arPathFinder.SetTarget(_targetMarker);
+                _lastPushedTarget = target;
+                _forceRetarget = false;
+            }
+            else if (arPathFinder.TargetNode != _targetMarker)
             {
                 arPathFinder.SetTarget(_targetMarker);
+                _lastPushedTarget = target;
             }
         }
 
         private void HandlePhaseChanged(HybridRouteCoordinator.RoutePhase prev, HybridRouteCoordinator.RoutePhase next)
         {
-            // Hook nếu cần animation lúc đổi phase. Hiện tại Update đã đủ.
+            _forceRetarget = true;
+        }
+
+        private void HandleSourceChanged(HybridRouteCoordinator.RouteSource prev, HybridRouteCoordinator.RouteSource next)
+        {
+            _forceRetarget = true;
         }
     }
 }

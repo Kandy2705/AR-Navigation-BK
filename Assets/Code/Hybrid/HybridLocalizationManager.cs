@@ -47,8 +47,8 @@ namespace ARNav.Hybrid
         [Tooltip("Nhân với EntranceAnchor.triggerRadiusMeters để ra vùng ApproachingEntrance.")]
         [SerializeField] private float approachingRadiusMultiplier = 2.5f;
 
-        [Tooltip("Khoảng giây min ở mỗi state mới (chống dao động).")]
-        [SerializeField] private float minStateDwellSeconds = 0.5f;
+        [Tooltip("Khoảng giây min ở mỗi state mới (chống dao động). Thấp hơn = vào Indoor sớm hơn sau VPS.")]
+        [SerializeField] private float minStateDwellSeconds = 0.25f;
 
         [Header("Timeouts")]
         [Tooltip("TransitionScanning → Relocalization nếu không localize sau X giây.")]

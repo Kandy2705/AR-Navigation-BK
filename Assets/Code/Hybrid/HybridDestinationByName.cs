@@ -36,6 +36,10 @@ namespace ARNav.Hybrid
         [SerializeField] private Transform explicitParent;
 
         [Header("Behavior")]
+        [Tooltip("MẶC ĐỊNH TẮT. Bật chỉ khi dev muốn hardcode 1 POI lúc Play. " +
+                 "Production dùng UI (MobileNavigationHUD dropdown/search hoặc BuildingDestinationList).")]
+        [SerializeField] private bool autoApplyOnEnable = false;
+
         [Tooltip("Retry mỗi N giây nếu chưa resolve được (parent có thể spawn trễ).")]
         [SerializeField] private float retryIntervalSeconds = 1f;
 
@@ -49,11 +53,18 @@ namespace ARNav.Hybrid
             if (coordinator == null) coordinator = GetComponent<HybridRouteCoordinator>();
             if (coordinator == null) coordinator = FindFirstObjectByType<HybridRouteCoordinator>(FindObjectsInactive.Include);
             if (manager == null) manager = FindFirstObjectByType<HybridLocalizationManager>(FindObjectsInactive.Include);
+            if (!autoApplyOnEnable)
+            {
+                if (verboseLog)
+                    Debug.Log("[HybridDestinationByName] autoApplyOnEnable=false — chờ UI chọn điểm đến (HybridDestinationService).");
+                return;
+            }
             TryResolveAndApply();
         }
 
         private void Update()
         {
+            if (!autoApplyOnEnable) return;
             if (_resolved != null) return;
             if (Time.time < _nextRetryTime) return;
             _nextRetryTime = Time.time + retryIntervalSeconds;
