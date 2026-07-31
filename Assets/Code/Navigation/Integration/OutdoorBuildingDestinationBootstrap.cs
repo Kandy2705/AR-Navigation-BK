@@ -175,7 +175,7 @@ public class OutdoorBuildingDestinationBootstrap : MonoBehaviour
         if (entrance == null)
             entrance = EntranceAnchor.FindForBuilding(building, requireEntrance: false);
 
-        MapOrigin mapOrigin = FindFirstObjectByType<MapOrigin>(FindObjectsInactive.Include);
+        MapOrigin mapOrigin = MapOrigin.FindPrimary();
         if (entrance != null && mapOrigin != null)
         {
             Vector3 campus = entrance.CampusWorldPosition;

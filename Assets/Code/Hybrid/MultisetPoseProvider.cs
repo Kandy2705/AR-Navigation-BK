@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.XR.ARFoundation;
 
 namespace ARNav.Hybrid
 {
@@ -74,6 +75,12 @@ namespace ARNav.Hybrid
         [Tooltip("Bật fallback đọc MapSpace ngay cả khi reflection event hoạt động (an toàn hơn).")]
         [SerializeField] private bool alwaysRunFallback = true;
 
+        [Tooltip("Fail-closed: pose MapSpace chỉ hợp lệ sau khi SDK đã phát LocalizationSuccess cho map hiện tại.")]
+        [SerializeField] private bool requireVerifiedLocalizationForFallback = true;
+
+        [Tooltip("Khi dùng pose fallback trên device, AR Session phải đang Tracking.")]
+        [SerializeField] private bool requireARTrackingForFallback = true;
+
         [Header("Discovery")]
         [Tooltip("Mỗi N giây thử resolve lại các reference null (SDK instantiate trễ).")]
         [SerializeField] private float discoveryIntervalSeconds = 0.5f;
@@ -86,15 +93,46 @@ namespace ARNav.Hybrid
         // ---------------------------------------------------------------------
 
         public PoseReading Last => _last;
-        public bool HasFreshPose =>
-            _last.Source != PoseSource.None &&
-            (Time.timeAsDouble - _last.Timestamp) <= poseFreshnessWindowSeconds;
+        public bool HasVerifiedLocalization => _hasVerifiedLocalization;
+        public bool HasFreshPose
+        {
+            get
+            {
+                if (_last.Source == PoseSource.None) return false;
+                if ((Time.timeAsDouble - _last.Timestamp) > poseFreshnessWindowSeconds) return false;
+                if (requireVerifiedLocalizationForFallback && !_hasVerifiedLocalization) return false;
+
+                if (_last.Source == PoseSource.MapSpaceFallback &&
+                    requireARTrackingForFallback &&
+                    !Application.isEditor &&
+                    ARSession.state != ARSessionState.SessionTracking)
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
 
         public IndoorMapCalibration ActiveCalibration => calibration;
         public Transform MapSpace => mapSpace;
         public Camera ArCamera => arCamera;
 
         public event Action<PoseReading> OnPoseUpdated;
+
+        public static MultisetPoseProvider FindActiveProvider()
+        {
+            foreach (var provider in FindObjectsByType<MultisetPoseProvider>(
+                         FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            {
+                if (provider != null && provider.isActiveAndEnabled)
+                {
+                    return provider;
+                }
+            }
+
+            return null;
+        }
 
         // ---------------------------------------------------------------------
         // Private state
@@ -103,10 +141,15 @@ namespace ARNav.Hybrid
         private PoseReading _last;
         private float _nextFallbackTime;
         private float _nextDiscoveryTime;
+        private bool _hasVerifiedLocalization;
+        private float _verifiedConfidence = 1f;
+        private string _verifiedMapId;
 
         private MonoBehaviour _subscribedManager;
         private FieldInfo _subscribedEventField;
+        private FieldInfo _subscribedFailureEventField;
         private UnityAction _noArgListener;
+        private UnityAction _failureListener;
         // For typed event subscription
         private Delegate _typedListener;
         private MethodInfo _typedAddMethod;
@@ -121,9 +164,47 @@ namespace ARNav.Hybrid
 
         public void SetCurrentBuilding(BuildingId building, string floorId)
         {
+            bool changed = currentBuilding != building ||
+                           !string.Equals(currentFloorId, floorId, StringComparison.Ordinal);
+            if (changed && calibration != null)
+                calibration.ClearRuntimeHandover();
             currentBuilding = building;
             currentFloorId = floorId;
             calibration = IndoorMapCalibration.FindFor(building, floorId);
+            if (changed) ResetLocalizationSession();
+        }
+
+        /// <summary>
+        /// Xoá VPS lease khi đổi map/rời indoor. Pose camera đơn thuần không được phép
+        /// tái sử dụng như một localization success của map trước.
+        /// </summary>
+        public void ResetLocalizationSession()
+        {
+            _hasVerifiedLocalization = false;
+            _verifiedConfidence = 1f;
+            _verifiedMapId = null;
+            _last = default;
+        }
+
+        /// <summary>
+        /// Bảo đảm pose indoor có cùng campus frame trước khi state machine công bố Indoor.
+        /// Ưu tiên calibration khảo sát; nếu chưa có thì tạo bridge tại cửa từ pose VPS thật.
+        /// </summary>
+        public bool EnsureHandoverCalibration(EntranceAnchor entrance, Vector3 campusHandoverPosition)
+        {
+            if (!_hasVerifiedLocalization || entrance == null || arCamera == null || mapSpace == null)
+                return false;
+
+            var cal = ResolveCalibration();
+            if (cal == null) return false;
+            if (cal.HasAuthoredCalibration || cal.HasRuntimeHandoverCalibration) return true;
+
+            Vector3 localPos = mapSpace.InverseTransformPoint(arCamera.transform.position);
+            Quaternion localRot = Quaternion.Inverse(mapSpace.rotation) * arCamera.transform.rotation;
+            Quaternion campusRot = Quaternion.Euler(0f, entrance.FacingYawDegrees, 0f);
+            cal.ConfigureRuntimeHandover(localPos, localRot, campusHandoverPosition, campusRot);
+            TryUpdateFromMapSpaceFallback();
+            return true;
         }
 
         // ---------------------------------------------------------------------
@@ -139,6 +220,15 @@ namespace ARNav.Hybrid
         private void OnDisable()
         {
             TryUnsubscribe();
+            ResetLocalizationSession();
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused)
+            {
+                ResetLocalizationSession();
+            }
         }
 
         private void LateUpdate()
@@ -216,6 +306,7 @@ namespace ARNav.Hybrid
         private void TryUpdateFromMapSpaceFallback()
         {
             if (arCamera == null || mapSpace == null) return;
+            if (requireVerifiedLocalizationForFallback && !_hasVerifiedLocalization) return;
 
             Vector3 localPos = mapSpace.InverseTransformPoint(arCamera.transform.position);
             Quaternion localRot = Quaternion.Inverse(mapSpace.rotation) * arCamera.transform.rotation;
@@ -234,20 +325,16 @@ namespace ARNav.Hybrid
                 campusRot = localRot;
             }
 
-            PoseSource src = _last.Source == PoseSource.ReflectionEvent
-                ? PoseSource.ReflectionEvent
-                : PoseSource.MapSpaceFallback;
-
             var reading = new PoseReading
             {
                 MapLocalPosition = localPos,
                 MapLocalRotation = localRot,
                 CampusPosition = campusPos,
                 CampusRotation = campusRot,
-                MapId = _last.MapId,
-                Confidence = _last.Source == PoseSource.ReflectionEvent ? _last.Confidence : 1f,
+                MapId = _verifiedMapId,
+                Confidence = _verifiedConfidence,
                 Timestamp = Time.timeAsDouble,
-                Source = src,
+                Source = PoseSource.MapSpaceFallback,
             };
 
             _last = reading;
@@ -281,9 +368,11 @@ namespace ARNav.Hybrid
                 var f = t.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 if (f == null) continue;
                 if (!typeof(UnityEventBase).IsAssignableFrom(f.FieldType)) continue;
-                chosenField = f;
-                if (TrySubscribeTyped(f)) break;
-                if (TrySubscribeNoArg(f)) break;
+                if (TrySubscribeTyped(f) || TrySubscribeNoArg(f))
+                {
+                    chosenField = f;
+                    break;
+                }
             }
 
             if (chosenField == null)
@@ -294,6 +383,7 @@ namespace ARNav.Hybrid
 
             _subscribedManager = mapLocalizationManager;
             _subscribedEventField = chosenField;
+            TrySubscribeFailureEvent(t);
 
             // Cache response field (nếu manager expose 'last response' field).
             TryCacheResponseField(t);
@@ -369,6 +459,13 @@ namespace ARNav.Hybrid
                 {
                     _typedRemoveMethod.Invoke(evt, new object[] { _typedListener });
                 }
+
+                if (_subscribedFailureEventField != null && _failureListener != null)
+                {
+                    var failureEvent =
+                        _subscribedFailureEventField.GetValue(_subscribedManager) as UnityEvent;
+                    failureEvent?.RemoveListener(_failureListener);
+                }
             }
             catch (Exception ex)
             {
@@ -377,11 +474,43 @@ namespace ARNav.Hybrid
 
             _subscribedManager = null;
             _subscribedEventField = null;
+            _subscribedFailureEventField = null;
             _noArgListener = null;
+            _failureListener = null;
             _typedListener = null;
             _typedAddMethod = null;
             _typedRemoveMethod = null;
             _responseType = null;
+        }
+
+        private void TrySubscribeFailureEvent(Type managerType)
+        {
+            string[] candidateNames =
+            {
+                "LocalizationFailure",
+                "OnLocalizationFailure",
+                "localizationFailure",
+            };
+
+            foreach (string name in candidateNames)
+            {
+                FieldInfo field = managerType.GetField(
+                    name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field == null || field.FieldType != typeof(UnityEvent)) continue;
+                if (field.GetValue(mapLocalizationManager) is not UnityEvent evt) continue;
+
+                _failureListener = OnLocalizationFailureFired;
+                evt.AddListener(_failureListener);
+                _subscribedFailureEventField = field;
+                return;
+            }
+        }
+
+        private void OnLocalizationFailureFired()
+        {
+            ResetLocalizationSession();
+            if (verboseLog)
+                Debug.LogWarning("[MultisetPoseProvider] LocalizationFailure → revoke indoor pose.");
         }
 
         // Typed listener — Unity sẽ gọi đúng method qua delegate.
@@ -405,9 +534,8 @@ namespace ARNav.Hybrid
             }
 
             // Không có response — đánh dấu thời điểm event để state machine biết SDK localize OK.
-            _last.Source = PoseSource.ReflectionEvent;
-            _last.Timestamp = Time.timeAsDouble;
-            // Pose chính sẽ đến từ fallback MapSpace.
+            MarkLocalizationVerified(1f, null);
+            TryUpdateFromMapSpaceFallback();
         }
 
         private void ApplyResponseObject(object response)
@@ -418,6 +546,7 @@ namespace ARNav.Hybrid
             Quaternion rot = ReadQuaternion(_respRotation, response);
             float conf = ReadFloat(_respConfidence, response, 1f);
             string mapId = ReadString(_respMapId, response);
+            MarkLocalizationVerified(conf, mapId);
 
             var cal = ResolveCalibration();
             Vector3 campusPos; Quaternion campusRot;
@@ -443,6 +572,13 @@ namespace ARNav.Hybrid
                 Source = PoseSource.ReflectionEvent,
             };
             OnPoseUpdated?.Invoke(_last);
+        }
+
+        private void MarkLocalizationVerified(float confidence, string mapId)
+        {
+            _hasVerifiedLocalization = true;
+            _verifiedConfidence = confidence;
+            _verifiedMapId = mapId;
         }
 
         private IndoorMapCalibration ResolveCalibration()

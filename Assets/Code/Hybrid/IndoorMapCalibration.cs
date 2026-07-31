@@ -50,6 +50,11 @@ namespace ARNav.Hybrid
         [Tooltip("Scale map→campus. Mặc định 1.")]
         [SerializeField] private float scale = 1f;
 
+        private bool _hasRuntimeHandoverCalibration;
+        private Vector3 _runtimeMapLocalEntrancePoint;
+        private Vector3 _runtimeCampusEntrancePoint;
+        private float _runtimeYawOffsetDegrees;
+
         // ---------------------------------------------------------------------
         // Public read-only
         // ---------------------------------------------------------------------
@@ -62,6 +67,13 @@ namespace ARNav.Hybrid
 
         public Vector3 CampusEntrancePoint =>
             entranceAnchorReference != null ? entranceAnchorReference.CampusWorldPosition : campusEntrancePoint;
+        public bool HasRuntimeHandoverCalibration => _hasRuntimeHandoverCalibration;
+        public bool HasAuthoredCalibration =>
+            entranceAnchorReference != null ||
+            mapLocalEntrancePoint.sqrMagnitude > 0.0001f ||
+            campusEntrancePoint.sqrMagnitude > 0.0001f ||
+            Mathf.Abs(yawOffsetDegrees) > 0.01f;
+        public bool IsUsable => HasAuthoredCalibration || HasRuntimeHandoverCalibration;
 
         public static System.Collections.Generic.IReadOnlyList<IndoorMapCalibration> All => _registry;
 
@@ -81,11 +93,46 @@ namespace ARNav.Hybrid
         public void MapLocalToCampusWorld(Vector3 localPos, Quaternion localRot,
             out Vector3 campusPos, out Quaternion campusRot)
         {
-            Quaternion yaw = Quaternion.Euler(0f, yawOffsetDegrees, 0f);
-            Vector3 delta = (localPos - mapLocalEntrancePoint) * scale;
+            float effectiveYaw = _hasRuntimeHandoverCalibration
+                ? _runtimeYawOffsetDegrees
+                : yawOffsetDegrees;
+            Vector3 effectiveMapEntrance = _hasRuntimeHandoverCalibration
+                ? _runtimeMapLocalEntrancePoint
+                : mapLocalEntrancePoint;
+            Vector3 effectiveCampusEntrance = _hasRuntimeHandoverCalibration
+                ? _runtimeCampusEntrancePoint
+                : CampusEntrancePoint;
+
+            Quaternion yaw = Quaternion.Euler(0f, effectiveYaw, 0f);
+            Vector3 delta = (localPos - effectiveMapEntrance) * scale;
             Vector3 rotated = yaw * delta;
-            campusPos = CampusEntrancePoint + rotated;
+            campusPos = effectiveCampusEntrance + rotated;
             campusRot = yaw * localRot;
+        }
+
+        /// <summary>
+        /// Tạo bridge runtime tại thời điểm handover. Đây là fallback an toàn khi scene
+        /// chưa có calibration khảo sát: pose VPS đầu tiên được đặt tại cửa đang đứng,
+        /// thay vì âm thầm dùng gốc campus (0,0,0).
+        /// </summary>
+        public void ConfigureRuntimeHandover(
+            Vector3 mapLocalUserPosition,
+            Quaternion mapLocalUserRotation,
+            Vector3 campusUserPosition,
+            Quaternion campusUserRotation)
+        {
+            _runtimeMapLocalEntrancePoint = mapLocalUserPosition;
+            _runtimeCampusEntrancePoint = campusUserPosition;
+
+            float mapYaw = mapLocalUserRotation.eulerAngles.y;
+            float campusYaw = campusUserRotation.eulerAngles.y;
+            _runtimeYawOffsetDegrees = Mathf.DeltaAngle(mapYaw, campusYaw);
+            _hasRuntimeHandoverCalibration = true;
+        }
+
+        public void ClearRuntimeHandover()
+        {
+            _hasRuntimeHandoverCalibration = false;
         }
 
         /// <summary>Convert chỉ position. Convenience.</summary>

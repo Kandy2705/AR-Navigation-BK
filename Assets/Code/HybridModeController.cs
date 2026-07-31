@@ -91,6 +91,9 @@ public class HybridModeController : MonoBehaviour
     [SerializeField] private bool requireLocationPermissionForOutdoor = true;
     [SerializeField] private float permissionRequestTimeoutSeconds = 30f;
 
+    [Header("iOS Permissions")]
+    [SerializeField] private bool requestIOSCameraPermissionBeforeAR = true;
+
     [Header("Transition Overlay")]
     [SerializeField] private bool createTransitionOverlay = true;
     [SerializeField] private float transitionFadeSeconds = 0.25f;
@@ -117,6 +120,8 @@ public class HybridModeController : MonoBehaviour
     [SerializeField] private bool disableIndoorXROriginDuplicates = true;
     [Tooltip("While the outdoor environment stack is active, disable AR Session components under IndoorEnvironment to avoid two simultaneous AR sessions. When only indoor is active, indoor sessions stay enabled for a normal camera feed.")]
     [SerializeField] private bool disableIndoorARSessionDuplicates = true;
+    [Tooltip("Device-safe topology: chỉ một ARSession được enabled trong toàn scene.")]
+    [SerializeField] private bool enforceSingleARSessionAtRuntime = true;
 
     [Header("Signal sources (optional)")]
     [Tooltip("Optional. Legacy / hybrid scenes only. Outdoor GPSMapPlane flow uses SimpleGPSTracker + MapOrigin — leave empty. When assigned and Max Gps Accuracy Meters <= 0, threshold can inherit maxAcceptableAccuracy from this marker (else default 30 m).")]
@@ -200,6 +205,7 @@ public class HybridModeController : MonoBehaviour
 
     /// <summary>Runtime-only: outdoor XROrigin (or override root) reparented off <see cref="outdoorEnvironment"/>.</summary>
     private GameObject _detachedOutdoorXrRigRoot;
+    private ARSession _primaryARSession;
 
     private void Awake()
     {
@@ -215,6 +221,8 @@ public class HybridModeController : MonoBehaviour
         // Overlay) tự nhiên che AR view khi user chưa vào AR mode.
         currentMode = HybridMode.Outdoor;
         deactivatedARModeInAwake = false;
+        EnforceSingleARSessionTopology();
+        DetachOutdoorXrRigForSharedCamera();
     }
 
     private void Start()
@@ -233,6 +241,19 @@ public class HybridModeController : MonoBehaviour
             simpleGpsTracker = FindFirstObjectByType<SimpleGPSTracker>(FindObjectsInactive.Include);
             if (simpleGpsTracker != null && verboseLog)
                 Debug.Log("[HybridMode] Auto-resolved SimpleGPSTracker: " + simpleGpsTracker.name);
+        }
+        if (gpsMarker == null)
+        {
+            gpsMarker = FindFirstObjectByType<GPSMarker>(FindObjectsInactive.Exclude);
+        }
+
+        if (autoSwitchEnabled &&
+            FindFirstObjectByType<ARNav.Hybrid.HybridLocalizationManager>(
+                FindObjectsInactive.Include) != null)
+        {
+            autoSwitchEnabled = false;
+            Debug.Log(
+                "[HybridMode] HybridLocalizationManager là state authority; tắt legacy autoSwitch để tránh hai state machine tranh mode.");
         }
 
         CachePresentationReferences();
@@ -365,14 +386,48 @@ public class HybridModeController : MonoBehaviour
     {
         enableIndoorMode = true;
         SetRuntimeModeSwitcherVisible(true);
-        RequestModeWithPermissions(HybridMode.Indoor, "ForceIndoor");
+        var manager = FindFirstObjectByType<ARNav.Hybrid.HybridLocalizationManager>(
+            FindObjectsInactive.Include);
+        if (manager != null &&
+            manager.CurrentState != ARNav.Hybrid.HybridNavigationState.TransitionScanning &&
+            manager.CurrentState != ARNav.Hybrid.HybridNavigationState.Relocalization &&
+            manager.CurrentState != ARNav.Hybrid.HybridNavigationState.Indoor)
+        {
+            Debug.LogWarning(
+                "[HybridMode] Từ chối ForceIndoor mode-only vì HybridLocalizationManager đang giữ state Outdoor. " +
+                "Hãy đi qua EntranceAnchor/IndoorMapSwitcher để chọn map và calibration đúng.");
+            return;
+        }
+
+        ApplyIndoorFromCoordinator("ForceIndoor");
+    }
+
+    /// <summary>Mode-only entry used by HybridLocalizationManager through IndoorMapSwitcher.</summary>
+    public void ApplyIndoorFromCoordinator(string reason = "HybridLocalizationManager")
+    {
+        enableIndoorMode = true;
+        RequestModeWithPermissions(HybridMode.Indoor, reason);
     }
 
     [ContextMenu("Hybrid/Force Outdoor")]
     public void ForceOutdoor()
     {
         SetRuntimeModeSwitcherVisible(true);
-        RequestModeWithPermissions(HybridMode.Outdoor, "ForceOutdoor");
+        var manager = FindFirstObjectByType<ARNav.Hybrid.HybridLocalizationManager>(
+            FindObjectsInactive.Include);
+        if (manager != null && manager.CurrentState != ARNav.Hybrid.HybridNavigationState.Outdoor)
+        {
+            manager.RequestImmediateExit("manual Outdoor button");
+            return;
+        }
+
+        ApplyOutdoorFromCoordinator("ForceOutdoor");
+    }
+
+    /// <summary>Mode-only exit used by HybridLocalizationManager through IndoorMapSwitcher.</summary>
+    public void ApplyOutdoorFromCoordinator(string reason = "HybridLocalizationManager")
+    {
+        RequestModeWithPermissions(HybridMode.Outdoor, reason);
     }
 
     [ContextMenu("Hybrid/Apply Initial Mode")]
@@ -612,6 +667,21 @@ public class HybridModeController : MonoBehaviour
         }
 #endif
 
+#if UNITY_IOS && !UNITY_EDITOR
+        if (Application.isPlaying &&
+            requestIOSCameraPermissionBeforeAR &&
+            !Application.HasUserAuthorization(UserAuthorization.WebCam))
+        {
+            if (pendingPermissionRoutine != null)
+            {
+                StopCoroutine(pendingPermissionRoutine);
+            }
+
+            pendingPermissionRoutine = StartCoroutine(ApplyModeAfterIOSPermissions(nextMode, reason));
+            return;
+        }
+#endif
+
         runtimePermissionStatus = null;
         SetRuntimeModeButtonsInteractable(true);
         ApplyMode(nextMode, reason);
@@ -722,6 +792,31 @@ public class HybridModeController : MonoBehaviour
     }
 #endif
 
+#if UNITY_IOS && !UNITY_EDITOR
+    private IEnumerator ApplyModeAfterIOSPermissions(HybridMode nextMode, string reason)
+    {
+        SetRuntimeModeSwitcherVisible(true);
+        SetRuntimeModeButtonsInteractable(false);
+        runtimePermissionStatus = "Allow Camera";
+
+        yield return Application.RequestUserAuthorization(UserAuthorization.WebCam);
+
+        if (!Application.HasUserAuthorization(UserAuthorization.WebCam))
+        {
+            runtimePermissionStatus = "Camera denied";
+            Debug.LogError("[HybridMode] iOS camera permission is required before AR can render the device camera.");
+            SetRuntimeModeButtonsInteractable(true);
+            pendingPermissionRoutine = null;
+            yield break;
+        }
+
+        runtimePermissionStatus = null;
+        SetRuntimeModeButtonsInteractable(true);
+        pendingPermissionRoutine = null;
+        ApplyMode(nextMode, reason);
+    }
+#endif
+
     /// <summary>
     /// Freezes GPS-driven XR Origin updates while in Indoor mode so Multiset VPS can
     /// drive positioning without GPS interference. Resets one-shot alignment on return
@@ -732,6 +827,8 @@ public class HybridModeController : MonoBehaviour
         bool freeze = mode == HybridMode.Indoor;
         if (simpleGpsTracker != null)
             simpleGpsTracker.freezeXROriginUpdate = freeze;
+        if (gpsMarker != null)
+            gpsMarker.freezeXROriginUpdate = freeze;
         // Reset one-shot flag so camera re-aligns to GPS when returning outdoors
         if (!freeze && alignXROriginToUser != null)
             alignXROriginToUser.aligned = false;
@@ -845,12 +942,8 @@ public class HybridModeController : MonoBehaviour
 
         _detachedOutdoorXrRigRoot = detachTf.gameObject;
 
-        // Prevent TrackedPoseDriver from running before AR Session is active.
-        // SetEnvironmentActive will re-enable the rig when the mode is actually applied.
-        // Without this, XR Origin becomes activeInHierarchy=true immediately on detach
-        // (activeSelf was true under the inactive OutdoorEnvironment), causing a camera
-        // snap on the first frame AR Session comes online.
-        _detachedOutdoorXrRigRoot.SetActive(false);
+        // Đây là shared rig thật, phải sống xuyên suốt cả hai mode.
+        _detachedOutdoorXrRigRoot.SetActive(true);
 
         if (verboseLog)
         {
@@ -881,6 +974,12 @@ public class HybridModeController : MonoBehaviour
     /// </summary>
     private void ApplyIndoorArSessionDuplicatePolicy(bool outdoorStackActive)
     {
+        if (enforceSingleARSessionAtRuntime)
+        {
+            EnforceSingleARSessionTopology();
+            return;
+        }
+
         if (!disableIndoorARSessionDuplicates || indoorEnvironment == null)
         {
             return;
@@ -908,6 +1007,59 @@ public class HybridModeController : MonoBehaviour
                 Debug.Log(
                     $"[HybridMode] Indoor ARSession on '{session.gameObject.name}' -> enabled={enableIndoorSession} " +
                     $"(outdoor stack active={outdoorStackActive}).");
+            }
+        }
+    }
+
+    private void EnforceSingleARSessionTopology()
+    {
+        if (!enforceSingleARSessionAtRuntime)
+        {
+            return;
+        }
+
+        ARSession[] sessions = FindObjectsByType<ARSession>(
+            FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (sessions == null || sessions.Length == 0)
+        {
+            return;
+        }
+
+        if (_primaryARSession == null)
+        {
+            if (outdoorEnvironment != null)
+            {
+                ARSession[] outdoorSessions =
+                    outdoorEnvironment.GetComponentsInChildren<ARSession>(true);
+                if (outdoorSessions.Length > 0)
+                {
+                    _primaryARSession = outdoorSessions[0];
+                }
+            }
+
+            _primaryARSession ??= sessions[0];
+
+            // Session dùng chung không được chết khi một environment root bị tắt.
+            Transform sessionTransform = _primaryARSession.transform;
+            if (sessionTransform.parent != null)
+            {
+                sessionTransform.SetParent(null, true);
+            }
+            _primaryARSession.gameObject.SetActive(true);
+        }
+
+        foreach (ARSession session in sessions)
+        {
+            if (session == null) continue;
+            bool shouldEnable = ReferenceEquals(session, _primaryARSession);
+            if (session.enabled == shouldEnable) continue;
+
+            session.enabled = shouldEnable;
+            if (verboseLog)
+            {
+                Debug.Log(
+                    $"[HybridMode] ARSession '{session.gameObject.name}' enabled={shouldEnable} " +
+                    "(single-session topology).");
             }
         }
     }

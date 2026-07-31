@@ -25,7 +25,8 @@ namespace ARNav.Hybrid
 
         private void Awake()
         {
-            if (provider == null) provider = FindFirstObjectByType<MultisetPoseProvider>(FindObjectsInactive.Include);
+            if (provider == null || !provider.isActiveAndEnabled)
+                provider = MultisetPoseProvider.FindActiveProvider();
         }
 
         private void OnGUI()

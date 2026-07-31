@@ -92,7 +92,25 @@ public class IndoorMapSwitcher : MonoBehaviour
             return false;
         }
 
-        // 1. Tắt mọi building root khác, chỉ bật building target.
+        if (mapLocalizationManager == null)
+        {
+            Debug.LogError("[IndoorMapSwitcher] MapLocalizationManager chưa gán.");
+            return false;
+        }
+
+        if (forceIndoorModeOnSwitch && hybridModeController == null)
+        {
+            Debug.LogError("[IndoorMapSwitcher] HybridModeController chưa gán.");
+            return false;
+        }
+
+        // 1. Cập nhật localizer trước; nếu SDK contract không khớp thì không mutate scene/mode.
+        if (!ApplyMapsetToLocalizer(meta))
+        {
+            return false;
+        }
+
+        // 2. Tắt mọi building root khác, chỉ bật building target.
         foreach (BuildingSceneBindings.Binding binding in sceneBindings.Bindings)
         {
             if (binding == null || binding.buildingRoot == null)
@@ -108,22 +126,12 @@ public class IndoorMapSwitcher : MonoBehaviour
             }
         }
 
-        // 2. Cập nhật MapLocalizationManager: mapOrMapsetCode + localizationType.
-        if (mapLocalizationManager != null)
-        {
-            ApplyMapsetToLocalizer(meta);
-        }
-        else
-        {
-            Debug.LogWarning("[IndoorMapSwitcher] mapLocalizationManager chưa gán — không update mã VPS.");
-        }
-
-        // 3. Force Indoor mode.
+        // 3. Chuyển presentation sang Indoor.
         if (forceIndoorModeOnSwitch && hybridModeController != null)
         {
             if (hybridModeController.CurrentMode != HybridModeController.HybridMode.Indoor)
             {
-                hybridModeController.ForceIndoor();
+                hybridModeController.ApplyIndoorFromCoordinator($"EnterIndoor({target})");
 
                 if (verboseLog)
                 {
@@ -160,7 +168,7 @@ public class IndoorMapSwitcher : MonoBehaviour
         {
             if (hybridModeController.CurrentMode != HybridModeController.HybridMode.Outdoor)
             {
-                hybridModeController.ForceOutdoor();
+                hybridModeController.ApplyOutdoorFromCoordinator("IndoorMapSwitcher.ExitToOutdoor");
 
                 if (verboseLog)
                 {
@@ -168,6 +176,21 @@ public class IndoorMapSwitcher : MonoBehaviour
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Dùng bởi hybrid state machine sau khi map code và camera đã sẵn sàng.
+    /// Editor vẫn được bảo vệ bởi allowEditorSimulationLocalize.
+    /// </summary>
+    public void RequestLocalization()
+    {
+        if (mapLocalizationManager == null)
+        {
+            Debug.LogWarning("[IndoorMapSwitcher] Không thể localize: MapLocalizationManager chưa gán.");
+            return;
+        }
+
+        StartLocalizeFrameDelayed();
     }
 
     /// <summary>
@@ -202,12 +225,12 @@ public class IndoorMapSwitcher : MonoBehaviour
     // Reflection helpers — không tham chiếu trực tiếp class MultiSet SDK.
     // ---------------------------------------------------------------------
 
-    private void ApplyMapsetToLocalizer(BuildingRegistry.Entry entry)
+    private bool ApplyMapsetToLocalizer(BuildingRegistry.Entry entry)
     {
         if (mapLocalizationManager == null)
         {
-            Debug.LogWarning("[IndoorMapSwitcher] MapLocalizationManager is null. Skip ApplyMapsetToLocalizer.");
-            return;
+            Debug.LogError("[IndoorMapSwitcher] MapLocalizationManager is null.");
+            return false;
         }
 
         Type managerType = mapLocalizationManager.GetType();
@@ -216,7 +239,8 @@ public class IndoorMapSwitcher : MonoBehaviour
 
         if (!didSetCode)
         {
-            Debug.LogWarning("[IndoorMapSwitcher] Không tìm thấy field/property 'mapOrMapsetCode' trên MapLocalizationManager.");
+            Debug.LogError("[IndoorMapSwitcher] Không tìm thấy field/property 'mapOrMapsetCode' trên MapLocalizationManager.");
+            return false;
         }
 
         FieldInfo typeField = managerType.GetField("localizationType", ReflectionFlags);
@@ -227,15 +251,15 @@ public class IndoorMapSwitcher : MonoBehaviour
 
             try
             {
-                object enumValue = Enum.Parse(typeField.FieldType, enumName);
+                object enumValue = Enum.Parse(typeField.FieldType, enumName, ignoreCase: true);
                 typeField.SetValue(mapLocalizationManager, enumValue);
+                return true;
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[IndoorMapSwitcher] Không set được localizationType='{enumName}': {ex.Message}");
+                Debug.LogError($"[IndoorMapSwitcher] Không set được localizationType='{enumName}': {ex.Message}");
+                return false;
             }
-
-            return;
         }
 
         PropertyInfo typeProperty = managerType.GetProperty("localizationType", ReflectionFlags);
@@ -246,18 +270,19 @@ public class IndoorMapSwitcher : MonoBehaviour
 
             try
             {
-                object enumValue = Enum.Parse(typeProperty.PropertyType, enumName);
+                object enumValue = Enum.Parse(typeProperty.PropertyType, enumName, ignoreCase: true);
                 typeProperty.SetValue(mapLocalizationManager, enumValue);
+                return true;
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[IndoorMapSwitcher] Không set được localizationType property='{enumName}': {ex.Message}");
+                Debug.LogError($"[IndoorMapSwitcher] Không set được localizationType property='{enumName}': {ex.Message}");
+                return false;
             }
-
-            return;
         }
 
-        Debug.LogWarning("[IndoorMapSwitcher] Không tìm thấy field/property 'localizationType' hoặc nó không phải enum.");
+        Debug.LogError("[IndoorMapSwitcher] Không tìm thấy field/property 'localizationType' hoặc nó không phải enum.");
+        return false;
     }
 
     private bool TrySetFieldOrProperty(Type targetType, string memberName, object value)
@@ -298,6 +323,23 @@ public class IndoorMapSwitcher : MonoBehaviour
 
     private IEnumerator TriggerLocalizeFrameDelayed()
     {
+        if (forceIndoorModeOnSwitch && hybridModeController != null)
+        {
+            float deadline = Time.unscaledTime + 15f;
+            while (hybridModeController.CurrentMode != HybridModeController.HybridMode.Indoor &&
+                   Time.unscaledTime < deadline)
+            {
+                yield return null;
+            }
+
+            if (hybridModeController.CurrentMode != HybridModeController.HybridMode.Indoor)
+            {
+                _localizeCoroutine = null;
+                Debug.LogWarning("[IndoorMapSwitcher] Hết thời gian chờ Indoor/camera permission; huỷ LocalizeFrame.");
+                yield break;
+            }
+        }
+
         if (localizeDelayAfterSwitch > 0f)
         {
             yield return new WaitForSeconds(localizeDelayAfterSwitch);

@@ -143,10 +143,10 @@ namespace ARNav.Hybrid
             }
 
             // 1. GPSMarker pipeline (đầy đủ filter/smooth/jump-reject sẵn).
-            if (gpsMarker != null && arCamera != null && gpsMarker.HasRecentGoodFix)
+            if (gpsMarker != null && gpsMarker.HasRecentGoodFix && gpsMarker.HasGpsWorldPosition)
             {
                 ActiveSource = Source.GpsMarker;
-                UserCampusPosition = arCamera.transform.position;
+                UserCampusPosition = gpsMarker.GpsWorldPosition;
                 AccuracyMeters = gpsMarker.LastHorizontalAccuracyMeters;
                 LastFixRejectedAsJump = gpsMarker.LastFixRejectedAsJump;
                 HasFreshFix = AccuracyMeters > 0f

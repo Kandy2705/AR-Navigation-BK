@@ -41,7 +41,7 @@ namespace ARNav.Hybrid
         {
             _manager ??= FindFirstObjectByType<HybridLocalizationManager>(FindObjectsInactive.Include);
             _outdoor ??= FindFirstObjectByType<OutdoorPoseProvider>(FindObjectsInactive.Include);
-            _indoor ??= FindFirstObjectByType<MultisetPoseProvider>(FindObjectsInactive.Include);
+            _indoor ??= MultisetPoseProvider.FindActiveProvider();
             _gate ??= FindFirstObjectByType<LocalizationQualityGate>(FindObjectsInactive.Include);
             _route ??= FindFirstObjectByType<HybridRouteCoordinator>(FindObjectsInactive.Include);
         }

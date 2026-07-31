@@ -12,6 +12,51 @@ public class MapOrigin : MonoBehaviour
     public struct ECEF { public double x, y, z; }
     public struct ENU { public double e, n, u; }
 
+    /// <summary>
+    /// Chọn MapOrigin outdoor một cách xác định. HybridGPSMap còn chứa một RefPoint
+    /// legacy; FindFirstObjectByType có thể lấy nhầm origin cách campus vài kilomet.
+    /// </summary>
+    public static MapOrigin FindPrimary()
+    {
+        MapOrigin[] origins = Object.FindObjectsByType<MapOrigin>(
+            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        if (origins.Length == 0) return null;
+        if (origins.Length == 1) return origins[0];
+
+        GPSMarker marker = Object.FindFirstObjectByType<GPSMarker>(
+            FindObjectsInactive.Exclude);
+        if (marker != null)
+        {
+            MapOrigin best = null;
+            double bestMetersSquared = double.MaxValue;
+            foreach (MapOrigin origin in origins)
+            {
+                if (origin == null) continue;
+                double northMeters = (origin.originLat - marker.refLat) * 111320.0;
+                double eastMeters = (origin.originLon - marker.refLon) * 111320.0 *
+                                    System.Math.Cos(marker.refLat * System.Math.PI / 180.0);
+                double sqr = northMeters * northMeters + eastMeters * eastMeters;
+                if (sqr >= bestMetersSquared) continue;
+                bestMetersSquared = sqr;
+                best = origin;
+            }
+            if (best != null) return best;
+        }
+
+        foreach (MapOrigin origin in origins)
+        {
+            for (Transform t = origin.transform; t != null; t = t.parent)
+            {
+                if (t.name == "BKMAP" || t.name == "OutdoorEnvironment")
+                    return origin;
+            }
+        }
+
+        Debug.LogWarning(
+            $"[MapOrigin] Có {origins.Length} MapOrigin nhưng không xác định được primary; dùng '{origins[0].name}'.");
+        return origins[0];
+    }
+
     public Vector3 GetUnityPositionFromGPS(double targetLat, double targetLon, double targetAlt = 0)
     {
         ECEF refECEF = LatLonAltToECEF(originLat, originLon, originAlt);

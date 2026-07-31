@@ -45,6 +45,12 @@ public class GPSMarker : MonoBehaviour
 
     public bool aligned = false;
 
+    /// <summary>
+    /// HybridModeController bật cờ này trong Indoor để GPS vẫn tiếp tục lấy fix
+    /// nhưng không kéo shared XR Origin khỏi pose VPS.
+    /// </summary>
+    [HideInInspector] public bool freezeXROriginUpdate;
+
     private Vector3 lastUserENU;
     public float alignThreshold = 2.0f;
     public float alignStrength = 2.0f;
@@ -72,6 +78,8 @@ public class GPSMarker : MonoBehaviour
 
     Vector3 lastGpsMapWorldPosition;
     bool lastGpsMapWorldPositionValid;
+    public bool HasGpsWorldPosition => lastGpsMapWorldPositionValid;
+    public Vector3 GpsWorldPosition => lastGpsMapWorldPosition;
 
     [Header("Transform diagnostic logs")]
     [Tooltip("Throttle Debug.Log output for poses (world/local position + euler). Use to trace map vs XR mismatch.")]
@@ -448,6 +456,7 @@ public class GPSMarker : MonoBehaviour
     /// <summary>Moves XR Origin XZ to the GPS-derived world map position (single authority). UserIcon follows via hierarchy when parented under xrOrigin.</summary>
     void ApplyGpsWorldXZToXROrigin(Vector3 worldMapPosition)
     {
+        if (freezeXROriginUpdate) return;
         if (xrOrigin == null) return;
         if (disableXrAlignmentWhenEditorMockDriverPresent && GetComponent<EditorUserIconMockRigDriver>() != null) return;
 
@@ -652,9 +661,12 @@ public class GPSMarker : MonoBehaviour
 
                     if (UserIconIsUnderXROrigin())
                     {
-                        // Keep XR height stable; only move in XZ toward the fallback.
-                        xrOrigin.transform.position = new Vector3(fallbackWorldPos.x, xrOrigin.transform.position.y, fallbackWorldPos.z);
-                        SyncUserIconUnderXROrigin();
+                        if (!freezeXROriginUpdate)
+                        {
+                            // Keep XR height stable; only move in XZ toward the fallback.
+                            xrOrigin.transform.position = new Vector3(fallbackWorldPos.x, xrOrigin.transform.position.y, fallbackWorldPos.z);
+                            SyncUserIconUnderXROrigin();
+                        }
                     }
                     else
                     {
@@ -667,8 +679,11 @@ public class GPSMarker : MonoBehaviour
                     Vector3 cam = mainCamera.transform.position;
                     if (UserIconIsUnderXROrigin())
                     {
-                        xrOrigin.transform.position = new Vector3(cam.x, xrOrigin.transform.position.y, cam.z);
-                        SyncUserIconUnderXROrigin();
+                        if (!freezeXROriginUpdate)
+                        {
+                            xrOrigin.transform.position = new Vector3(cam.x, xrOrigin.transform.position.y, cam.z);
+                            SyncUserIconUnderXROrigin();
+                        }
                     }
                     else
                     {

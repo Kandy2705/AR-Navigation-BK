@@ -28,7 +28,7 @@ namespace ARNav.Hybrid
         private void Resolve()
         {
             if (poseProvider == null)
-                poseProvider = FindFirstObjectByType<MultisetPoseProvider>(FindObjectsInactive.Include);
+                poseProvider = MultisetPoseProvider.FindActiveProvider();
         }
 
         private void LateUpdate()

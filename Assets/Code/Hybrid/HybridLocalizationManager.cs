@@ -56,6 +56,12 @@ namespace ARNav.Hybrid
 
         [Tooltip("Relocalization → Uncertain nếu không recover sau X giây.")]
         [SerializeField] private float relocalizationGiveUpSeconds = 60f;
+        [SerializeField] private float relocalizationRetrySeconds = 5f;
+
+        [Header("Automatic exit handover")]
+        [SerializeField] private bool automaticExitWhenVpsLostNearDoor = true;
+        [SerializeField] private float automaticExitOutdoorStableSeconds = 4f;
+        [SerializeField] private float automaticExitRadiusMultiplier = 2f;
 
         [Header("Tick")]
         [SerializeField] private float evaluationIntervalSeconds = 0.1f;
@@ -105,6 +111,17 @@ namespace ARNav.Hybrid
             }
         }
 
+        /// <summary>Manual override từ UI: đưa cả navigation state và presentation về Outdoor.</summary>
+        public void RequestImmediateExit(string reason = "manual outdoor override")
+        {
+            SafeExitToOutdoor();
+            indoorProvider?.SetCurrentBuilding(BuildingId.None, "");
+            qualityGate?.ResetCounters();
+            ActiveBuilding = BuildingId.None;
+            ActiveEntrance = null;
+            ChangeState(HybridNavigationState.Outdoor, reason);
+        }
+
         public void ForceState(HybridNavigationState state, string reason = "forced")
         {
             ChangeState(state, reason);
@@ -118,6 +135,10 @@ namespace ARNav.Hybrid
         private float _stateEnterTime;
         private float _scanStartTime;
         private float _relocStartTime;
+        private float _outdoorReadyNearExitSince = -1f;
+        private float _lastCalibrationWarningTime = -999f;
+        private float _nextRelocalizationAttemptTime;
+        private float _nextScanningAttemptTime;
 
         private void OnEnable()
         {
@@ -141,7 +162,8 @@ namespace ARNav.Hybrid
         private void ResolveReferences(bool force)
         {
             if (force || outdoorProvider == null) outdoorProvider ??= FindFirstObjectByType<OutdoorPoseProvider>(FindObjectsInactive.Include);
-            if (force || indoorProvider == null) indoorProvider ??= FindFirstObjectByType<MultisetPoseProvider>(FindObjectsInactive.Include);
+            if (force || indoorProvider == null || !indoorProvider.isActiveAndEnabled)
+                indoorProvider = MultisetPoseProvider.FindActiveProvider();
             if (force || qualityGate == null) qualityGate ??= FindFirstObjectByType<LocalizationQualityGate>(FindObjectsInactive.Include);
             if (force || indoorMapSwitcher == null) indoorMapSwitcher ??= FindFirstObjectByType<IndoorMapSwitcher>(FindObjectsInactive.Include);
             if (force || hybridModeController == null) hybridModeController ??= FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
@@ -306,22 +328,42 @@ namespace ARNav.Hybrid
                 try
                 {
                     bool ok = indoorMapSwitcher.EnterIndoor(ActiveBuilding);
-                    if (!ok && verboseLog) Debug.LogWarning($"[HybridLocalizationManager] EnterIndoor({ActiveBuilding}) trả false.");
+                    if (!ok)
+                    {
+                        Debug.LogError(
+                            $"[HybridLocalizationManager] Không thể vào {ActiveBuilding}: thiếu registry/scene binding/map code. " +
+                            "Giữ Outdoor, không chạy VPS gate bằng dữ liệu sai.");
+                        indoorProvider?.SetCurrentBuilding(BuildingId.None, "");
+                        ActiveBuilding = BuildingId.None;
+                        ChangeState(HybridNavigationState.Outdoor, "indoor map unavailable");
+                        return;
+                    }
+
+                    indoorMapSwitcher.RequestLocalization();
+                    _nextScanningAttemptTime =
+                        Time.time + Mathf.Max(1f, relocalizationRetrySeconds);
                 }
                 catch (System.Exception ex)
                 {
                     // SDK MultiSet LocalizeFrame có thể NRE trong Editor khi không có simulation data
-                    // hoặc khi mapMeshHandler/cameraCollider chưa sẵn sàng. Không được phá state machine.
-                    Debug.LogWarning($"[HybridLocalizationManager] IndoorMapSwitcher.EnterIndoor({ActiveBuilding}) ném exception (SDK side, bỏ qua): {ex.GetType().Name}: {ex.Message}");
+                    // hoặc khi mapMeshHandler/cameraCollider chưa sẵn sàng. Fail closed để
+                    // state machine không công bố indoor với map/presentation chưa đồng bộ.
+                    Debug.LogWarning($"[HybridLocalizationManager] IndoorMapSwitcher.EnterIndoor({ActiveBuilding}) ném exception: {ex.GetType().Name}: {ex.Message}");
+                    indoorProvider?.ResetLocalizationSession();
+                    indoorProvider?.SetCurrentBuilding(BuildingId.None, "");
+                    ActiveBuilding = BuildingId.None;
+                    ChangeState(HybridNavigationState.Outdoor, "indoor switch exception");
+                    return;
                 }
             }
-            else if (hybridModeController != null)
+            else
             {
-                try { hybridModeController.ForceIndoor(); }
-                catch (System.Exception ex)
-                {
-                    Debug.LogWarning($"[HybridLocalizationManager] ForceIndoor ném exception: {ex.GetType().Name}: {ex.Message}");
-                }
+                Debug.LogError(
+                    "[HybridLocalizationManager] Thiếu IndoorMapSwitcher; không thể chọn map VPS an toàn.");
+                indoorProvider?.SetCurrentBuilding(BuildingId.None, "");
+                ActiveBuilding = BuildingId.None;
+                ChangeState(HybridNavigationState.Outdoor, "missing indoor map switcher");
+                return;
             }
 
             _scanStartTime = Time.time;
@@ -333,13 +375,45 @@ namespace ARNav.Hybrid
             if (qualityGate == null) return;
             if (qualityGate.IndoorReady)
             {
+                EntranceAnchor activeEntrance = ActiveEntrance;
+                if (activeEntrance == null)
+                {
+                    BeginRelocalization("localized without active entrance");
+                    return;
+                }
+
+                Vector3 handoverPosition =
+                    outdoorProvider != null && outdoorProvider.HasFreshFix
+                        ? outdoorProvider.UserCampusPosition
+                        : activeEntrance.CampusWorldPosition;
+
+                if (indoorProvider == null ||
+                    !indoorProvider.EnsureHandoverCalibration(activeEntrance, handoverPosition))
+                {
+                    if (Time.time - _lastCalibrationWarningTime >= 3f)
+                    {
+                        _lastCalibrationWarningTime = Time.time;
+                        Debug.LogWarning(
+                            $"[HybridLocalizationManager] VPS đã localize nhưng chưa có calibration cho " +
+                            $"{ActiveBuilding}/{activeEntrance.FloorId}. Chưa công bố Indoor.");
+                    }
+                    return;
+                }
+
                 ChangeState(HybridNavigationState.Indoor, "VPS localized + stable");
                 return;
             }
+
+            if (Time.time >= _nextScanningAttemptTime)
+            {
+                _nextScanningAttemptTime =
+                    Time.time + Mathf.Max(1f, relocalizationRetrySeconds);
+                indoorMapSwitcher?.RequestLocalization();
+            }
+
             if (Time.time - _scanStartTime > scanTimeoutSeconds)
             {
-                _relocStartTime = Time.time;
-                ChangeState(HybridNavigationState.Relocalization, $"scan timeout {scanTimeoutSeconds:0}s");
+                BeginRelocalization($"scan timeout {scanTimeoutSeconds:0}s");
             }
         }
 
@@ -347,8 +421,7 @@ namespace ARNav.Hybrid
         {
             if (qualityGate != null && qualityGate.IndoorLost)
             {
-                _relocStartTime = Time.time;
-                ChangeState(HybridNavigationState.Relocalization, qualityGate.LastIndoorRejectReason);
+                BeginRelocalization(qualityGate.LastIndoorRejectReason);
             }
         }
 
@@ -356,9 +429,32 @@ namespace ARNav.Hybrid
         {
             if (qualityGate != null && qualityGate.IndoorReady)
             {
+                _outdoorReadyNearExitSince = -1f;
                 ChangeState(HybridNavigationState.Indoor, "recovered VPS");
                 return;
             }
+
+            if (automaticExitWhenVpsLostNearDoor && IsOutdoorReadyNearActiveExit())
+            {
+                if (_outdoorReadyNearExitSince < 0f) _outdoorReadyNearExitSince = Time.time;
+                if (Time.time - _outdoorReadyNearExitSince >= automaticExitOutdoorStableSeconds)
+                {
+                    RequestImmediateExit("VPS lost + GPS stable near exit");
+                    return;
+                }
+            }
+            else
+            {
+                _outdoorReadyNearExitSince = -1f;
+            }
+
+            if (Time.time >= _nextRelocalizationAttemptTime)
+            {
+                _nextRelocalizationAttemptTime =
+                    Time.time + Mathf.Max(1f, relocalizationRetrySeconds);
+                indoorMapSwitcher?.RequestLocalization();
+            }
+
             if (Time.time - _relocStartTime > relocalizationGiveUpSeconds)
             {
                 ChangeState(HybridNavigationState.Uncertain, "relocalization gave up");
@@ -371,9 +467,37 @@ namespace ARNav.Hybrid
             {
                 SafeExitToOutdoor();
                 if (qualityGate != null) qualityGate.ResetCounters();
+                indoorProvider?.SetCurrentBuilding(BuildingId.None, "");
                 ActiveBuilding = BuildingId.None;
                 ChangeState(HybridNavigationState.Outdoor, "GPS stable at exit");
             }
+        }
+
+        private bool IsOutdoorReadyNearActiveExit()
+        {
+            if (qualityGate == null || !qualityGate.OutdoorReady ||
+                outdoorProvider == null || !outdoorProvider.HasFreshFix ||
+                ActiveEntrance == null || !ActiveEntrance.CanExit)
+            {
+                return false;
+            }
+
+            float radius = ActiveEntrance.TriggerRadiusMeters *
+                           Mathf.Max(1f, automaticExitRadiusMultiplier);
+            float distance = HorizontalDistance(
+                outdoorProvider.UserCampusPosition,
+                ActiveEntrance.CampusWorldPosition);
+            return distance <= radius;
+        }
+
+        private void BeginRelocalization(string reason)
+        {
+            _relocStartTime = Time.time;
+            _nextRelocalizationAttemptTime = Time.time;
+            ChangeState(HybridNavigationState.Relocalization, reason);
+            indoorMapSwitcher?.RequestLocalization();
+            _nextRelocalizationAttemptTime =
+                Time.time + Mathf.Max(1f, relocalizationRetrySeconds);
         }
 
         private void EvalUncertain()
@@ -387,6 +511,8 @@ namespace ARNav.Hybrid
             else if (qualityGate.OutdoorReady)
             {
                 SafeExitToOutdoor();
+                indoorProvider?.SetCurrentBuilding(BuildingId.None, "");
+                qualityGate.ResetCounters();
                 ActiveBuilding = BuildingId.None;
                 ChangeState(HybridNavigationState.Outdoor, "outdoor returned from Uncertain");
             }
@@ -397,7 +523,8 @@ namespace ARNav.Hybrid
             try
             {
                 if (indoorMapSwitcher != null) indoorMapSwitcher.ExitToOutdoor();
-                else if (hybridModeController != null) hybridModeController.ForceOutdoor();
+                else if (hybridModeController != null)
+                    hybridModeController.ApplyOutdoorFromCoordinator("HybridLocalizationManager.SafeExitToOutdoor");
             }
             catch (System.Exception ex)
             {

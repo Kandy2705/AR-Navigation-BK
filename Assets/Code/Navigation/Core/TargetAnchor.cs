@@ -137,7 +137,7 @@ public class TargetAnchor : MonoBehaviour
         if (overlayPresent)
         {
             // Tính vị trí nhưng giữ ẩn — Overlay sẽ gọi Recalculate() để reveal
-            MapOrigin mapOrigin = Object.FindFirstObjectByType<MapOrigin>();
+            MapOrigin mapOrigin = MapOrigin.FindPrimary();
             if (mapOrigin != null)
             {
                 Vector3 gpsPos = mapOrigin.GetUnityPositionFromGPS(targetLat, targetLon);
@@ -159,7 +159,7 @@ public class TargetAnchor : MonoBehaviour
     [ContextMenu("Recalculate Position from GPS")]
     public void Recalculate()
     {
-        MapOrigin mapOrigin = Object.FindFirstObjectByType<MapOrigin>();
+        MapOrigin mapOrigin = MapOrigin.FindPrimary();
         if (mapOrigin == null)
         {
             Debug.LogError($"[TargetAnchor] '{gameObject.name}': Không tìm thấy MapOrigin trong scene.");

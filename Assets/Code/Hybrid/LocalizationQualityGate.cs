@@ -118,7 +118,8 @@ namespace ARNav.Hybrid
         private void OnEnable()
         {
             if (outdoorProvider == null) outdoorProvider = FindFirstObjectByType<OutdoorPoseProvider>(FindObjectsInactive.Include);
-            if (indoorProvider == null) indoorProvider = FindFirstObjectByType<MultisetPoseProvider>(FindObjectsInactive.Include);
+            if (indoorProvider == null || !indoorProvider.isActiveAndEnabled)
+                indoorProvider = MultisetPoseProvider.FindActiveProvider();
             ResetCounters();
         }
 
@@ -184,6 +185,9 @@ namespace ARNav.Hybrid
 
         private void EvaluateIndoor()
         {
+            if (indoorProvider == null || !indoorProvider.isActiveAndEnabled)
+                indoorProvider = MultisetPoseProvider.FindActiveProvider();
+
             if (indoorProvider == null)
             {
                 IndoorReady = false;

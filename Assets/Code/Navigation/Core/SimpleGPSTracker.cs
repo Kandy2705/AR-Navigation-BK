@@ -115,8 +115,13 @@ public class SimpleGPSTracker : MonoBehaviour
     /// </summary>
     [HideInInspector] public bool freezeXROriginUpdate = false;
 
+    [Tooltip("Nếu GPSMarker legacy đang điều khiển cùng XR Origin, SimpleGPSTracker chỉ đọc GPS và không ghi transform.")]
+    [SerializeField] private bool yieldRigControlToLegacyGpsMarker = true;
+    private bool _legacyGpsMarkerOwnsRig;
+    private bool RigWritesSuppressed => freezeXROriginUpdate || _legacyGpsMarkerOwnsRig;
+
     // --- GPS state ---
-    private MapOrigin mapOrigin;
+    [SerializeField] private MapOrigin mapOrigin;
     private bool isGpsReady;
     private double currentLatitude;
     private double currentLongitude;
@@ -311,11 +316,25 @@ public class SimpleGPSTracker : MonoBehaviour
 
     System.Collections.IEnumerator Start()
     {
-        mapOrigin = Object.FindFirstObjectByType<MapOrigin>();
+        mapOrigin ??= MapOrigin.FindPrimary();
         if (mapOrigin == null)
         {
             Debug.LogError("[SimpleGPSTracker] MapOrigin not found in scene.");
             yield break;
+        }
+
+        if (yieldRigControlToLegacyGpsMarker)
+        {
+            foreach (GPSMarker marker in Object.FindObjectsByType<GPSMarker>(
+                         FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            {
+                if (marker == null || marker.xrOrigin == null) continue;
+                if (marker.xrOrigin.transform != xrOrigin) continue;
+                _legacyGpsMarkerOwnsRig = true;
+                Debug.Log(
+                    "[SimpleGPSTracker] GPSMarker đang sở hữu XR Origin; tracker chỉ cung cấp dữ liệu, không ghi transform.");
+                break;
+            }
         }
 
         if (persistCalibrationOffset)
@@ -403,7 +422,7 @@ public class SimpleGPSTracker : MonoBehaviour
         }
 
         // ── RENDER LAYER: runs every frame ─────────────────────────────────────
-        if (!_hasGpsTarget || freezeXROriginUpdate) return;
+        if (!_hasGpsTarget || RigWritesSuppressed) return;
 
         // _activeSmoothSpeed = smoothSpeed bình thường, hoặc postCalibrationSmoothSpeed (chậm)
         // sau khi calibrate tại anchor → VIO dẫn dắt, GPS chỉ correct drift rất chậm.
@@ -429,7 +448,7 @@ public class SimpleGPSTracker : MonoBehaviour
         // XR Origin được đặt theo GPS, nhưng camera là con của Origin + ARCore (offset local).
         // Nếu không chỉnh, điểm nhìn trên mặt phẳng ENU lệch mỗi phiên → Des cố định GPS trông “nhảy chỗ”.
         // Chỉ chạy một lần sau khi đã có fix đầu và đã xoay Bắc, để khớp camera XZ với _smoothedPosition.
-        if (!freezeXROriginUpdate && _pendingInitialCameraGpsAlign && _hasFirstValidFix && _isNorthAligned && xrOrigin != null && arCamera != null)
+        if (!RigWritesSuppressed && _pendingInitialCameraGpsAlign && _hasFirstValidFix && _isNorthAligned && xrOrigin != null && arCamera != null)
         {
             Vector3 display = SmoothedWorldPosition;
             Vector3 cam = arCamera.transform.position;
@@ -443,7 +462,7 @@ public class SimpleGPSTracker : MonoBehaviour
             _pendingInitialCameraGpsAlign = false;
         }
 
-        if (!freezeXROriginUpdate)
+        if (!RigWritesSuppressed)
             EnforceLockedNorthYawIfConfigured();
     }
 
