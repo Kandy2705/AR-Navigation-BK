@@ -127,6 +127,8 @@ public class SimpleGPSTracker : MonoBehaviour
     private double currentLongitude;
     private float currentHorizontalAccuracy = -1f;
     private double lastTimestamp = -1;
+    private float _lastAcceptedFixUnscaledTime = -999f;
+    private double _lastAcceptedFixTimestamp = -1d;
 
     // --- Calibration offset (systematic GPS bias correction) ---
     private double _offsetLat;
@@ -176,6 +178,14 @@ public class SimpleGPSTracker : MonoBehaviour
     public double CurrentLatitude  => currentLatitude;
     public double CurrentLongitude => currentLongitude;
     public float  CurrentHorizontalAccuracy => currentHorizontalAccuracy;
+    public double LastFixTimestamp => _lastAcceptedFixTimestamp;
+    public float FixAgeSeconds => _lastAcceptedFixUnscaledTime < -100f
+        ? float.PositiveInfinity
+        : Mathf.Max(0f, Time.unscaledTime - _lastAcceptedFixUnscaledTime);
+    public bool HasHeading => _isNorthAligned && arCamera != null;
+    public float HeadingDegrees => arCamera != null
+        ? arCamera.transform.eulerAngles.y
+        : NorthCorrectionDeg;
     public LocationServiceStatus CurrentStatus => Input.location.status;
     /// <summary>True nếu app đang chạy ở chế độ VIO (sau snap với useVioModeFromStart = true).</summary>
     public bool IsVioModeActive => _hasCalibratedAtAnchor && useVioModeFromStart;
@@ -547,6 +557,7 @@ public class SimpleGPSTracker : MonoBehaviour
         {
             _gpsTargetPosition = mapPos;
         }
+        MarkFixAccepted(data.timestamp);
     }
 
     /// <summary>
@@ -671,11 +682,18 @@ public class SimpleGPSTracker : MonoBehaviour
         _collectingFirstFixAverage = false;
         _firstFixSamplePositions.Clear();
         ClearSessionRefinementOffset();
+        MarkFixAccepted(lastTimestamp);
 
         // MA GIÁO: vào VIO mode ngay → chuyển động mượt như Editor (VIO dẫn, GPS correct chậm).
         // Không set khi đã snap anchor (giữ smoothSpeed đã có từ snap).
         if (useVioModeFromStart && !_hasCalibratedAtAnchor)
             _activeSmoothSpeed = postCalibrationSmoothSpeed;
+    }
+
+    private void MarkFixAccepted(double timestamp)
+    {
+        _lastAcceptedFixTimestamp = timestamp;
+        _lastAcceptedFixUnscaledTime = Time.unscaledTime;
     }
 
     private void LogFirstFix(Vector3 rawPos)
@@ -941,6 +959,8 @@ public class SimpleGPSTracker : MonoBehaviour
         _firstFixSamplePositions.Clear();
         ClearSessionRefinementOffset();
         lastTimestamp = -1;
+        _lastAcceptedFixTimestamp = -1d;
+        _lastAcceptedFixUnscaledTime = -999f;
 
         // Tắt VIO mode — quay về GPS thuần (reset calibration nghĩa là bỏ anchor).
         _activeSmoothSpeed = smoothSpeed;

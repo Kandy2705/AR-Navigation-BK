@@ -56,8 +56,15 @@ namespace ARNav.Hybrid
         public Vector3 UserCampusPosition { get; private set; }
         public float AccuracyMeters { get; private set; } = float.PositiveInfinity;
         public bool LastFixRejectedAsJump { get; private set; }
+        public float LastRejectedJumpMeters { get; private set; } = -1f;
         public bool HasFreshFix { get; private set; }
         public Source ActiveSource { get; private set; } = Source.None;
+        public double Latitude { get; private set; }
+        public double Longitude { get; private set; }
+        public double LastFixTimestamp { get; private set; } = -1d;
+        public float FixAgeSeconds { get; private set; } = float.PositiveInfinity;
+        public bool HasHeading { get; private set; }
+        public float HeadingDegrees { get; private set; }
 
         // Mock override (test/editor). Khi <see cref="_useMock"/> true, các nguồn thật bị bỏ qua.
         private bool _useMock;
@@ -138,6 +145,12 @@ namespace ARNav.Hybrid
                 UserCampusPosition = _mockPosition;
                 AccuracyMeters = _mockAccuracy;
                 LastFixRejectedAsJump = false;
+                LastRejectedJumpMeters = -1f;
+                LastFixTimestamp = Time.timeAsDouble;
+                FixAgeSeconds = 0f;
+                Transform headingTransform = arCamera != null ? arCamera.transform : xrOriginTransform;
+                HasHeading = headingTransform != null;
+                HeadingDegrees = HasHeading ? headingTransform.eulerAngles.y : 0f;
                 HasFreshFix = true;
                 return;
             }
@@ -149,6 +162,13 @@ namespace ARNav.Hybrid
                 UserCampusPosition = gpsMarker.GpsWorldPosition;
                 AccuracyMeters = gpsMarker.LastHorizontalAccuracyMeters;
                 LastFixRejectedAsJump = gpsMarker.LastFixRejectedAsJump;
+                LastRejectedJumpMeters = gpsMarker.LastRejectedJumpMeters;
+                Latitude = gpsMarker.Latitude;
+                Longitude = gpsMarker.Longitude;
+                LastFixTimestamp = gpsMarker.LastFixTimestamp;
+                FixAgeSeconds = gpsMarker.FixAgeSeconds;
+                HasHeading = gpsMarker.HasHeading;
+                HeadingDegrees = gpsMarker.HeadingDegrees;
                 HasFreshFix = AccuracyMeters > 0f
                               && AccuracyMeters <= maxAcceptableAccuracyMeters
                               && !LastFixRejectedAsJump;
@@ -162,6 +182,13 @@ namespace ARNav.Hybrid
                 UserCampusPosition = simpleGpsTracker.SmoothedWorldPosition;
                 AccuracyMeters = simpleGpsTracker.CurrentHorizontalAccuracy;
                 LastFixRejectedAsJump = simpleGpsTracker.LastFixRejectedAsJump;
+                LastRejectedJumpMeters = simpleGpsTracker.LastRejectedJumpMeters;
+                Latitude = simpleGpsTracker.CurrentLatitude;
+                Longitude = simpleGpsTracker.CurrentLongitude;
+                LastFixTimestamp = simpleGpsTracker.LastFixTimestamp;
+                FixAgeSeconds = simpleGpsTracker.FixAgeSeconds;
+                HasHeading = simpleGpsTracker.HasHeading;
+                HeadingDegrees = simpleGpsTracker.HeadingDegrees;
                 HasFreshFix = AccuracyMeters > 0f
                               && AccuracyMeters <= maxAcceptableAccuracyMeters
                               && !LastFixRejectedAsJump;
@@ -182,6 +209,11 @@ namespace ARNav.Hybrid
                     UserCampusPosition = src.position;
                     AccuracyMeters = 0f;
                     LastFixRejectedAsJump = false;
+                    LastRejectedJumpMeters = -1f;
+                    LastFixTimestamp = Time.timeAsDouble;
+                    FixAgeSeconds = 0f;
+                    HasHeading = true;
+                    HeadingDegrees = src.eulerAngles.y;
                     HasFreshFix = editorAlwaysFresh;
                     return;
                 }
@@ -191,6 +223,8 @@ namespace ARNav.Hybrid
             ActiveSource = Source.None;
             HasFreshFix = false;
             AccuracyMeters = float.PositiveInfinity;
+            FixAgeSeconds = float.PositiveInfinity;
+            HasHeading = false;
         }
     }
 }

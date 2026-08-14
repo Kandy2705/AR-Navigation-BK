@@ -34,6 +34,8 @@ namespace ARNav.Hybrid
             public Quaternion CampusRotation;
             public string MapId;
             public float Confidence;
+            public bool ConfidenceAvailable;
+            public bool MapIdAvailable;
             public double Timestamp;
             public PoseSource Source;
         }
@@ -94,6 +96,9 @@ namespace ARNav.Hybrid
 
         public PoseReading Last => _last;
         public bool HasVerifiedLocalization => _hasVerifiedLocalization;
+        public float LastPoseAgeSeconds => _last.Source == PoseSource.None
+            ? float.PositiveInfinity
+            : Mathf.Max(0f, (float)(Time.timeAsDouble - _last.Timestamp));
         public bool HasFreshPose
         {
             get
@@ -142,8 +147,11 @@ namespace ARNav.Hybrid
         private float _nextFallbackTime;
         private float _nextDiscoveryTime;
         private bool _hasVerifiedLocalization;
-        private float _verifiedConfidence = 1f;
+        private float _verifiedConfidence;
+        private bool _verifiedConfidenceAvailable;
         private string _verifiedMapId;
+        private bool _verifiedMapIdAvailable;
+        private FieldInfo _localizedMapIdField;
 
         private MonoBehaviour _subscribedManager;
         private FieldInfo _subscribedEventField;
@@ -181,8 +189,10 @@ namespace ARNav.Hybrid
         public void ResetLocalizationSession()
         {
             _hasVerifiedLocalization = false;
-            _verifiedConfidence = 1f;
+            _verifiedConfidence = 0f;
+            _verifiedConfidenceAvailable = false;
             _verifiedMapId = null;
+            _verifiedMapIdAvailable = false;
             _last = default;
         }
 
@@ -333,6 +343,8 @@ namespace ARNav.Hybrid
                 CampusRotation = campusRot,
                 MapId = _verifiedMapId,
                 Confidence = _verifiedConfidence,
+                ConfidenceAvailable = _verifiedConfidenceAvailable,
+                MapIdAvailable = _verifiedMapIdAvailable,
                 Timestamp = Time.timeAsDouble,
                 Source = PoseSource.MapSpaceFallback,
             };
@@ -387,6 +399,9 @@ namespace ARNav.Hybrid
 
             // Cache response field (nếu manager expose 'last response' field).
             TryCacheResponseField(t);
+            _localizedMapIdField = t.GetField(
+                "localizedMapId",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         }
 
         private bool TrySubscribeTyped(FieldInfo eventField)
@@ -533,8 +548,14 @@ namespace ARNav.Hybrid
                 }
             }
 
-            // Không có response — đánh dấu thời điểm event để state machine biết SDK localize OK.
-            MarkLocalizationVerified(1f, null);
+            // SDK hiện tại phát UnityEvent không tham số. Chỉ lấy map ID từ field thật
+            // localizedMapId nếu có; tuyệt đối không giả confidence = 1.
+            string mapId = null;
+            if (_localizedMapIdField != null && _subscribedManager != null)
+            {
+                mapId = _localizedMapIdField.GetValue(_subscribedManager)?.ToString();
+            }
+            MarkLocalizationVerified(0f, false, mapId, !string.IsNullOrWhiteSpace(mapId));
             TryUpdateFromMapSpaceFallback();
         }
 
@@ -544,9 +565,15 @@ namespace ARNav.Hybrid
 
             Vector3 pos = ReadVector3(_respPosition, response);
             Quaternion rot = ReadQuaternion(_respRotation, response);
-            float conf = ReadFloat(_respConfidence, response, 1f);
+            bool confidenceAvailable = _respConfidence.Valid;
+            float conf = ReadFloat(_respConfidence, response, 0f);
             string mapId = ReadString(_respMapId, response);
-            MarkLocalizationVerified(conf, mapId);
+            bool mapIdAvailable = !string.IsNullOrWhiteSpace(mapId);
+            MarkLocalizationVerified(
+                conf,
+                confidenceAvailable,
+                mapId,
+                mapIdAvailable);
 
             var cal = ResolveCalibration();
             Vector3 campusPos; Quaternion campusRot;
@@ -568,17 +595,25 @@ namespace ARNav.Hybrid
                 CampusRotation = campusRot,
                 MapId = mapId,
                 Confidence = conf,
+                ConfidenceAvailable = confidenceAvailable,
+                MapIdAvailable = mapIdAvailable,
                 Timestamp = Time.timeAsDouble,
                 Source = PoseSource.ReflectionEvent,
             };
             OnPoseUpdated?.Invoke(_last);
         }
 
-        private void MarkLocalizationVerified(float confidence, string mapId)
+        private void MarkLocalizationVerified(
+            float confidence,
+            bool confidenceAvailable,
+            string mapId,
+            bool mapIdAvailable)
         {
             _hasVerifiedLocalization = true;
-            _verifiedConfidence = confidence;
+            _verifiedConfidence = Mathf.Clamp01(confidence);
+            _verifiedConfidenceAvailable = confidenceAvailable;
             _verifiedMapId = mapId;
+            _verifiedMapIdAvailable = mapIdAvailable;
         }
 
         private IndoorMapCalibration ResolveCalibration()

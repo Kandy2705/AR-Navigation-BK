@@ -1,3 +1,4 @@
+using System;
 using ARNav.Hybrid;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -12,6 +13,7 @@ using UnityEngine.SceneManagement;
 [DefaultExecutionOrder(50)]
 public class ArrivalWatcher : MonoBehaviour
 {
+    public static event Action<string> Arrived;
     [Header("Arrival")]
     [Tooltip("Bán kính coi là đã đến (m) — XZ.")]
     [SerializeField] private float arrivalRadiusMeters = 3f;
@@ -124,6 +126,7 @@ public class ArrivalWatcher : MonoBehaviour
             if (firstEnter)
             {
                 ArrivalBanner.EnsureExists().Show(displayName, key);
+                Arrived?.Invoke(displayName);
                 Debug.Log($"[ArrivalWatcher] Arrived → '{displayName}' dist={dist:F1}m");
             }
 

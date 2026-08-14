@@ -29,6 +29,14 @@ public class GPSMarker : MonoBehaviour
     public float LastEnuDistanceFromRefMeters => lastEnuDistanceFromRefMeters;
     public bool LastFixRejectedAsJump => lastFixRejectedAsJump;
     public float LastRejectedJumpMeters => lastRejectedJumpMeters;
+    public double Latitude => lat;
+    public double Longitude => lon;
+    public double LastFixTimestamp => lastGpsTimestamp;
+    public float FixAgeSeconds => lastGpsFixUnscaledTime < -100f
+        ? float.PositiveInfinity
+        : Mathf.Max(0f, Time.unscaledTime - lastGpsFixUnscaledTime);
+    public bool HasHeading => headingInitialized;
+    public float HeadingDegrees => smoothedHeading;
 
     const double a = 6378137.0;
     const double e2 = 6.694380004e-3;

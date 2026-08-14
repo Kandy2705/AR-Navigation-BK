@@ -1,4 +1,5 @@
 using System;
+using ARNav.Harmony;
 using UnityEngine;
 
 namespace ARNav.Hybrid
@@ -90,6 +91,7 @@ namespace ARNav.Hybrid
         public LocalizationQualityGate QualityGate => qualityGate;
 
         public event Action<HybridNavigationState, HybridNavigationState, string> OnStateChanged;
+        private HarmonyManager _harmonyAuthority;
 
         // ---------------------------------------------------------------------
         // Public API
@@ -97,6 +99,11 @@ namespace ARNav.Hybrid
 
         public void SetDestinationBuilding(BuildingId buildingId, BuildingLocalizationProfile profile = null)
         {
+            if (_harmonyAuthority != null)
+            {
+                _harmonyAuthority.SetDestinationBuilding(buildingId, profile);
+                return;
+            }
             destinationBuilding = buildingId;
             destinationProfile = profile;
             if (qualityGate != null) qualityGate.SetActiveProfile(profile);
@@ -105,6 +112,11 @@ namespace ARNav.Hybrid
 
         public void RequestExit()
         {
+            if (_harmonyAuthority != null)
+            {
+                _harmonyAuthority.RequestExit();
+                return;
+            }
             if (CurrentState == HybridNavigationState.Indoor || CurrentState == HybridNavigationState.Relocalization)
             {
                 ChangeState(HybridNavigationState.ExitingIndoor, "user requested exit");
@@ -114,6 +126,11 @@ namespace ARNav.Hybrid
         /// <summary>Manual override từ UI: đưa cả navigation state và presentation về Outdoor.</summary>
         public void RequestImmediateExit(string reason = "manual outdoor override")
         {
+            if (_harmonyAuthority != null)
+            {
+                _harmonyAuthority.RequestImmediateExit(reason);
+                return;
+            }
             SafeExitToOutdoor();
             indoorProvider?.SetCurrentBuilding(BuildingId.None, "");
             qualityGate?.ResetCounters();
@@ -124,6 +141,30 @@ namespace ARNav.Hybrid
 
         public void ForceState(HybridNavigationState state, string reason = "forced")
         {
+            ChangeState(state, reason);
+        }
+
+        public void EnableHarmonyAuthority(HarmonyManager authority)
+        {
+            _harmonyAuthority = authority;
+        }
+
+        public void ApplyHarmonySnapshot(
+            HybridNavigationState state,
+            string reason,
+            BuildingId activeBuilding,
+            EntranceAnchor activeEntrance,
+            float distanceToEntrance,
+            Vector3 campusPosition,
+            Quaternion campusRotation,
+            bool poseIsFresh)
+        {
+            ActiveBuilding = activeBuilding;
+            ActiveEntrance = activeEntrance;
+            DistanceToActiveEntrance = distanceToEntrance;
+            CurrentUserCampusPosition = campusPosition;
+            CurrentUserCampusRotation = campusRotation;
+            CurrentPoseIsFresh = poseIsFresh;
             ChangeState(state, reason);
         }
 
@@ -149,6 +190,7 @@ namespace ARNav.Hybrid
 
         private void Update()
         {
+            if (_harmonyAuthority != null) return;
             UpdateCurrentPose();
 
             if (Time.time < _nextEvalTime) return;

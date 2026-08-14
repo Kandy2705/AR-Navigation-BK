@@ -38,6 +38,17 @@ namespace ARNav.Hybrid
         private float _currentYaw;
         private HybridRouteCoordinator.RoutePhase _lastPhase = HybridRouteCoordinator.RoutePhase.None;
         private bool _hasPose;
+        private float _harmonyAlpha = 1f;
+        private bool _harmonyVisible = true;
+        private Color _harmonyTint = Color.white;
+        private MaterialPropertyBlock _propertyBlock;
+
+        public void SetHarmonyGuidance(float alpha, bool visible, Color tint)
+        {
+            _harmonyAlpha = Mathf.Clamp01(alpha);
+            _harmonyVisible = visible;
+            _harmonyTint = tint;
+        }
 
         private void OnEnable()
         {
@@ -74,7 +85,8 @@ namespace ARNav.Hybrid
 
             if (hideWhenIdle)
             {
-                foreach (var r in GetComponentsInChildren<Renderer>(true)) r.enabled = active;
+                foreach (var r in GetComponentsInChildren<Renderer>(true))
+                    r.enabled = active && _harmonyVisible && _harmonyAlpha > 0.001f;
             }
             if (!active) return;
 
@@ -113,6 +125,24 @@ namespace ARNav.Hybrid
                     _currentYaw = Mathf.SmoothDampAngle(_currentYaw, yawTarget, ref _yawVel, rotationSmoothTime);
                 }
                 transform.rotation = Quaternion.Euler(0f, _currentYaw, 0f);
+            }
+
+            ApplyHarmonyStyle();
+        }
+
+        private void ApplyHarmonyStyle()
+        {
+            _propertyBlock ??= new MaterialPropertyBlock();
+            Color color = _harmonyTint;
+            color.a *= _harmonyAlpha;
+            foreach (Renderer childRenderer in GetComponentsInChildren<Renderer>(true))
+            {
+                childRenderer.enabled =
+                    _harmonyVisible && _harmonyAlpha > 0.001f;
+                childRenderer.GetPropertyBlock(_propertyBlock);
+                _propertyBlock.SetColor("_Color", color);
+                _propertyBlock.SetColor("_BaseColor", color);
+                childRenderer.SetPropertyBlock(_propertyBlock);
             }
         }
     }

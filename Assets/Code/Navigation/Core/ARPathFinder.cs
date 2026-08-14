@@ -121,6 +121,10 @@ public class ARPathFinder : MonoBehaviour
 
     // Cache corners đã build để skip rebuild khi path mới gần giống path cũ (chống flicker do GPS noise).
     private Vector3[] _lastBuiltCorners;
+    private float _harmonyAlpha = 1f;
+    private bool _harmonyVisible = true;
+    private Color _harmonyTint = Color.white;
+    private MaterialPropertyBlock _harmonyPropertyBlock;
 
 #if DEVELOPMENT_BUILD
     private string _lastLoggedPathHudLine;
@@ -417,8 +421,53 @@ public class ARPathFinder : MonoBehaviour
         }
     }
 
+    public void SetHarmonyGuidance(float alpha, bool visible, Color tint)
+    {
+        _harmonyAlpha = Mathf.Clamp01(alpha);
+        _harmonyVisible = visible;
+        _harmonyTint = tint;
+    }
+
+    private void LateUpdate()
+    {
+        bool show = _harmonyVisible && _harmonyAlpha > 0.001f && HasPath;
+        if (meshRenderer != null)
+        {
+            meshRenderer.enabled = show && useMeshPath;
+            ApplyHarmonyColor(meshRenderer);
+        }
+        if (_minimapMirrorRenderer != null)
+        {
+            _minimapMirrorRenderer.enabled = show && useMeshPath && showPathOnMinimap;
+            ApplyHarmonyColor(_minimapMirrorRenderer);
+        }
+        if (line != null)
+        {
+            line.enabled = show && !useMeshPath;
+            Color color = _harmonyTint;
+            color.a *= _harmonyAlpha;
+            line.startColor = color;
+            line.endColor = color;
+        }
 #if DEVELOPMENT_BUILD
-    void LateUpdate()
+        LogPathHudChanges();
+#endif
+    }
+
+    private void ApplyHarmonyColor(Renderer targetRenderer)
+    {
+        if (targetRenderer == null) return;
+        _harmonyPropertyBlock ??= new MaterialPropertyBlock();
+        targetRenderer.GetPropertyBlock(_harmonyPropertyBlock);
+        Color color = _harmonyTint;
+        color.a *= _harmonyAlpha;
+        _harmonyPropertyBlock.SetColor("_Color", color);
+        _harmonyPropertyBlock.SetColor("_BaseColor", color);
+        targetRenderer.SetPropertyBlock(_harmonyPropertyBlock);
+    }
+
+#if DEVELOPMENT_BUILD
+    private void LogPathHudChanges()
     {
         string line = PathHudDebugLine;
         if (string.Equals(line, _lastLoggedPathHudLine, StringComparison.Ordinal))

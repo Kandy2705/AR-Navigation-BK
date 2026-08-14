@@ -38,6 +38,16 @@ namespace ARNav.Hybrid
         private HybridRouteCoordinator.RouteSource _displayedSource = HybridRouteCoordinator.RouteSource.None;
         private float _alpha;
         private float _alphaTarget;
+        private float _harmonyAlpha = 1f;
+        private bool _harmonyVisible = true;
+        private Color _harmonyTint = Color.white;
+
+        public void SetHarmonyGuidance(float alpha, bool visible, Color tint)
+        {
+            _harmonyAlpha = Mathf.Clamp01(alpha);
+            _harmonyVisible = visible;
+            _harmonyTint = tint;
+        }
 
         private void Awake()
         {
@@ -110,7 +120,7 @@ namespace ARNav.Hybrid
             float fadeSpeed = crossfadeSeconds > 0.01f ? 1f / crossfadeSeconds : 10f;
             _alpha = Mathf.MoveTowards(_alpha, _alphaTarget, fadeSpeed * Time.deltaTime);
 
-            if (_alpha <= 0.001f || !drawable)
+            if (_alpha <= 0.001f || !drawable || !_harmonyVisible)
             {
                 _line.positionCount = 0;
                 return;
@@ -123,7 +133,8 @@ namespace ARNav.Hybrid
                 HybridRouteCoordinator.RouteSource.HandoverPause => pauseColor,
                 _ => outdoorColor,
             };
-            c.a = _alpha;
+            c *= _harmonyTint;
+            c.a = _alpha * _harmonyAlpha;
             _line.startColor = c;
             _line.endColor = c;
 

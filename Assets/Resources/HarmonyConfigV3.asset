@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d069d4554ae416c83bb7430c5f2c722, type: 3}
+  m_Name: HarmonyConfigV3
+  m_EditorClassIdentifier:
+  experimentVersion: 2
+  approachRadiusMultiplier: 2.5
+  enterRadiusMultiplier: 1
+  exitRadiusMultiplier: 2
+  vpsEnterReliability: 0.72
+  gpsExitReliability: 0.7
+  minimumVpsConfidence: 0.5
+  vpsDwellSeconds: 2
+  gpsDwellSeconds: 3
+  minimumModeDurationSeconds: 8
+  minimumStateDurationSeconds: 0.25
+  vpsScanTimeoutSeconds: 25
+  vpsRetrySeconds: 5
+  sourceLossGraceSeconds: 2.5
+  maxHandoverPositionJumpMeters: 8
+  maxHandoverHeadingJumpDegrees: 55
+  gpsExcellentAccuracyMeters: 5
+  gpsRejectedAccuracyMeters: 30
+  gpsFreshAgeSeconds: 0.75
+  gpsStaleAgeSeconds: 5
+  gpsMaxPlausibleSpeedMetersPerSecond: 4.5
+  gpsNearTransitionScore: 0.75
+  gpsWeights:
+    accuracyOrConfidence: 0.3
+    freshnessOrValidity: 0.2
+    motionStability: 0.2
+    transitionOrMapMatch: 0.15
+    dwellStability: 0.15
+  vpsFreshAgeSeconds: 0.35
+  vpsStaleAgeSeconds: 2
+  vpsStablePositionDeltaMeters: 0.35
+  vpsRejectedPositionDeltaMeters: 3
+  vpsStableHeadingDeltaDegrees: 5
+  vpsRejectedHeadingDeltaDegrees: 45
+  vpsWeights:
+    accuracyOrConfidence: 0.3
+    freshnessOrValidity: 0.2
+    motionStability: 0.2
+    transitionOrMapMatch: 0.15
+    dwellStability: 0.15
+  highReliabilityThreshold: 0.75
+  mediumReliabilityThreshold: 0.4
+  mediumGuidanceAlpha: 0.45
+  highReliabilityTint: {r: 1, g: 1, b: 1, a: 1}
+  mediumReliabilityTint: {r: 1, g: 0.82, b: 0.3, a: 1}
+  lowReliabilityTint: {r: 1, g: 0.35, b: 0.25, a: 1}
+  buildingMapRules: []
+  csvSampleIntervalSeconds: 0.25
+  falseSwitchWindowSeconds: 8
+  wrongWayMinimumMovementMeters: 0.35
+  wrongWayAngleDegrees: 120
+  wrongWayDwellSeconds: 1.25
