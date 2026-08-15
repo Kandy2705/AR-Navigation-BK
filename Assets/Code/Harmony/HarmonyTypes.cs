@@ -5,9 +5,12 @@ namespace ARNav.Harmony
 {
     public enum HarmonyExperimentVersion
     {
-        V0_FixedSwitching,
-        V1_ReliabilityOnly,
-        V2_FullHarmony,
+        V1_FixedSwitching = 0,    // Migrates old V0_FixedSwitching
+        V2_ReliableHandover = 1,  // Migrates old V1_ReliabilityOnly
+        Current = 2,              // Migrates old V2_FullHarmony (development default)
+        V3_FullHarmony = 3,
+        V4_NoDwellTime = 4,
+        V5_NoMapIdCheck = 5,
     }
 
     public enum HarmonyState
@@ -16,8 +19,24 @@ namespace ARNav.Harmony
         EnteringTransition,
         VpsScanning,
         Indoor,
+        Relocalization,
         ExitingTransition,
         Uncertain,
+    }
+
+    public enum HarmonyTestDirection
+    {
+        GPS_TO_VPS,
+        VPS_TO_GPS
+    }
+
+    public enum HarmonyTestCondition
+    {
+        NORMAL,
+        GNSS_DEGRADED,
+        VPS_DELAYED_OR_UNAVAILABLE,
+        WRONG_OR_AMBIGUOUS_MAP,
+        INDOOR_TO_OUTDOOR
     }
 
     public enum HarmonyLocalizationSource

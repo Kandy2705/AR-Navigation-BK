@@ -35,8 +35,7 @@ namespace ARNav.Harmony
             }
 
             HarmonyConfig config = manager.Config;
-            bool adaptive =
-                manager.ExperimentVersion == HarmonyExperimentVersion.V2_FullHarmony;
+            bool adaptive = config.UseUncertaintyGuidance;
             HarmonyReliabilityBand band;
             if (manager.State == HarmonyState.Uncertain)
             {

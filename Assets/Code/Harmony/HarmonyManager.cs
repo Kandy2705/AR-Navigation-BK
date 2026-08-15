@@ -41,7 +41,7 @@ namespace ARNav.Harmony
         public float LastHeadingJumpDegrees { get; private set; }
         public HarmonyExperimentVersion ExperimentVersion => config != null
             ? config.ExperimentVersion
-            : HarmonyExperimentVersion.V2_FullHarmony;
+            : HarmonyExperimentVersion.Current;
         public float StateAgeSeconds => _stateMachine != null
             ? _stateMachine.StateAge(Time.unscaledTime)
             : 0f;
@@ -65,6 +65,7 @@ namespace ARNav.Harmony
         private bool _exitRequested;
         private bool _automaticExitArmed;
         private HarmonyLocalizationSource _lastTrustedSource = HarmonyLocalizationSource.GPS;
+        private HarmonyLocalizationSource _relocalizationSource = HarmonyLocalizationSource.LastTrusted;
         private Vector3 _lastTrustedPosition;
         private Quaternion _lastTrustedRotation = Quaternion.identity;
         private bool _hasLastTrustedPose;
@@ -266,6 +267,9 @@ namespace ARNav.Harmony
                 case HarmonyState.Indoor:
                     EvaluateIndoor();
                     break;
+                case HarmonyState.Relocalization:
+                    EvaluateRelocalization();
+                    break;
                 case HarmonyState.ExitingTransition:
                     EvaluateExiting();
                     break;
@@ -340,9 +344,9 @@ namespace ARNav.Harmony
             ActiveSource = HarmonyLocalizationSource.GPS;
             StatusReason = Reliability.VpsReason;
 
-            if (ExperimentVersion == HarmonyExperimentVersion.V0_FixedSwitching)
+            if (!config.UseReliabilityGate)
             {
-                CompleteGpsToVps("V0 fixed switching");
+                CompleteGpsToVps("V1 fixed switching");
                 return;
             }
 
@@ -361,7 +365,8 @@ namespace ARNav.Harmony
 
             if (Time.unscaledTime - _scanStartedAt >= config.vpsScanTimeoutSeconds)
             {
-                Transition(HarmonyState.Uncertain, $"VPS scan timeout: {reason}");
+                _relocalizationSource = HarmonyLocalizationSource.GPS;
+                Transition(HarmonyState.Relocalization, $"VPS scan timeout: {reason}");
             }
         }
 
@@ -372,33 +377,38 @@ namespace ARNav.Harmony
                 reason = "VPS pose unavailable/stale";
                 return false;
             }
-            if (!VpsSample.ConfidenceAvailable)
-            {
-                reason = "VPS confidence unavailable from SDK";
-                return false;
-            }
-            if (VpsSample.Confidence < config.minimumVpsConfidence)
+            if (VpsSample.ConfidenceAvailable && VpsSample.Confidence < config.minimumVpsConfidence)
             {
                 reason = $"VPS confidence {VpsSample.Confidence:0.00} too low";
                 return false;
             }
-            if (!VpsSample.MapIdAvailable)
+            if (config.RequireMapIdMatch)
             {
-                reason = "VPS map ID unavailable";
+                if (!VpsSample.MapIdAvailable)
+                {
+                    reason = "VPS map ID unavailable";
+                    return false;
+                }
+                if (!VpsSample.MapMatchesBuilding)
+                {
+                    reason = $"VPS map ID mismatch ({VpsSample.MapId})";
+                    return false;
+                }
+            }
+            if (config.UseReliabilityGate && Reliability.Vps < config.vpsEnterReliability)
+            {
+                reason = $"VPS reliability too low ({Reliability.Vps:0.00})";
                 return false;
             }
-            if (!VpsSample.MapMatchesBuilding)
+            if (config.RequireVpsDwell && Reliability.VpsStableSeconds < config.vpsDwellSeconds)
             {
-                reason = $"VPS map ID mismatch ({VpsSample.MapId})";
+                reason = $"VPS not stable enough ({Reliability.VpsStableSeconds:0.0}s)";
                 return false;
             }
-            if (Reliability.Vps < config.vpsEnterReliability ||
-                Reliability.VpsStableSeconds < config.vpsDwellSeconds)
+            if (config.UseContinuityGate && !EnsureVpsContinuity(out reason))
             {
-                reason = $"VPS not stable ({Reliability.Vps:0.00}, {Reliability.VpsStableSeconds:0.0}s)";
                 return false;
             }
-            if (!EnsureVpsContinuity(out reason)) return false;
             reason = "VPS valid + stable + continuous";
             return true;
         }
@@ -454,7 +464,7 @@ namespace ARNav.Harmony
                 HarmonyState.Indoor,
                 reason,
                 changesSource: true,
-                force: ExperimentVersion == HarmonyExperimentVersion.V0_FixedSwitching);
+                force: !config.EnforceMinimumModeDuration);
             if (changed)
                 HandoverCompleted?.Invoke("GPS_TO_VPS", true,
                     LastPositionJumpMeters, LastHeadingJumpDegrees);
@@ -491,16 +501,19 @@ namespace ARNav.Harmony
 
             if (_sourceLostAt < 0f) _sourceLostAt = Time.unscaledTime;
             if (Time.unscaledTime - _sourceLostAt >= config.sourceLossGraceSeconds)
-                Transition(HarmonyState.Uncertain, "VPS lost");
+            {
+                _relocalizationSource = HarmonyLocalizationSource.LastTrusted;
+                Transition(HarmonyState.Relocalization, "VPS lost");
+            }
         }
 
         private void EvaluateExiting()
         {
             ActiveSource = HarmonyLocalizationSource.VPS;
             StatusReason = Reliability.GpsReason;
-            if (ExperimentVersion == HarmonyExperimentVersion.V0_FixedSwitching)
+            if (!config.UseReliabilityGate)
             {
-                CompleteVpsToGps("V0 fixed switching");
+                CompleteVpsToGps("V1 fixed switching");
                 return;
             }
 
@@ -534,22 +547,52 @@ namespace ARNav.Harmony
                 HarmonyState.Outdoor,
                 reason,
                 changesSource: true,
-                force: ExperimentVersion == HarmonyExperimentVersion.V0_FixedSwitching);
+                force: !config.EnforceMinimumModeDuration);
             if (changed)
                 HandoverCompleted?.Invoke("VPS_TO_GPS", true,
                     LastPositionJumpMeters, LastHeadingJumpDegrees);
         }
 
+        private void EvaluateRelocalization()
+        {
+            ActiveSource = _relocalizationSource;
+            
+            if (_relocalizationSource == HarmonyLocalizationSource.GPS)
+            {
+                if (ActiveEntrance == null || 
+                    DistanceToEntrance > ActiveEntrance.TriggerRadiusMeters * Mathf.Max(1f, config.approachRadiusMultiplier) * 1.15f)
+                {
+                    Transition(HarmonyState.Outdoor, "left entrance approach during relocalization");
+                    return;
+                }
+            }
+            
+            if (CanEnterVps(out string reason))
+            {
+                ActiveSource = HarmonyLocalizationSource.VPS;
+                Transition(HarmonyState.Indoor, "VPS recovered: " + reason);
+                return;
+            }
+
+            if (Time.unscaledTime >= _nextVpsRetryAt)
+            {
+                _nextVpsRetryAt = Time.unscaledTime + config.vpsRetrySeconds;
+                _handoverController?.RetryVps();
+            }
+
+            if (StateAgeSeconds >= config.relocalizationTimeoutSeconds)
+            {
+                Transition(HarmonyState.Uncertain, "Relocalization timeout");
+            }
+        }
+
         private void EvaluateUncertain()
         {
             ActiveSource = HarmonyLocalizationSource.LastTrusted;
-            if (VpsSample.IsValid && VpsSample.ConfidenceAvailable &&
-                VpsSample.MapMatchesBuilding &&
-                Reliability.Vps >= config.vpsEnterReliability &&
-                Reliability.VpsStableSeconds >= config.vpsDwellSeconds)
+            if (CanEnterVps(out string reason))
             {
                 ActiveSource = HarmonyLocalizationSource.VPS;
-                Transition(HarmonyState.Indoor, "VPS recovered");
+                Transition(HarmonyState.Indoor, "VPS recovered: " + reason);
                 return;
             }
             if (GpsSample.IsValid &&
@@ -676,6 +719,7 @@ namespace ARNav.Harmony
                 HarmonyState.EnteringTransition => HybridNavigationState.ApproachingEntrance,
                 HarmonyState.VpsScanning => HybridNavigationState.TransitionScanning,
                 HarmonyState.Indoor => HybridNavigationState.Indoor,
+                HarmonyState.Relocalization => HybridNavigationState.Relocalization,
                 HarmonyState.ExitingTransition => HybridNavigationState.ExitingIndoor,
                 _ => HybridNavigationState.Uncertain,
             };

@@ -32,7 +32,7 @@ namespace ARNav.Harmony
 
         [Header("Experiment")]
         [SerializeField] private HarmonyExperimentVersion experimentVersion =
-            HarmonyExperimentVersion.V2_FullHarmony;
+            HarmonyExperimentVersion.Current;
 
         [Header("Transition geometry")]
         [Min(1f)] public float approachRadiusMultiplier = 2.5f;
@@ -49,6 +49,7 @@ namespace ARNav.Harmony
         [Min(0f)] public float minimumStateDurationSeconds = 0.25f;
         [Min(1f)] public float vpsScanTimeoutSeconds = 25f;
         [Min(0.5f)] public float vpsRetrySeconds = 5f;
+        [Min(1f)] public float relocalizationTimeoutSeconds = 15f;
         [Min(0f)] public float sourceLossGraceSeconds = 2.5f;
 
         [Header("Cross-source continuity")]
@@ -97,6 +98,13 @@ namespace ARNav.Harmony
             get => experimentVersion;
             set => experimentVersion = value;
         }
+
+        public bool UseReliabilityGate => experimentVersion != HarmonyExperimentVersion.V1_FixedSwitching;
+        public bool RequireVpsDwell => experimentVersion != HarmonyExperimentVersion.V1_FixedSwitching && experimentVersion != HarmonyExperimentVersion.V4_NoDwellTime;
+        public bool RequireMapIdMatch => experimentVersion != HarmonyExperimentVersion.V1_FixedSwitching && experimentVersion != HarmonyExperimentVersion.V5_NoMapIdCheck;
+        public bool UseUncertaintyGuidance => experimentVersion == HarmonyExperimentVersion.Current || experimentVersion == HarmonyExperimentVersion.V3_FullHarmony;
+        public bool UseContinuityGate => experimentVersion != HarmonyExperimentVersion.V1_FixedSwitching;
+        public bool EnforceMinimumModeDuration => experimentVersion != HarmonyExperimentVersion.V1_FixedSwitching;
 
         public bool IsAcceptedMapId(BuildingId building, string mapId)
         {

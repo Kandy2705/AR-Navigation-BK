@@ -50,25 +50,52 @@ namespace ARNav.Harmony
                  transitionScore * gw.transitionOrMapMatch +
                  gpsDwell * gw.dwellStability) / gw.Sum;
 
-            float confidenceScore = vps.IsValid && vps.ConfidenceAvailable
-                ? Mathf.InverseLerp(config.minimumVpsConfidence, 1f, vps.Confidence)
-                : 0f;
             float validityScore = vps.IsValid
                 ? DescendingScore(
                     vps.AgeSeconds,
                     config.vpsFreshAgeSeconds,
                     config.vpsStaleAgeSeconds)
                 : 0f;
+            
             float mapScore = vps.MapIdAvailable && vps.MapMatchesBuilding ? 1f : 0f;
             float vpsDwell = StableScore(_vpsStableSince, config.vpsDwellSeconds, now);
 
             HarmonyConfig.ReliabilityWeights vw = config.vpsWeights;
-            float vpsReliability =
-                (confidenceScore * vw.accuracyOrConfidence +
-                 validityScore * vw.freshnessOrValidity +
-                 vpsMotionScore * vw.motionStability +
-                 mapScore * vw.transitionOrMapMatch +
-                 vpsDwell * vw.dwellStability) / vw.Sum;
+            
+            float availableWeightSum = vw.Sum;
+            float totalWeightedScore = validityScore * vw.freshnessOrValidity + 
+                                       vpsMotionScore * vw.motionStability;
+
+            if (vps.IsValid && vps.ConfidenceAvailable)
+            {
+                float confidenceScore = Mathf.InverseLerp(config.minimumVpsConfidence, 1f, vps.Confidence);
+                totalWeightedScore += confidenceScore * vw.accuracyOrConfidence;
+            }
+            else
+            {
+                availableWeightSum -= vw.accuracyOrConfidence;
+            }
+
+            if (config.RequireMapIdMatch)
+            {
+                totalWeightedScore += mapScore * vw.transitionOrMapMatch;
+            }
+            else
+            {
+                availableWeightSum -= vw.transitionOrMapMatch;
+            }
+
+            if (config.RequireVpsDwell)
+            {
+                totalWeightedScore += vpsDwell * vw.dwellStability;
+            }
+            else
+            {
+                availableWeightSum -= vw.dwellStability;
+            }
+
+            availableWeightSum = Mathf.Max(0.0001f, availableWeightSum);
+            float vpsReliability = totalWeightedScore / availableWeightSum;
 
             gpsReliability = Mathf.Clamp01(gpsReliability);
             vpsReliability = Mathf.Clamp01(vpsReliability);
