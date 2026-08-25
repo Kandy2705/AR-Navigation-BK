@@ -41,6 +41,78 @@ namespace ARNavB9V2.Data
             }
         }
 
+        [Serializable]
+        public sealed class PortalDefinition
+        {
+            [SerializeField] private string portalId;
+            [SerializeField] private string displayName;
+            [SerializeField] private string floorId;
+            [SerializeField] private bool primary;
+            [SerializeField] private Vector3 outdoorCampusPosition;
+            [SerializeField] private Quaternion outdoorCampusRotation = Quaternion.identity;
+            [SerializeField] private Vector3 indoorMapLocalPosition;
+            [SerializeField] private Quaternion indoorMapLocalRotation = Quaternion.identity;
+
+            public string PortalId => portalId;
+            public string DisplayName => displayName;
+            public string FloorId => floorId;
+            public bool Primary => primary;
+            public Vector3 OutdoorCampusPosition => outdoorCampusPosition;
+            public Quaternion OutdoorCampusRotation => outdoorCampusRotation;
+            public Vector3 IndoorMapLocalPosition => indoorMapLocalPosition;
+            public Quaternion IndoorMapLocalRotation => indoorMapLocalRotation;
+
+            public PortalDefinition(
+                string portalId,
+                string displayName,
+                string floorId,
+                bool primary,
+                Vector3 outdoorCampusPosition,
+                Quaternion outdoorCampusRotation,
+                Vector3 indoorMapLocalPosition,
+                Quaternion indoorMapLocalRotation)
+            {
+                this.portalId = portalId;
+                this.displayName = displayName;
+                this.floorId = floorId;
+                this.primary = primary;
+                this.outdoorCampusPosition = outdoorCampusPosition;
+                this.outdoorCampusRotation = outdoorCampusRotation;
+                this.indoorMapLocalPosition = indoorMapLocalPosition;
+                this.indoorMapLocalRotation = indoorMapLocalRotation;
+            }
+        }
+
+        [Serializable]
+        public sealed class HandoverSegmentDefinition
+        {
+            [SerializeField] private Vector3 startMapLocalPosition;
+            [SerializeField] private Vector3 endMapLocalPosition;
+            [Min(0.5f)] [SerializeField] private float innerWidthMeters = 5f;
+            [Min(1f)] [SerializeField] private float heightMeters = 5f;
+            [SerializeField] private float verticalCenterMeters = 0.4f;
+
+            public Vector3 StartMapLocalPosition => startMapLocalPosition;
+            public Vector3 EndMapLocalPosition => endMapLocalPosition;
+            public float InnerWidthMeters => innerWidthMeters;
+            public float HeightMeters => heightMeters;
+            public float VerticalCenterMeters => verticalCenterMeters;
+
+            public HandoverSegmentDefinition(
+                Vector3 startMapLocalPosition,
+                Vector3 endMapLocalPosition,
+                float innerWidthMeters,
+                float heightMeters,
+                float verticalCenterMeters)
+            {
+                this.startMapLocalPosition = startMapLocalPosition;
+                this.endMapLocalPosition = endMapLocalPosition;
+                this.innerWidthMeters = innerWidthMeters;
+                this.heightMeters = heightMeters;
+                this.verticalCenterMeters = verticalCenterMeters;
+            }
+        }
+
         [Header("Identity")]
         [SerializeField] private string buildingId = "B9";
         [SerializeField] private string displayName = "Tòa B9";
@@ -57,6 +129,11 @@ namespace ARNavB9V2.Data
         [SerializeField] private Vector3 indoorEntranceMapLocalPosition;
         [SerializeField] private Quaternion indoorEntranceMapLocalRotation = Quaternion.identity;
 
+        [Header("Handover geometry")]
+        [Min(0.5f)] [SerializeField] private float outerPaddingMeters = 3f;
+        [SerializeField] private List<HandoverSegmentDefinition> handoverSegments = new List<HandoverSegmentDefinition>();
+        [SerializeField] private List<PortalDefinition> portals = new List<PortalDefinition>();
+
         [Header("Rooms")]
         [SerializeField] private List<RoomDefinition> rooms = new List<RoomDefinition>();
 
@@ -70,6 +147,9 @@ namespace ARNavB9V2.Data
         public float TransitionRadiusMeters => transitionRadiusMeters;
         public Vector3 IndoorEntranceMapLocalPosition => indoorEntranceMapLocalPosition;
         public Quaternion IndoorEntranceMapLocalRotation => indoorEntranceMapLocalRotation;
+        public float OuterPaddingMeters => outerPaddingMeters;
+        public IReadOnlyList<HandoverSegmentDefinition> HandoverSegments => handoverSegments;
+        public IReadOnlyList<PortalDefinition> Portals => portals;
         public IReadOnlyList<RoomDefinition> Rooms => rooms;
 
         public bool TryGetRoom(string roomId, out RoomDefinition room)
@@ -131,10 +211,27 @@ namespace ARNavB9V2.Data
                 : new List<RoomDefinition>();
         }
 
+        public void ConfigureHandoverGeometry(
+            float outerPadding,
+            IReadOnlyList<HandoverSegmentDefinition> segments,
+            IReadOnlyList<PortalDefinition> portalDefinitions)
+        {
+            outerPaddingMeters = Mathf.Max(0.5f, outerPadding);
+            handoverSegments = segments != null
+                ? new List<HandoverSegmentDefinition>(segments)
+                : new List<HandoverSegmentDefinition>();
+            portals = portalDefinitions != null
+                ? new List<PortalDefinition>(portalDefinitions)
+                : new List<PortalDefinition>();
+        }
+
         private void OnValidate()
         {
             transitionRadiusMeters = Mathf.Max(1f, transitionRadiusMeters);
+            outerPaddingMeters = Mathf.Max(0.5f, outerPaddingMeters);
             acceptedMapIds ??= new List<string>();
+            handoverSegments ??= new List<HandoverSegmentDefinition>();
+            portals ??= new List<PortalDefinition>();
             rooms ??= new List<RoomDefinition>();
         }
     }

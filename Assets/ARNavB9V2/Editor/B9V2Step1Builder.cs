@@ -126,6 +126,7 @@ namespace ARNavB9V2.Editor
                 context.OutdoorEntranceAnchor,
                 context.IndoorEntranceAnchor,
                 synchronizedAnchors);
+            B9V2HandoverGeometryBuilder.BuildIntoCurrentScene(context, definition);
             EditorUtility.SetDirty(context);
 
             if (!context.ValidateConfiguration(out failure))
@@ -336,6 +337,7 @@ namespace ARNavB9V2.Editor
                 outdoorEntranceGo.transform,
                 indoorEntranceGo.transform,
                 anchors);
+            B9V2HandoverGeometryBuilder.BuildIntoCurrentScene(context, definition);
 
             if (!context.ValidateConfiguration(out string failure))
                 throw new InvalidOperationException("B9 V2 foundation validation failed: " + failure);

@@ -23,6 +23,57 @@ MonoBehaviour:
   transitionRadiusMeters: 15
   indoorEntranceMapLocalPosition: {x: -2.6060388, y: -1.771205, z: -6.657221}
   indoorEntranceMapLocalRotation: {x: 0.0015572918, y: -0.9341303, z: 0.004075905, w: -0.35690564}
+  outerPaddingMeters: 3
+  handoverSegments:
+  - startMapLocalPosition: {x: 4.024046, y: 0, z: 5.5402412}
+    endMapLocalPosition: {x: 2.6619985, y: 0, z: 0.50799763}
+    innerWidthMeters: 5.2
+    heightMeters: 5.6
+    verticalCenterMeters: 0.4
+  - startMapLocalPosition: {x: 2.6619985, y: 0, z: 0.50799763}
+    endMapLocalPosition: {x: -0.2210051, y: 0, z: -6.9850063}
+    innerWidthMeters: 5.2
+    heightMeters: 5.6
+    verticalCenterMeters: 0.4
+  - startMapLocalPosition: {x: -0.2210051, y: 0, z: -6.9850063}
+    endMapLocalPosition: {x: -2.6060388, y: 0, z: -6.657221}
+    innerWidthMeters: 5.2
+    heightMeters: 5.6
+    verticalCenterMeters: 0.4
+  - startMapLocalPosition: {x: -2.6060388, y: 0, z: -6.657221}
+    endMapLocalPosition: {x: -1.8930061, y: 0, z: -12.446007}
+    innerWidthMeters: 5.2
+    heightMeters: 5.6
+    verticalCenterMeters: 0.4
+  - startMapLocalPosition: {x: -1.8930061, y: 0, z: -12.446007}
+    endMapLocalPosition: {x: -3.7269986, y: 0, z: -17.330004}
+    innerWidthMeters: 5.2
+    heightMeters: 5.6
+    verticalCenterMeters: 0.4
+  - startMapLocalPosition: {x: -3.7269986, y: 0, z: -17.330004}
+    endMapLocalPosition: {x: -7.4130073, y: 0, z: -27.243013}
+    innerWidthMeters: 5.2
+    heightMeters: 5.6
+    verticalCenterMeters: 0.4
+  - startMapLocalPosition: {x: -7.4130073, y: 0, z: -27.243013}
+    endMapLocalPosition: {x: -8.50701, y: 0, z: -30.78101}
+    innerWidthMeters: 5.2
+    heightMeters: 5.6
+    verticalCenterMeters: 0.4
+  - startMapLocalPosition: {x: -8.50701, y: 0, z: -30.78101}
+    endMapLocalPosition: {x: -12.254065, y: 0, z: -40.06147}
+    innerWidthMeters: 5.2
+    heightMeters: 5.6
+    verticalCenterMeters: 0.4
+  portals:
+  - portalId: B9-MAIN
+    displayName: "C\u1EEDa ch\xEDnh B9"
+    floorId: F1
+    primary: 1
+    outdoorCampusPosition: {x: 153.83, y: 0, z: -3.19}
+    outdoorCampusRotation: {x: -0, y: -0, z: -0, w: 1}
+    indoorMapLocalPosition: {x: -2.6060388, y: -1.771205, z: -6.657221}
+    indoorMapLocalRotation: {x: 0.0015572918, y: -0.9341303, z: 0.004075905, w: -0.35690564}
   rooms:
   - roomId: B9-101
     displayName: B9-101

@@ -52,6 +52,7 @@ namespace ARNavB9V2.Vps
         [SerializeField] private bool localizationBlurCheck;
         [SerializeField, Min(0f)] private float localizationPoseSettleSeconds = 0.35f;
         [SerializeField] private bool allowSdkInvocationInEditor;
+        [SerializeField] private bool externalHandoverControl;
 
         private UnityEvent localizationInitEvent;
         private UnityEvent localizationRequestedEvent;
@@ -73,6 +74,11 @@ namespace ARNavB9V2.Vps
                 ? Mathf.Max(0f, Time.unscaledTime - scanStartedAt)
                 : 0f;
         public event Action<TransitionState> StateChanged;
+
+        public void SetExternalHandoverControl(bool enabled)
+        {
+            externalHandoverControl = enabled;
+        }
 
         public void Configure(
             B9BuildingDefinition definition,
@@ -138,7 +144,8 @@ namespace ARNavB9V2.Vps
 
         private void Update()
         {
-            if (State == TransitionState.WaitingForEntrance
+            if (!externalHandoverControl
+                && State == TransitionState.WaitingForEntrance
                 && outdoorContext != null
                 && outdoorContext.RouteController != null
                 && outdoorContext.RouteController.HasArrivedAtEntrance)

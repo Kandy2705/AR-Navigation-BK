@@ -5,6 +5,7 @@ using ARNavB9V2.Data;
 using ARNavB9V2.Experiment;
 using ARNavB9V2.Indoor;
 using ARNavB9V2.Outdoor;
+using ARNavB9V2.Reliability;
 using ARNavB9V2.Vps;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -24,6 +25,7 @@ namespace ARNavB9V2.UI
         [SerializeField] private B9IndoorMinimapController indoorMinimapController;
         [SerializeField] private B9IndoorPoseTracker indoorPoseTracker;
         [SerializeField] private B9ExperimentLogger experimentLogger;
+        [SerializeField] private B9ReliableNavigationController reliabilityController;
 
         private Label statusLabel;
         private Label gpsLabel;
@@ -77,6 +79,12 @@ namespace ARNavB9V2.UI
         {
             indoorPoseTracker = poseTracker;
             experimentLogger = logger;
+            RefreshStatus();
+        }
+
+        public void AttachReliability(B9ReliableNavigationController controller)
+        {
+            reliabilityController = controller;
             RefreshStatus();
         }
 
@@ -346,6 +354,14 @@ namespace ARNavB9V2.UI
 
             RefreshExperimentStatus();
 
+            if (reliabilityController != null
+                && (reliabilityController.State == B9NavigationState.EnteringWithPdr
+                    || reliabilityController.State == B9NavigationState.VpsFailed))
+            {
+                RefreshTransitionPdrStatus();
+                return;
+            }
+
             if (vpsTransition != null
                 && vpsTransition.State != B9VpsTransitionController.TransitionState.WaitingForEntrance)
             {
@@ -376,6 +392,33 @@ namespace ARNavB9V2.UI
                     ? $"Đã tới cửa B9 · đích sau VPS: {routeController.SelectedRoomId}"
                     : $"Đang đi tới cửa B9 trước · đích cuối: {routeController.SelectedRoomId}";
             }
+        }
+
+        private void RefreshTransitionPdrStatus()
+        {
+            bool failed = reliabilityController.State == B9NavigationState.VpsFailed;
+            if (retryVpsButton != null)
+                retryVpsButton.style.display = failed ? DisplayStyle.Flex : DisplayStyle.None;
+            if (outdoorStartButton != null)
+                outdoorStartButton.style.display = DisplayStyle.None;
+
+            string roomId = routeController != null
+                            && !string.IsNullOrWhiteSpace(routeController.SelectedRoomId)
+                ? routeController.SelectedRoomId
+                : "phòng đã chọn";
+            if (failed)
+            {
+                statusLabel.text = "Quét VPS chưa thành công";
+                gpsLabel.text = string.IsNullOrWhiteSpace(vpsTransition?.FailureReason)
+                    ? "Giữ camera hướng vào hành lang rồi quét lại"
+                    : vpsTransition.FailureReason;
+                destinationSummary.text = $"PDR vẫn giữ vị trí · đích cuối: {roomId}";
+                return;
+            }
+
+            statusLabel.text = "Đang đi vào vùng quét B9";
+            gpsLabel.text = $"PDR · {reliabilityController.TransitionRemainingDistanceMeters:0.0} m tới {roomId}";
+            destinationSummary.text = "Đi theo đường liền mạch · VPS chỉ bật khi vào đúng vùng scan";
         }
 
         private void RefreshVpsStatus()

@@ -25,6 +25,9 @@ namespace ARNavB9V2.Outdoor
         private Vector3 cameraCenter;
         private Vector3 cameraCenterVelocity;
         private float zoomVelocity;
+        private bool usePoseOverride;
+        private Vector3 poseOverridePosition;
+        private float poseOverrideHeading;
 
         public RenderTexture RenderedTexture => renderTexture;
         public bool IsOverviewMode => overviewMode;
@@ -67,6 +70,18 @@ namespace ARNavB9V2.Outdoor
             zoomVelocity = 0f;
         }
 
+        public void SetPoseOverride(Vector3 campusPosition, float headingDegrees)
+        {
+            usePoseOverride = true;
+            poseOverridePosition = campusPosition;
+            poseOverrideHeading = Mathf.Repeat(headingDegrees, 360f);
+        }
+
+        public void ClearPoseOverride()
+        {
+            usePoseOverride = false;
+        }
+
         private void Awake()
         {
             ApplyCameraSettings();
@@ -78,7 +93,9 @@ namespace ARNavB9V2.Outdoor
             if (minimapCamera == null || locationProvider == null)
                 return;
 
-            Vector3 targetCenter = locationProvider.HasReliableFix
+            Vector3 targetCenter = usePoseOverride
+                ? poseOverridePosition
+                : locationProvider.HasReliableFix
                 ? locationProvider.CampusPosition
                 : outdoorMap != null
                     ? outdoorMap.EntranceCampusPosition
@@ -119,15 +136,22 @@ namespace ARNavB9V2.Outdoor
 
             if (userMarker != null)
             {
-                Vector3 userPosition = locationProvider.HasReliableFix
+                Vector3 userPosition = usePoseOverride
+                    ? poseOverridePosition
+                    : locationProvider.HasReliableFix
                     ? locationProvider.CampusPosition
                     : targetCenter;
                 userMarker.position = new Vector3(
                     userPosition.x,
                     userPosition.y + markerHeightMeters,
                     userPosition.z);
-                if (locationProvider.HasHeading)
-                    userMarker.rotation = Quaternion.Euler(0f, locationProvider.HeadingDegrees, 0f);
+                if (usePoseOverride || locationProvider.HasHeading)
+                {
+                    float heading = usePoseOverride
+                        ? poseOverrideHeading
+                        : locationProvider.HeadingDegrees;
+                    userMarker.rotation = Quaternion.Euler(0f, heading, 0f);
+                }
             }
 
             if (entranceMarker != null && outdoorMap != null)

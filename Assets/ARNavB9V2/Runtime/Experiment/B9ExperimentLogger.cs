@@ -4,16 +4,14 @@ using System.IO;
 using System.Text;
 using ARNavB9V2.Indoor;
 using ARNavB9V2.Outdoor;
+using ARNavB9V2.Reliability;
 using ARNavB9V2.Scene;
 using ARNavB9V2.Vps;
 using UnityEngine;
 
 namespace ARNavB9V2.Experiment
 {
-    /// <summary>
-    /// Records navigation telemetry as a research-ready CSV in persistentDataPath.
-    /// The logger owns no navigation state and is safe to remove from production builds.
-    /// </summary>
+    /// <summary>Writes one events, samples, and summary CSV bundle per trial.</summary>
     [DefaultExecutionOrder(200)]
     [DisallowMultipleComponent]
     public sealed class B9ExperimentLogger : MonoBehaviour
@@ -23,11 +21,15 @@ namespace ARNavB9V2.Experiment
         [SerializeField] private B9VpsTransitionController vpsTransition;
         [SerializeField] private B9IndoorRouteController indoorRoute;
         [SerializeField] private B9IndoorPoseTracker indoorPose;
+        [SerializeField] private B9ReliableNavigationController reliabilityController;
+        [SerializeField] private B9TransitionPdrTracker transitionPdr;
         [SerializeField] private bool autoStartSession = true;
-        [SerializeField, Range(0.25f, 5f)] private float sampleIntervalSeconds = 1f;
+        [SerializeField, Range(0.1f, 5f)] private float sampleIntervalSeconds = 0.5f;
         [SerializeField, Range(1f, 30f)] private float flushIntervalSeconds = 5f;
 
-        private StreamWriter writer;
+        private StreamWriter eventsWriter;
+        private StreamWriter samplesWriter;
+        private DateTime trialStartedUtc;
         private float sessionStartedAt;
         private float nextSampleAt;
         private float nextFlushAt;
@@ -36,15 +38,22 @@ namespace ARNavB9V2.Experiment
         private bool wrongWayActive;
         private float wrongWayBaseline;
         private string lastDestination = string.Empty;
+        private string finalReason = string.Empty;
 
-        public bool IsRecording => writer != null;
+        public bool IsRecording => eventsWriter != null && samplesWriter != null;
         public string SessionId { get; private set; } = string.Empty;
-        public string CurrentFilePath { get; private set; } = string.Empty;
+        public string CurrentFilePath => EventsFilePath;
         public string LastSavedFilePath { get; private set; } = string.Empty;
+        public string EventsFilePath { get; private set; } = string.Empty;
+        public string SamplesFilePath { get; private set; } = string.Empty;
+        public string SummaryFilePath { get; private set; } = string.Empty;
         public float ElapsedSeconds => IsRecording ? Time.unscaledTime - sessionStartedAt : 0f;
         public int SampleCount { get; private set; }
+        public int EventCount { get; private set; }
         public int WrongWayCount { get; private set; }
         public int RecoveryCount { get; private set; }
+        public bool HandoverSucceeded { get; private set; }
+        public bool DestinationArrived { get; private set; }
 
         public void Configure(
             B9OutdoorSceneContext outdoor,
@@ -59,6 +68,19 @@ namespace ARNavB9V2.Experiment
             indoorRoute = indoor != null ? indoor.RouteController : null;
             indoorPose = pose;
             autoStartSession = startAutomatically;
+        }
+
+        public void AttachReliability(
+            B9ReliableNavigationController controller,
+            B9TransitionPdrTracker pdrTracker)
+        {
+            bool resubscribe = isActiveAndEnabled;
+            if (resubscribe)
+                UnsubscribeReliability();
+            reliabilityController = controller;
+            transitionPdr = pdrTracker;
+            if (resubscribe)
+                SubscribeReliability();
         }
 
         private void OnEnable()
@@ -82,17 +104,17 @@ namespace ARNavB9V2.Experiment
                 return;
 
             DetectDestinationChange();
+            DetectWrongWayAndRecovery();
             if (Time.unscaledTime >= nextSampleAt)
             {
                 nextSampleAt = Time.unscaledTime + sampleIntervalSeconds;
-                DetectWrongWayAndRecovery();
-                WriteRow("sample", string.Empty);
+                WriteSampleRow();
                 SampleCount++;
             }
 
             if (Time.unscaledTime >= nextFlushAt)
             {
-                writer.Flush();
+                FlushWriters();
                 nextFlushAt = Time.unscaledTime + flushIntervalSeconds;
             }
         }
@@ -110,32 +132,49 @@ namespace ARNavB9V2.Experiment
             if (IsRecording)
                 EndCurrentTrial("new_trial_requested");
 
-            string directory = Path.Combine(Application.persistentDataPath, "ExperimentLogs");
+            string directory = Path.Combine(Application.persistentDataPath, "HarmonyLogs");
             Directory.CreateDirectory(directory);
-            DateTime now = DateTime.UtcNow;
-            SessionId = now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture)
-                        + "_" + Guid.NewGuid().ToString("N").Substring(0, 6);
-            CurrentFilePath = Path.Combine(directory, "B9_" + SessionId + ".csv");
-            writer = new StreamWriter(CurrentFilePath, false, new UTF8Encoding(true));
-            writer.WriteLine(
-                "utc_iso,session_id,elapsed_s,event,phase,destination,latitude,longitude,"
-                + "gps_accuracy_m,outdoor_remaining_m,vps_attempt,vps_state,vps_scan_s,"
-                + "indoor_state,pose_source,pose_confidence,step_count,heading_deg,"
-                + "position_x,position_y,position_z,indoor_remaining_m,route_revision,"
-                + "wrong_way_count,recovery_count,note");
+            trialStartedUtc = DateTime.UtcNow;
+            string suffix = Guid.NewGuid().ToString("N").Substring(0, 4).ToUpperInvariant();
+            SessionId = trialStartedUtc.ToString(
+                            "yyyyMMdd_HHmmss_fff",
+                            CultureInfo.InvariantCulture)
+                        + "_Current_GPS_TO_VPS_DEV_"
+                        + suffix;
+            EventsFilePath = Path.Combine(directory, "events_" + SessionId + ".csv");
+            SamplesFilePath = Path.Combine(directory, "samples_" + SessionId + ".csv");
+            SummaryFilePath = Path.Combine(directory, "summary_" + SessionId + ".csv");
+
+            eventsWriter = NewWriter(EventsFilePath);
+            samplesWriter = NewWriter(SamplesFilePath);
+            eventsWriter.WriteLine(
+                "utc_iso,session_id,elapsed_s,event,from_state,to_state,source,destination,"
+                + "latitude,longitude,gps_accuracy_m,campus_x,campus_y,campus_z,"
+                + "map_x,map_y,map_z,vps_attempt,note");
+            samplesWriter.WriteLine(
+                "utc_iso,session_id,elapsed_s,state,source,destination,latitude,longitude,"
+                + "gps_accuracy_m,gps_valid,pdr_steps,pdr_confidence,campus_x,campus_y,campus_z,"
+                + "map_x,map_y,map_z,outdoor_remaining_m,vps_attempt,vps_state,vps_scan_s,"
+                + "indoor_state,indoor_pose_source,indoor_confidence,indoor_steps,heading_deg,"
+                + "indoor_remaining_m,route_revision,wrong_way_count,recovery_count");
 
             sessionStartedAt = Time.unscaledTime;
             nextSampleAt = Time.unscaledTime;
             nextFlushAt = Time.unscaledTime + flushIntervalSeconds;
             SampleCount = 0;
+            EventCount = 0;
             WrongWayCount = 0;
             RecoveryCount = 0;
+            HandoverSucceeded = false;
+            DestinationArrived = false;
             wrongWayActive = false;
             lastIndoorRemaining = float.NaN;
             lastObservedStepCount = indoorPose != null ? indoorPose.StepCount : 0;
             lastDestination = GetDestination();
-            WriteRow("trial_started", "auto=" + autoStartSession);
-            writer.Flush();
+            finalReason = string.Empty;
+            WriteEventRow("trial_started", string.Empty, string.Empty, "auto=" + autoStartSession);
+            WriteSummary(completed: false);
+            FlushWriters();
         }
 
         public void EndCurrentTrial(string reason = "trial_finished")
@@ -143,18 +182,21 @@ namespace ARNavB9V2.Experiment
             if (!IsRecording)
                 return;
 
-            WriteRow("trial_finished", reason);
-            writer.Flush();
-            writer.Dispose();
-            writer = null;
-            LastSavedFilePath = CurrentFilePath;
-            CurrentFilePath = string.Empty;
+            finalReason = reason;
+            WriteEventRow("trial_finished", string.Empty, string.Empty, reason);
+            FlushWriters();
+            eventsWriter.Dispose();
+            samplesWriter.Dispose();
+            eventsWriter = null;
+            samplesWriter = null;
+            WriteSummary(completed: true);
+            LastSavedFilePath = SummaryFilePath;
         }
 
         public void AddResearchMarker(string note = "manual_marker")
         {
             if (IsRecording)
-                WriteRow("research_marker", note);
+                WriteEventRow("research_marker", string.Empty, string.Empty, note);
         }
 
         private void Subscribe()
@@ -166,7 +208,8 @@ namespace ARNavB9V2.Experiment
             if (indoorRoute != null)
                 indoorRoute.StateChanged += HandleIndoorStateChanged;
             if (indoorPose != null)
-                indoorPose.StepDetected += HandleStepDetected;
+                indoorPose.StepDetected += HandleIndoorStepDetected;
+            SubscribeReliability();
         }
 
         private void Unsubscribe()
@@ -178,52 +221,68 @@ namespace ARNavB9V2.Experiment
             if (indoorRoute != null)
                 indoorRoute.StateChanged -= HandleIndoorStateChanged;
             if (indoorPose != null)
-                indoorPose.StepDetected -= HandleStepDetected;
+                indoorPose.StepDetected -= HandleIndoorStepDetected;
+            UnsubscribeReliability();
+        }
+
+        private void SubscribeReliability()
+        {
+            if (reliabilityController != null)
+                reliabilityController.StateChanged += HandleReliabilityStateChanged;
+            if (transitionPdr != null)
+                transitionPdr.StepDetected += HandleTransitionStepDetected;
+        }
+
+        private void UnsubscribeReliability()
+        {
+            if (reliabilityController != null)
+                reliabilityController.StateChanged -= HandleReliabilityStateChanged;
+            if (transitionPdr != null)
+                transitionPdr.StepDetected -= HandleTransitionStepDetected;
+        }
+
+        private void HandleReliabilityStateChanged(B9ReliabilityTransition transition)
+        {
+            if (transition.Current == B9NavigationState.IndoorVps)
+                HandoverSucceeded = true;
+            WriteEventRow(
+                "reliability_state",
+                transition.Previous.ToString(),
+                transition.Current.ToString(),
+                transition.Reason);
         }
 
         private void HandleOutdoorStateChanged(B9OutdoorRouteController.RouteState state)
         {
-            WriteEvent("outdoor_state", state.ToString());
+            WriteEventRow("outdoor_state", string.Empty, state.ToString(), string.Empty);
         }
 
         private void HandleVpsStateChanged(B9VpsTransitionController.TransitionState state)
         {
-            WriteEvent("vps_state", state.ToString());
+            WriteEventRow("vps_state", string.Empty, state.ToString(), vpsTransition?.FailureReason);
         }
 
         private void HandleIndoorStateChanged(B9IndoorRouteController.IndoorRouteState state)
         {
-            WriteEvent("indoor_state", state.ToString());
+            WriteEventRow("indoor_state", string.Empty, state.ToString(), string.Empty);
             if (state == B9IndoorRouteController.IndoorRouteState.Arrived)
             {
-                WriteEvent("destination_arrived", indoorRoute.DestinationRoomId);
-                writer?.Flush();
+                DestinationArrived = true;
+                WriteEventRow("destination_arrived", string.Empty, state.ToString(), GetDestination());
+                FlushWriters();
             }
         }
 
-        private void HandleStepDetected(int count, float timestamp, Vector3 position)
+        private void HandleIndoorStepDetected(int count, float timestamp, Vector3 position)
         {
             if (IsRecording && (count == 1 || count % 5 == 0))
-                WriteRow("step_checkpoint", "step=" + count);
+                WriteEventRow("indoor_step_checkpoint", string.Empty, string.Empty, "step=" + count);
         }
 
-        private void HandleLowMemory()
+        private void HandleTransitionStepDetected(int count, Vector3 position)
         {
-            WriteEvent("device_low_memory", "Unity low-memory callback");
-            writer?.Flush();
-        }
-
-        private void OnApplicationPause(bool paused)
-        {
-            if (!IsRecording)
-                return;
-            WriteRow(paused ? "app_paused" : "app_resumed", string.Empty);
-            writer.Flush();
-        }
-
-        private void OnApplicationQuit()
-        {
-            EndCurrentTrial("app_quit");
+            if (IsRecording && (count == 1 || count % 3 == 0))
+                WriteEventRow("transition_step_checkpoint", string.Empty, string.Empty, "step=" + count);
         }
 
         private void DetectDestinationChange()
@@ -232,7 +291,7 @@ namespace ARNavB9V2.Experiment
             if (string.Equals(current, lastDestination, StringComparison.OrdinalIgnoreCase))
                 return;
             lastDestination = current;
-            WriteRow("destination_changed", current);
+            WriteEventRow("destination_changed", string.Empty, string.Empty, current);
         }
 
         private void DetectWrongWayAndRecovery()
@@ -256,13 +315,13 @@ namespace ARNavB9V2.Experiment
                     wrongWayActive = true;
                     wrongWayBaseline = remaining;
                     WrongWayCount++;
-                    WriteRow("wrong_way_detected", "distance_increase=" + Format(delta));
+                    WriteEventRow("wrong_way_detected", string.Empty, string.Empty, "distance_increase=" + Format(delta));
                 }
                 else if (wrongWayActive && remaining <= wrongWayBaseline - 0.6f)
                 {
                     wrongWayActive = false;
                     RecoveryCount++;
-                    WriteRow("route_recovered", "remaining=" + Format(remaining));
+                    WriteEventRow("route_recovered", string.Empty, string.Empty, "remaining=" + Format(remaining));
                 }
             }
 
@@ -270,31 +329,38 @@ namespace ARNavB9V2.Experiment
             lastObservedStepCount = steps;
         }
 
-        private void WriteEvent(string eventName, string note)
+        private void WriteEventRow(string eventName, string fromState, string toState, string note)
         {
-            if (IsRecording)
-                WriteRow(eventName, note);
-        }
-
-        private void WriteRow(string eventName, string note)
-        {
-            if (writer == null)
+            if (eventsWriter == null)
                 return;
-
-            Vector3 position = indoorPose != null
-                ? indoorPose.CurrentPosition
-                : Vector3.zero;
+            GetPositions(out Vector3 campus, out Vector3 map);
             string[] columns =
             {
-                DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
-                SessionId,
-                Format(Time.unscaledTime - sessionStartedAt),
-                eventName,
-                GetPhase(),
-                GetDestination(),
-                locationProvider != null ? locationProvider.Latitude.ToString("F7", CultureInfo.InvariantCulture) : string.Empty,
-                locationProvider != null ? locationProvider.Longitude.ToString("F7", CultureInfo.InvariantCulture) : string.Empty,
-                locationProvider != null ? Format(locationProvider.HorizontalAccuracyMeters) : string.Empty,
+                UtcNow(), SessionId, Elapsed(), eventName, fromState, toState,
+                GetSource(), GetDestination(), Latitude(), Longitude(), GpsAccuracy(),
+                Format(campus.x), Format(campus.y), Format(campus.z),
+                Format(map.x), Format(map.y), Format(map.z),
+                vpsTransition != null ? vpsTransition.LocalizationAttemptCount.ToString(CultureInfo.InvariantCulture) : "0",
+                note,
+            };
+            WriteCsv(eventsWriter, columns);
+            EventCount++;
+        }
+
+        private void WriteSampleRow()
+        {
+            if (samplesWriter == null)
+                return;
+            GetPositions(out Vector3 campus, out Vector3 map);
+            string[] columns =
+            {
+                UtcNow(), SessionId, Elapsed(), GetState(), GetSource(), GetDestination(),
+                Latitude(), Longitude(), GpsAccuracy(),
+                locationProvider != null && locationProvider.HasReliableFix ? "1" : "0",
+                transitionPdr != null ? transitionPdr.StepCount.ToString(CultureInfo.InvariantCulture) : "0",
+                transitionPdr != null ? Format(transitionPdr.Confidence) : string.Empty,
+                Format(campus.x), Format(campus.y), Format(campus.z),
+                Format(map.x), Format(map.y), Format(map.z),
                 outdoorRoute != null ? Format(outdoorRoute.RemainingDistanceMeters) : string.Empty,
                 vpsTransition != null ? vpsTransition.LocalizationAttemptCount.ToString(CultureInfo.InvariantCulture) : "0",
                 vpsTransition != null ? vpsTransition.State.ToString() : string.Empty,
@@ -303,35 +369,71 @@ namespace ARNavB9V2.Experiment
                 indoorPose != null ? indoorPose.SourceLabel : string.Empty,
                 indoorPose != null ? Format(indoorPose.Confidence) : string.Empty,
                 indoorPose != null ? indoorPose.StepCount.ToString(CultureInfo.InvariantCulture) : "0",
-                indoorPose != null ? Format(indoorPose.HeadingDegrees) : string.Empty,
-                Format(position.x),
-                Format(position.y),
-                Format(position.z),
+                GetHeading(),
                 indoorRoute != null ? Format(indoorRoute.RemainingDistanceMeters) : string.Empty,
                 indoorRoute != null ? indoorRoute.RouteRevision.ToString(CultureInfo.InvariantCulture) : "0",
                 WrongWayCount.ToString(CultureInfo.InvariantCulture),
                 RecoveryCount.ToString(CultureInfo.InvariantCulture),
-                note,
             };
-
-            for (int i = 0; i < columns.Length; i++)
-                columns[i] = Escape(columns[i]);
-            writer.WriteLine(string.Join(",", columns));
+            WriteCsv(samplesWriter, columns);
         }
 
-        private string GetPhase()
+        private void WriteSummary(bool completed)
         {
-            if (vpsTransition == null)
-                return "unknown";
-            return vpsTransition.State switch
+            if (string.IsNullOrWhiteSpace(SummaryFilePath))
+                return;
+            float duration = Mathf.Max(0f, Time.unscaledTime - sessionStartedAt);
+            string header =
+                "session_id,start_utc,end_utc,duration_s,direction,completed,handover_success,"
+                + "destination_arrived,destination,sample_count,event_count,vps_attempts,"
+                + "pdr_steps,indoor_steps,wrong_way_count,recovery_count,final_state,end_reason\n";
+            string[] row =
             {
-                B9VpsTransitionController.TransitionState.WaitingForEntrance => "outdoor",
-                B9VpsTransitionController.TransitionState.StartingVps => "vps_starting",
-                B9VpsTransitionController.TransitionState.Scanning => "vps_scanning",
-                B9VpsTransitionController.TransitionState.IndoorLocalized => "indoor",
-                B9VpsTransitionController.TransitionState.Failed => "vps_failed",
-                _ => "unknown",
+                SessionId,
+                trialStartedUtc.ToString("O", CultureInfo.InvariantCulture),
+                completed ? DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture) : string.Empty,
+                Format(duration), "GPS_TO_VPS", completed ? "1" : "0",
+                HandoverSucceeded ? "1" : "0", DestinationArrived ? "1" : "0",
+                GetDestination(), SampleCount.ToString(CultureInfo.InvariantCulture),
+                EventCount.ToString(CultureInfo.InvariantCulture),
+                vpsTransition != null ? vpsTransition.LocalizationAttemptCount.ToString(CultureInfo.InvariantCulture) : "0",
+                transitionPdr != null ? transitionPdr.StepCount.ToString(CultureInfo.InvariantCulture) : "0",
+                indoorPose != null ? indoorPose.StepCount.ToString(CultureInfo.InvariantCulture) : "0",
+                WrongWayCount.ToString(CultureInfo.InvariantCulture),
+                RecoveryCount.ToString(CultureInfo.InvariantCulture), GetState(), finalReason,
             };
+            for (int i = 0; i < row.Length; i++)
+                row[i] = Escape(row[i]);
+            File.WriteAllText(
+                SummaryFilePath,
+                header + string.Join(",", row) + "\n",
+                new UTF8Encoding(true));
+        }
+
+        private void GetPositions(out Vector3 campus, out Vector3 map)
+        {
+            if (reliabilityController != null)
+            {
+                campus = reliabilityController.CurrentCampusPosition;
+                map = reliabilityController.CurrentMapWorldPosition;
+                return;
+            }
+            campus = locationProvider != null ? locationProvider.CampusPosition : Vector3.zero;
+            map = indoorPose != null ? indoorPose.CurrentPosition : Vector3.zero;
+        }
+
+        private string GetState()
+        {
+            return reliabilityController != null
+                ? reliabilityController.State.ToString()
+                : vpsTransition != null ? vpsTransition.State.ToString() : "unknown";
+        }
+
+        private string GetSource()
+        {
+            return reliabilityController != null
+                ? reliabilityController.ActiveSource.ToString()
+                : "unknown";
         }
 
         private string GetDestination()
@@ -339,6 +441,64 @@ namespace ARNavB9V2.Experiment
             if (indoorRoute != null && !string.IsNullOrWhiteSpace(indoorRoute.DestinationRoomId))
                 return indoorRoute.DestinationRoomId;
             return outdoorRoute != null ? outdoorRoute.SelectedRoomId : string.Empty;
+        }
+
+        private string GetHeading()
+        {
+            if (indoorPose != null && indoorPose.IsTracking)
+                return Format(indoorPose.HeadingDegrees);
+            if (transitionPdr != null && transitionPdr.IsTracking)
+                return Format(transitionPdr.HeadingDegrees);
+            return locationProvider != null ? Format(locationProvider.HeadingDegrees) : string.Empty;
+        }
+
+        private string Latitude() => locationProvider != null
+            ? locationProvider.Latitude.ToString("F7", CultureInfo.InvariantCulture)
+            : string.Empty;
+        private string Longitude() => locationProvider != null
+            ? locationProvider.Longitude.ToString("F7", CultureInfo.InvariantCulture)
+            : string.Empty;
+        private string GpsAccuracy() => locationProvider != null
+            ? Format(locationProvider.HorizontalAccuracyMeters)
+            : string.Empty;
+        private string Elapsed() => Format(Time.unscaledTime - sessionStartedAt);
+        private static string UtcNow() => DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+
+        private static StreamWriter NewWriter(string path)
+        {
+            return new StreamWriter(path, false, new UTF8Encoding(true));
+        }
+
+        private static void WriteCsv(TextWriter writer, string[] columns)
+        {
+            for (int i = 0; i < columns.Length; i++)
+                columns[i] = Escape(columns[i]);
+            writer.WriteLine(string.Join(",", columns));
+        }
+
+        private void FlushWriters()
+        {
+            eventsWriter?.Flush();
+            samplesWriter?.Flush();
+        }
+
+        private void HandleLowMemory()
+        {
+            WriteEventRow("device_low_memory", string.Empty, string.Empty, "Unity low-memory callback");
+            FlushWriters();
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (!IsRecording)
+                return;
+            WriteEventRow(paused ? "app_paused" : "app_resumed", string.Empty, string.Empty, string.Empty);
+            FlushWriters();
+        }
+
+        private void OnApplicationQuit()
+        {
+            EndCurrentTrial("app_quit");
         }
 
         private static string Format(float value)

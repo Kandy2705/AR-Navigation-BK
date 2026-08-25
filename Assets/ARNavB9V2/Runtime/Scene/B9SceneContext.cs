@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using ARNavB9V2.Data;
+using ARNavB9V2.Handover;
 using Unity.AI.Navigation;
 using Unity.XR.CoreUtils;
 using UnityEngine;
@@ -21,6 +22,7 @@ namespace ARNavB9V2.Scene
         [SerializeField] private NavMeshSurface navMeshSurface;
         [SerializeField] private Transform outdoorEntranceAnchor;
         [SerializeField] private Transform indoorEntranceAnchor;
+        [SerializeField] private B9BuildingTransitionGeometry handoverGeometry;
         [SerializeField] private List<B9RoomAnchor> roomAnchors = new List<B9RoomAnchor>();
 
         public B9BuildingDefinition Building => building;
@@ -33,6 +35,7 @@ namespace ARNavB9V2.Scene
         public NavMeshSurface NavMeshSurface => navMeshSurface;
         public Transform OutdoorEntranceAnchor => outdoorEntranceAnchor;
         public Transform IndoorEntranceAnchor => indoorEntranceAnchor;
+        public B9BuildingTransitionGeometry HandoverGeometry => handoverGeometry;
         public IReadOnlyList<B9RoomAnchor> RoomAnchors => roomAnchors;
 
         public void Configure(
@@ -63,6 +66,11 @@ namespace ARNavB9V2.Scene
                 : new List<B9RoomAnchor>();
         }
 
+        public void AttachHandoverGeometry(B9BuildingTransitionGeometry geometry)
+        {
+            handoverGeometry = geometry;
+        }
+
         public bool ValidateConfiguration(out string reason)
         {
             if (building == null) return Fail("B9BuildingDefinition missing", out reason);
@@ -88,9 +96,15 @@ namespace ARNavB9V2.Scene
                 }
             }
             if (!has104) return Fail("B9-104 anchor missing", out reason);
-
             reason = string.Empty;
             return true;
+        }
+
+        public bool ValidateHandoverConfiguration(out string reason)
+        {
+            if (handoverGeometry == null)
+                return Fail("B9 handover geometry missing", out reason);
+            return handoverGeometry.ValidateConfiguration(out reason);
         }
 
         private static bool Fail(string message, out string reason)
