@@ -37,15 +37,19 @@ namespace ARNavB9V2.Indoor
 
         private NavMeshPath navMeshPath;
         private B9RoomAnchor destinationAnchor;
+        private Transform exitAnchor;
         private Vector3 lastRoutedPosition = Vector3.positiveInfinity;
         private float nextRefreshTime;
         private bool navigationActive;
+        private bool navigatingToExit;
 
         public IndoorRouteState State { get; private set; } = IndoorRouteState.WaitingForLocalization;
         public string DestinationRoomId => destinationRoomId;
-        public string DestinationFloorId => destinationAnchor != null ? destinationAnchor.FloorId : string.Empty;
-        public Vector3 DestinationWorldPosition => destinationAnchor != null
-            ? destinationAnchor.transform.position
+        public string DestinationFloorId => navigatingToExit
+            ? "F1"
+            : destinationAnchor != null ? destinationAnchor.FloorId : string.Empty;
+        public Vector3 DestinationWorldPosition => ActiveDestination != null
+            ? ActiveDestination.position
             : Vector3.zero;
         public Vector3 CurrentUserWorldPosition => arCamera != null
             ? poseTracker != null && poseTracker.IsTracking
@@ -57,6 +61,8 @@ namespace ARNavB9V2.Indoor
             : arCamera != null ? arCamera.transform.eulerAngles.y : 0f;
         public float RemainingDistanceMeters { get; private set; }
         public bool NavigationActive => navigationActive;
+        public bool NavigatingToExit => navigatingToExit;
+        public bool LastArrivalWasExit { get; private set; }
         public int RouteRevision { get; private set; }
         public event Action<IndoorRouteState> StateChanged;
 
@@ -117,6 +123,7 @@ namespace ARNavB9V2.Indoor
         {
             enabled = true;
             navigationActive = false;
+            LastArrivalWasExit = false;
             if (!SetDestinationRoom(roomId))
             {
                 ribbonRenderer?.ClearPath();
@@ -129,12 +136,41 @@ namespace ARNavB9V2.Indoor
             return State != IndoorRouteState.RouteUnavailable;
         }
 
+        public bool BeginExitNavigation(Transform nearestExitAnchor)
+        {
+            if (nearestExitAnchor == null)
+                return false;
+
+            enabled = true;
+            exitAnchor = nearestExitAnchor;
+            navigatingToExit = true;
+            LastArrivalWasExit = false;
+            navigationActive = true;
+            lastRoutedPosition = Vector3.positiveInfinity;
+            nextRefreshTime = 0f;
+            RefreshRoute(force: true);
+            return State != IndoorRouteState.RouteUnavailable;
+        }
+
+        public void StopNavigation()
+        {
+            navigationActive = false;
+            navigatingToExit = false;
+            exitAnchor = null;
+            RemainingDistanceMeters = 0f;
+            lastRoutedPosition = Vector3.positiveInfinity;
+            ribbonRenderer?.ClearPath();
+            SetState(IndoorRouteState.WaitingForLocalization);
+        }
+
         public bool SetDestinationRoom(string roomId)
         {
             if (building == null || !building.TryGetRoom(roomId, out _))
                 return false;
 
             destinationRoomId = roomId.Trim().ToUpperInvariant();
+            navigatingToExit = false;
+            exitAnchor = null;
             if (!ResolveDestinationAnchor())
             {
                 if (navigationActive)
@@ -157,7 +193,8 @@ namespace ARNavB9V2.Indoor
 
         private void RefreshRoute(bool force)
         {
-            if (!navigationActive || arCamera == null || destinationAnchor == null
+            Transform destination = ActiveDestination;
+            if (!navigationActive || arCamera == null || destination == null
                 || indoorNavMesh == null || indoorNavMesh.navMeshData == null
                 || ribbonRenderer == null)
             {
@@ -183,7 +220,7 @@ namespace ARNavB9V2.Indoor
                     userSampleRadiusMeters,
                     NavMesh.AllAreas)
                 || !NavMesh.SamplePosition(
-                    destinationAnchor.transform.position,
+                    destination.position,
                     out NavMeshHit destinationHit,
                     destinationSampleRadiusMeters,
                     NavMesh.AllAreas)
@@ -209,6 +246,7 @@ namespace ARNavB9V2.Indoor
             if (RemainingDistanceMeters <= arrivalDistanceMeters)
             {
                 ribbonRenderer.ClearPath();
+                LastArrivalWasExit = navigatingToExit;
                 SetState(IndoorRouteState.Arrived);
                 return;
             }
@@ -238,6 +276,10 @@ namespace ARNavB9V2.Indoor
 
             return false;
         }
+
+        private Transform ActiveDestination => navigatingToExit
+            ? exitAnchor
+            : destinationAnchor != null ? destinationAnchor.transform : null;
 
         private static float CalculateDistance(IReadOnlyList<Vector3> points)
         {

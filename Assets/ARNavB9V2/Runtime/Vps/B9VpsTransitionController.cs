@@ -181,6 +181,30 @@ namespace ARNavB9V2.Vps
             StartLocalizationAttempt();
         }
 
+        public void CancelLocalization()
+        {
+            StopPendingRequest();
+            indoorHandoverPending = false;
+            scanStartedAt = 0f;
+            FailureReason = string.Empty;
+            if (mapLocalizationManager != null)
+            {
+                TrySetFieldOrProperty(
+                    mapLocalizationManager.GetType(),
+                    "firstLocalizationUntilSuccess",
+                    false);
+            }
+            SetState(TransitionState.WaitingForEntrance);
+        }
+
+        public void ReturnToOutdoor()
+        {
+            CancelLocalization();
+            indoorContext?.PrepareForLocalization();
+            if (foundation != null && foundation.ModelRoot != null)
+                foundation.ModelRoot.gameObject.SetActive(false);
+        }
+
         private void StartLocalizationAttempt()
         {
             StopPendingRequest();

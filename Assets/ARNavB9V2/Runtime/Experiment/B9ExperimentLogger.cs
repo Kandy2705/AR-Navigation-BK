@@ -199,6 +199,15 @@ namespace ARNavB9V2.Experiment
                 WriteEventRow("research_marker", string.Empty, string.Empty, note);
         }
 
+        public void FlushNow()
+        {
+            if (IsRecording)
+            {
+                WriteSummary(completed: false);
+                FlushWriters();
+            }
+        }
+
         private void Subscribe()
         {
             if (outdoorRoute != null)
@@ -267,6 +276,12 @@ namespace ARNavB9V2.Experiment
             WriteEventRow("indoor_state", string.Empty, state.ToString(), string.Empty);
             if (state == B9IndoorRouteController.IndoorRouteState.Arrived)
             {
+                if (indoorRoute != null && indoorRoute.LastArrivalWasExit)
+                {
+                    WriteEventRow("nearest_exit_arrived", string.Empty, state.ToString(), "B9-EXIT");
+                    FlushWriters();
+                    return;
+                }
                 DestinationArrived = true;
                 WriteEventRow("destination_arrived", string.Empty, state.ToString(), GetDestination());
                 FlushWriters();
@@ -438,6 +453,8 @@ namespace ARNavB9V2.Experiment
 
         private string GetDestination()
         {
+            if (indoorRoute != null && indoorRoute.NavigatingToExit)
+                return "B9-EXIT";
             if (indoorRoute != null && !string.IsNullOrWhiteSpace(indoorRoute.DestinationRoomId))
                 return indoorRoute.DestinationRoomId;
             return outdoorRoute != null ? outdoorRoute.SelectedRoomId : string.Empty;

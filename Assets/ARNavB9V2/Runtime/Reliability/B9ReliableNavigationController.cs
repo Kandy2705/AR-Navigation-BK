@@ -29,24 +29,52 @@ namespace ARNavB9V2.Reliability
         [SerializeField, Min(0.2f)] private float innerNavMeshSampleRadiusMeters = 3f;
         [SerializeField, Min(0.2f)] private float destinationSampleRadiusMeters = 6f;
         [SerializeField, Min(0f)] private float minimumPdrHoldSeconds = 0.35f;
+        [Header("Indoor -> outdoor reliability")]
+        [SerializeField, Min(1f)] private float maximumExitGpsAccuracyMeters = 30f;
+        [SerializeField, Min(1f)] private float maximumExitGpsPdrSeparationMeters = 35f;
+        [SerializeField, Min(0f)] private float exitGpsStableSeconds = 1.5f;
+        [SerializeField, Range(1, 8)] private int minimumStableGpsSamples = 2;
+        [SerializeField, Min(0.5f)] private float maximumGpsSampleJumpMeters = 12f;
 
         private readonly B9NavigationStateMachine stateMachine = new B9NavigationStateMachine();
         private readonly List<Vector3> transitionGuidance = new List<Vector3>(32);
         private NavMeshPath indoorPreviewPath;
         private float enteredPdrAt;
         private float nextGuidanceAt;
+        private B9PortalAnchor activeExitPortal;
+        private bool exitRouteRequested;
+        private int lastExitGpsSampleVersion = -1;
+        private int stableExitGpsSamples;
+        private float exitGpsStableSince = -1f;
+        private Vector3 previousExitGpsPosition;
+        private bool hasPreviousExitGpsPosition;
 
         public B9NavigationState State => stateMachine.Current;
         public B9PoseSource ActiveSource { get; private set; } = B9PoseSource.Gps;
-        public Vector3 CurrentCampusPosition => transitionPdr != null && transitionPdr.IsTracking
-            ? transitionPdr.CampusPosition
-            : outdoor != null && outdoor.LocationProvider != null
-                ? outdoor.LocationProvider.CampusPosition
-                : Vector3.zero;
+        public Vector3 CurrentCampusPosition
+        {
+            get
+            {
+                if (transitionPdr != null && transitionPdr.IsTracking)
+                    return transitionPdr.CampusPosition;
+                if (State == B9NavigationState.IndoorVps
+                    && indoor?.PoseTracker != null
+                    && geometry?.PrimaryPortal != null)
+                {
+                    return geometry.PrimaryPortal.MapWorldToCampusPoint(
+                        indoor.PoseTracker.CurrentPosition);
+                }
+                return outdoor != null && outdoor.LocationProvider != null
+                    ? outdoor.LocationProvider.CampusPosition
+                    : Vector3.zero;
+            }
+        }
         public Vector3 CurrentMapWorldPosition
         {
             get
             {
+                if (State == B9NavigationState.IndoorVps && indoor?.PoseTracker != null)
+                    return indoor.PoseTracker.CurrentPosition;
                 B9PortalAnchor portal = geometry != null ? geometry.PrimaryPortal : null;
                 return portal != null
                     ? portal.CampusToMapWorldPoint(CurrentCampusPosition)
@@ -54,6 +82,12 @@ namespace ARNavB9V2.Reliability
             }
         }
         public float TransitionRemainingDistanceMeters { get; private set; }
+        public bool ExitRouteRequested => exitRouteRequested;
+        public string ActiveExitName => activeExitPortal != null
+            ? activeExitPortal.DisplayName
+            : string.Empty;
+        public int StableExitGpsSamples => stableExitGpsSamples;
+        public int RequiredStableExitGpsSamples => minimumStableGpsSamples;
         public event Action<B9ReliabilityTransition> StateChanged;
 
         public void Configure(
@@ -83,12 +117,16 @@ namespace ARNavB9V2.Reliability
         {
             if (vpsTransition != null)
                 vpsTransition.StateChanged += HandleVpsStateChanged;
+            if (indoor?.RouteController != null)
+                indoor.RouteController.StateChanged += HandleIndoorRouteStateChanged;
         }
 
         private void OnDisable()
         {
             if (vpsTransition != null)
                 vpsTransition.StateChanged -= HandleVpsStateChanged;
+            if (indoor?.RouteController != null)
+                indoor.RouteController.StateChanged -= HandleIndoorRouteStateChanged;
         }
 
         private void Update()
@@ -106,6 +144,72 @@ namespace ARNavB9V2.Reliability
                 case B9NavigationState.VpsScanning:
                 case B9NavigationState.VpsFailed:
                     UpdatePdrPresentation();
+                    break;
+                case B9NavigationState.ExitingWithPdr:
+                    UpdateExitPdrPresentation();
+                    EvaluateStableOutdoorGps();
+                    break;
+            }
+        }
+
+        public bool RequestExitToOutdoor()
+        {
+            if (State != B9NavigationState.IndoorVps || geometry == null || indoor == null)
+                return false;
+
+            Vector3 mapPosition = indoor.PoseTracker != null
+                ? indoor.PoseTracker.CurrentPosition
+                : foundation != null && foundation.ArCamera != null
+                    ? foundation.ArCamera.transform.position
+                    : Vector3.zero;
+            if (!geometry.TryGetNearestMapPortal(mapPosition, out activeExitPortal))
+                return false;
+
+            exitRouteRequested = true;
+            if (indoor.BeginExitNavigation(activeExitPortal.IndoorMapAnchor))
+                return true;
+
+            exitRouteRequested = false;
+            activeExitPortal = null;
+            return false;
+        }
+
+        public void CancelExitRequest()
+        {
+            if (State != B9NavigationState.IndoorVps || !exitRouteRequested)
+                return;
+
+            exitRouteRequested = false;
+            activeExitPortal = null;
+            string roomId = outdoor?.RouteController?.SelectedRoomId;
+            if (!string.IsNullOrWhiteSpace(roomId))
+                indoor?.BeginNavigation(roomId);
+            else
+                indoor?.StopNavigation();
+        }
+
+        public void CancelNavigation()
+        {
+            switch (State)
+            {
+                case B9NavigationState.OutdoorGps:
+                    outdoor?.RouteController?.CancelNavigation();
+                    break;
+                case B9NavigationState.EnteringWithPdr:
+                case B9NavigationState.VpsScanning:
+                case B9NavigationState.VpsFailed:
+                    vpsTransition?.CancelLocalization();
+                    RestoreOutdoorGps("navigation cancelled during entry");
+                    outdoor?.RouteController?.CancelNavigation();
+                    break;
+                case B9NavigationState.IndoorVps:
+                    exitRouteRequested = false;
+                    activeExitPortal = null;
+                    indoor?.StopNavigation();
+                    break;
+                case B9NavigationState.ExitingWithPdr:
+                    // Keep the safety handover alive until GPS is trustworthy.
+                    outdoor?.RibbonRenderer?.ClearPath();
                     break;
             }
         }
@@ -161,6 +265,15 @@ namespace ARNavB9V2.Reliability
                 return;
             nextGuidanceAt = Time.unscaledTime + guidanceRefreshSeconds;
             BuildContinuousTransitionGuidance();
+        }
+
+        private void UpdateExitPdrPresentation()
+        {
+            if (transitionPdr == null || !transitionPdr.IsTracking || outdoor == null)
+                return;
+            outdoor.MinimapController?.SetPoseOverride(
+                transitionPdr.CampusPosition,
+                transitionPdr.HeadingDegrees);
         }
 
         private void BuildContinuousTransitionGuidance()
@@ -254,6 +367,131 @@ namespace ARNavB9V2.Reliability
                         ChangeState(B9NavigationState.VpsFailed, vpsTransition.FailureReason);
                     break;
             }
+        }
+
+        private void HandleIndoorRouteStateChanged(B9IndoorRouteController.IndoorRouteState state)
+        {
+            if (state == B9IndoorRouteController.IndoorRouteState.Arrived
+                && State == B9NavigationState.IndoorVps
+                && exitRouteRequested)
+            {
+                BeginExitPdrHandover();
+            }
+        }
+
+        private void BeginExitPdrHandover()
+        {
+            if (activeExitPortal == null || transitionPdr == null)
+                return;
+
+            Vector3 mapPosition = indoor?.PoseTracker != null
+                ? indoor.PoseTracker.CurrentPosition
+                : activeExitPortal.IndoorMapAnchor.position;
+            Vector3 campusSeed = activeExitPortal.MapWorldToCampusPoint(mapPosition);
+
+            indoor?.StopNavigation();
+            indoor?.PoseTracker?.StopTracking();
+            indoor?.MinimapController?.Deactivate();
+            if (foundation?.ModelRoot != null)
+                foundation.ModelRoot.gameObject.SetActive(false);
+            if (geometry?.CampusModelProxy != null)
+                geometry.CampusModelProxy.gameObject.SetActive(true);
+
+            if (outdoor != null)
+            {
+                if (outdoor.SchoolGround != null)
+                    outdoor.SchoolGround.gameObject.SetActive(true);
+                if (outdoor.LocationProvider != null)
+                    outdoor.LocationProvider.enabled = true;
+                if (outdoor.PoseController != null)
+                    outdoor.PoseController.enabled = false;
+                if (outdoor.RouteController != null)
+                    outdoor.RouteController.enabled = false;
+                if (outdoor.MinimapController != null)
+                    outdoor.MinimapController.enabled = true;
+                if (outdoor.UserMarker != null)
+                    outdoor.UserMarker.gameObject.SetActive(true);
+                if (outdoor.EntranceMarker != null)
+                    outdoor.EntranceMarker.gameObject.SetActive(true);
+                outdoor.RibbonRenderer?.ClearPath();
+            }
+
+            transitionPdr.BeginTracking(campusSeed);
+            ResetExitGpsStability();
+            ActiveSource = B9PoseSource.Pdr;
+            ChangeState(B9NavigationState.ExitingWithPdr, "arrived at nearest exit; waiting for stable GPS");
+            UpdateExitPdrPresentation();
+        }
+
+        private void EvaluateStableOutdoorGps()
+        {
+            B9OutdoorLocationProvider gps = outdoor?.LocationProvider;
+            if (gps == null || gps.SampleVersion == lastExitGpsSampleVersion)
+                return;
+            lastExitGpsSampleVersion = gps.SampleVersion;
+
+            Vector3 gpsPosition = gps.TargetCampusPosition;
+            bool reliable = gps.HasReliableFix
+                            && gps.HorizontalAccuracyMeters > 0f
+                            && gps.HorizontalAccuracyMeters <= maximumExitGpsAccuracyMeters
+                            && transitionPdr != null
+                            && Vector3.Distance(gpsPosition, transitionPdr.CampusPosition)
+                            <= maximumExitGpsPdrSeparationMeters;
+            if (reliable && hasPreviousExitGpsPosition)
+            {
+                reliable = Vector3.Distance(gpsPosition, previousExitGpsPosition)
+                           <= maximumGpsSampleJumpMeters;
+            }
+
+            previousExitGpsPosition = gpsPosition;
+            hasPreviousExitGpsPosition = true;
+            if (!reliable)
+            {
+                stableExitGpsSamples = 0;
+                exitGpsStableSince = -1f;
+                return;
+            }
+
+            stableExitGpsSamples++;
+            if (exitGpsStableSince < 0f)
+                exitGpsStableSince = Time.unscaledTime;
+            if (stableExitGpsSamples >= minimumStableGpsSamples
+                && Time.unscaledTime - exitGpsStableSince >= exitGpsStableSeconds)
+            {
+                CompleteExitToGps();
+            }
+        }
+
+        private void CompleteExitToGps()
+        {
+            transitionPdr?.StopTracking();
+            outdoor?.MinimapController?.ClearPoseOverride();
+            vpsTransition?.ReturnToOutdoor();
+            if (outdoor != null)
+            {
+                if (outdoor.PoseController != null)
+                    outdoor.PoseController.enabled = true;
+                if (outdoor.RouteController != null)
+                {
+                    outdoor.RouteController.enabled = true;
+                    outdoor.RouteController.CancelNavigation();
+                }
+            }
+            exitRouteRequested = false;
+            activeExitPortal = null;
+            ActiveSource = B9PoseSource.Gps;
+            ChangeState(B9NavigationState.OutdoorGps, "stable GPS reacquired after leaving B9");
+        }
+
+        private void ResetExitGpsStability()
+        {
+            lastExitGpsSampleVersion = outdoor?.LocationProvider != null
+                ? outdoor.LocationProvider.SampleVersion
+                : -1;
+            stableExitGpsSamples = 0;
+            exitGpsStableSince = -1f;
+            previousExitGpsPosition = Vector3.zero;
+            hasPreviousExitGpsPosition = false;
         }
 
         private void CompleteIndoorHandover()

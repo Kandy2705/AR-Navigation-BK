@@ -49,6 +49,19 @@ namespace ARNavB9V2.Indoor
             return routeController != null && routeController.BeginNavigation(roomId);
         }
 
+        public bool BeginExitNavigation(Transform exitAnchor)
+        {
+            poseTracker?.BeginTracking();
+            minimapController?.Activate();
+            return routeController != null && routeController.BeginExitNavigation(exitAnchor);
+        }
+
+        public void StopNavigation()
+        {
+            routeController?.StopNavigation();
+            ribbonRenderer?.ClearPath();
+        }
+
         public void AttachPoseTracking(B9IndoorPoseTracker tracker)
         {
             poseTracker = tracker;

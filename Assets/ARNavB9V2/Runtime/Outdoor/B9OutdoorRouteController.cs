@@ -151,6 +151,16 @@ namespace ARNavB9V2.Outdoor
             return true;
         }
 
+        public void CancelNavigation()
+        {
+            selectedRoomId = string.Empty;
+            RemainingDistanceMeters = 0f;
+            lastRoutedPosition = Vector3.positiveInfinity;
+            nextRefreshTime = 0f;
+            ribbonRenderer?.ClearPath();
+            SetState(RouteState.NoDestination);
+        }
+
         private bool CalculateRoute(
             RouteState successState,
             bool preserveGuidanceOnFailure)

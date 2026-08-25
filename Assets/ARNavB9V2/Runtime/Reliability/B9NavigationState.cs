@@ -8,6 +8,7 @@ namespace ARNavB9V2.Reliability
         EnteringWithPdr,
         VpsScanning,
         IndoorVps,
+        ExitingWithPdr,
         VpsFailed,
     }
 
@@ -62,10 +63,12 @@ namespace ARNavB9V2.Reliability
                 B9NavigationState.EnteringWithPdr => next == B9NavigationState.OutdoorGps
                                                      || next == B9NavigationState.VpsScanning,
                 B9NavigationState.VpsScanning => next == B9NavigationState.IndoorVps
-                                                 || next == B9NavigationState.VpsFailed,
+                                                 || next == B9NavigationState.VpsFailed
+                                                 || next == B9NavigationState.OutdoorGps,
                 B9NavigationState.VpsFailed => next == B9NavigationState.VpsScanning
                                                || next == B9NavigationState.OutdoorGps,
-                B9NavigationState.IndoorVps => false,
+                B9NavigationState.IndoorVps => next == B9NavigationState.ExitingWithPdr,
+                B9NavigationState.ExitingWithPdr => next == B9NavigationState.OutdoorGps,
                 _ => false,
             };
         }

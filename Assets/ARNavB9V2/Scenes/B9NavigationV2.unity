@@ -4707,6 +4707,51 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6147826009795423660, guid: 8ef536d85713ff44f8169c10e48df10e, type: 3}
   m_PrefabInstance: {fileID: 1884615968}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1889002488
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1889002490}
+  - component: {fileID: 1889002489}
+  m_Layer: 0
+  m_Name: '[B9 V2] Reliability Steps 5-7'
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1889002489
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1889002488}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f1e984e31b60489db81388c470cfccf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Experiment.B9ExperimentLogExporter
+  logger: {fileID: 793933506}
+--- !u!4 &1889002490
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1889002488}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1970190429
 GameObject:
   m_ObjectHideFlags: 0
@@ -4747,6 +4792,7 @@ MonoBehaviour:
   indoorMinimapController: {fileID: 315434516}
   indoorPoseTracker: {fileID: 1430106192}
   experimentLogger: {fileID: 793933506}
+  logExporter: {fileID: 1889002489}
   reliabilityController: {fileID: 2078052975}
 --- !u!114 &1970190431
 MonoBehaviour:
@@ -4951,6 +4997,11 @@ MonoBehaviour:
   innerNavMeshSampleRadiusMeters: 3
   destinationSampleRadiusMeters: 6
   minimumPdrHoldSeconds: 0.35
+  maximumExitGpsAccuracyMeters: 30
+  maximumExitGpsPdrSeparationMeters: 35
+  exitGpsStableSeconds: 1.5
+  minimumStableGpsSamples: 2
+  maximumGpsSampleJumpMeters: 12
 --- !u!1 &2083770584
 GameObject:
   m_ObjectHideFlags: 0
@@ -5359,3 +5410,4 @@ SceneRoots:
   - {fileID: 381402333}
   - {fileID: 1973413240}
   - {fileID: 2093257315}
+  - {fileID: 1889002490}

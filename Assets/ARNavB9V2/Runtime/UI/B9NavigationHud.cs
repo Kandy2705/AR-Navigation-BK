@@ -25,6 +25,7 @@ namespace ARNavB9V2.UI
         [SerializeField] private B9IndoorMinimapController indoorMinimapController;
         [SerializeField] private B9IndoorPoseTracker indoorPoseTracker;
         [SerializeField] private B9ExperimentLogger experimentLogger;
+        [SerializeField] private B9ExperimentLogExporter logExporter;
         [SerializeField] private B9ReliableNavigationController reliabilityController;
 
         private Label statusLabel;
@@ -35,10 +36,13 @@ namespace ARNavB9V2.UI
         private VisualElement minimapView;
         private Label minimapHint;
         private Button outdoorStartButton;
+        private Button cancelNavigationButton;
+        private Button exitBuildingButton;
         private Button retryVpsButton;
         private Label experimentLabel;
         private Button experimentToggleButton;
         private Button experimentMarkerButton;
+        private Button logExportButton;
         private bool minimapExpanded;
         private float nextRefresh;
 
@@ -85,6 +89,12 @@ namespace ARNavB9V2.UI
         public void AttachReliability(B9ReliableNavigationController controller)
         {
             reliabilityController = controller;
+            RefreshStatus();
+        }
+
+        public void AttachLogExporter(B9ExperimentLogExporter exporter)
+        {
+            logExporter = exporter;
             RefreshStatus();
         }
 
@@ -232,8 +242,7 @@ namespace ARNavB9V2.UI
             destinationDropdown.style.fontSize = 26f;
             destinationDropdown.RegisterValueChangedCallback(evt =>
             {
-                routeController?.SetDestinationRoom(evt.newValue);
-                indoorRouteController?.SetDestinationRoom(evt.newValue);
+                ApplyDestination(evt.newValue);
                 RefreshStatus();
             });
             destinationPanel.Add(destinationDropdown);
@@ -241,13 +250,10 @@ namespace ARNavB9V2.UI
             outdoorStartButton = new Button(() =>
             {
                 if (destinationDropdown != null)
-                {
-                    routeController?.SetDestinationRoom(destinationDropdown.value);
-                    indoorRouteController?.SetDestinationRoom(destinationDropdown.value);
-                }
+                    ApplyDestination(destinationDropdown.value);
             })
             {
-                text = "DẪN ĐẾN CỬA B9"
+                text = "BẮT ĐẦU / ĐỔI ĐIỂM ĐẾN"
             };
             outdoorStartButton.style.height = 58f;
             outdoorStartButton.style.marginTop = 12f;
@@ -256,6 +262,51 @@ namespace ARNavB9V2.UI
             outdoorStartButton.style.fontSize = 23f;
             outdoorStartButton.style.unityFontStyleAndWeight = FontStyle.Bold;
             destinationPanel.Add(outdoorStartButton);
+
+            VisualElement navigationActions = new VisualElement();
+            navigationActions.style.flexDirection = FlexDirection.Row;
+            navigationActions.style.marginTop = 10f;
+            destinationPanel.Add(navigationActions);
+
+            cancelNavigationButton = new Button(() =>
+            {
+                if (reliabilityController != null)
+                    reliabilityController.CancelNavigation();
+                else
+                {
+                    routeController?.CancelNavigation();
+                    indoorRouteController?.StopNavigation();
+                }
+                RefreshStatus();
+            })
+            {
+                text = "HUỶ CHỈ ĐƯỜNG"
+            };
+            cancelNavigationButton.style.flexGrow = 1f;
+            cancelNavigationButton.style.height = 50f;
+            cancelNavigationButton.style.backgroundColor = new Color(0.42f, 0.12f, 0.14f, 1f);
+            cancelNavigationButton.style.color = Color.white;
+            cancelNavigationButton.style.fontSize = 18f;
+            cancelNavigationButton.style.unityFontStyleAndWeight = FontStyle.Bold;
+            navigationActions.Add(cancelNavigationButton);
+
+            exitBuildingButton = new Button(() =>
+            {
+                reliabilityController?.RequestExitToOutdoor();
+                RefreshStatus();
+            })
+            {
+                text = "DẪN RA NGOÀI"
+            };
+            exitBuildingButton.style.flexGrow = 1f;
+            exitBuildingButton.style.height = 50f;
+            exitBuildingButton.style.marginLeft = 10f;
+            exitBuildingButton.style.backgroundColor = new Color(0.95f, 0.48f, 0.08f, 1f);
+            exitBuildingButton.style.color = Color.white;
+            exitBuildingButton.style.fontSize = 18f;
+            exitBuildingButton.style.unityFontStyleAndWeight = FontStyle.Bold;
+            exitBuildingButton.style.display = DisplayStyle.None;
+            navigationActions.Add(exitBuildingButton);
 
             destinationSummary = new Label("Ngoài trời → cửa B9 → phòng đã chọn");
             destinationSummary.style.color = new Color(0.78f, 0.86f, 0.95f, 1f);
@@ -307,6 +358,22 @@ namespace ARNavB9V2.UI
             experimentToggleButton.style.unityFontStyleAndWeight = FontStyle.Bold;
             experimentRow.Add(experimentToggleButton);
 
+            logExportButton = new Button(() =>
+            {
+                logExporter?.ExportLatestBundle();
+                RefreshExperimentStatus();
+            })
+            {
+                text = "XUẤT 3 CSV"
+            };
+            logExportButton.style.height = 44f;
+            logExportButton.style.marginLeft = 8f;
+            logExportButton.style.backgroundColor = new Color(0.12f, 0.52f, 0.33f, 1f);
+            logExportButton.style.color = Color.white;
+            logExportButton.style.fontSize = 15f;
+            logExportButton.style.unityFontStyleAndWeight = FontStyle.Bold;
+            experimentRow.Add(logExportButton);
+
             if (minimapController != null && minimapController.RenderedTexture != null)
             {
                 minimapView.style.backgroundImage = new StyleBackground(
@@ -353,6 +420,22 @@ namespace ARNavB9V2.UI
                 return;
 
             RefreshExperimentStatus();
+            RefreshActionButtons();
+
+            if (reliabilityController != null
+                && reliabilityController.State == B9NavigationState.ExitingWithPdr)
+            {
+                RefreshExitPdrStatus();
+                return;
+            }
+
+            if (reliabilityController != null
+                && reliabilityController.State == B9NavigationState.IndoorVps
+                && reliabilityController.ExitRouteRequested)
+            {
+                RefreshIndoorExitStatus();
+                return;
+            }
 
             if (reliabilityController != null
                 && (reliabilityController.State == B9NavigationState.EnteringWithPdr
@@ -419,6 +502,35 @@ namespace ARNavB9V2.UI
             statusLabel.text = "Đang đi vào vùng quét B9";
             gpsLabel.text = $"PDR · {reliabilityController.TransitionRemainingDistanceMeters:0.0} m tới {roomId}";
             destinationSummary.text = "Đi theo đường liền mạch · VPS chỉ bật khi vào đúng vùng scan";
+        }
+
+        private void RefreshIndoorExitStatus()
+        {
+            if (retryVpsButton != null)
+                retryVpsButton.style.display = DisplayStyle.None;
+            if (outdoorStartButton != null)
+                outdoorStartButton.style.display = DisplayStyle.Flex;
+            statusLabel.text = "Đi theo mũi tên tới cửa ra gần nhất";
+            gpsLabel.text = indoorRouteController != null
+                ? $"Trong B9 · còn {indoorRouteController.RemainingDistanceMeters:0.0} m"
+                  + GetIndoorTrackingSuffix()
+                : "Trong B9 · đang tính đường tới cửa ra";
+            destinationSummary.text = string.IsNullOrWhiteSpace(reliabilityController.ActiveExitName)
+                ? "Đích: cửa ra gần nhất"
+                : "Đích: " + reliabilityController.ActiveExitName;
+        }
+
+        private void RefreshExitPdrStatus()
+        {
+            if (retryVpsButton != null)
+                retryVpsButton.style.display = DisplayStyle.None;
+            if (outdoorStartButton != null)
+                outdoorStartButton.style.display = DisplayStyle.None;
+            statusLabel.text = "Đã ra khỏi B9 · đang bắt lại GPS";
+            gpsLabel.text = $"PDR đang giữ vị trí · GPS ổn định "
+                            + $"{reliabilityController.StableExitGpsSamples}/"
+                            + reliabilityController.RequiredStableExitGpsSamples;
+            destinationSummary.text = "Tiếp tục đi tự nhiên · app sẽ tự chuyển về GPS khi tín hiệu ổn định";
         }
 
         private void RefreshVpsStatus()
@@ -528,6 +640,9 @@ namespace ARNavB9V2.UI
                 return;
             }
 
+            if (logExportButton != null)
+                logExportButton.SetEnabled(logExporter != null);
+
             experimentToggleButton.SetEnabled(true);
             if (experimentMarkerButton != null)
                 experimentMarkerButton.SetEnabled(experimentLogger.IsRecording);
@@ -546,6 +661,48 @@ namespace ARNavB9V2.UI
                 experimentLabel.text = "LOG · ĐÃ LƯU " + filename;
                 experimentToggleButton.text = "BẮT ĐẦU LẦN MỚI";
             }
+
+            if (logExporter != null && !string.IsNullOrWhiteSpace(logExporter.LastMessage))
+                experimentLabel.text = "LOG · " + logExporter.LastMessage;
+        }
+
+        private void ApplyDestination(string roomId)
+        {
+            reliabilityController?.CancelExitRequest();
+            routeController?.SetDestinationRoom(roomId);
+            if (reliabilityController != null
+                && reliabilityController.State == B9NavigationState.IndoorVps)
+            {
+                indoorRouteController?.BeginNavigation(roomId);
+            }
+            else
+            {
+                indoorRouteController?.SetDestinationRoom(roomId);
+            }
+        }
+
+        private void RefreshActionButtons()
+        {
+            if (cancelNavigationButton == null || exitBuildingButton == null)
+                return;
+
+            B9NavigationState state = reliabilityController != null
+                ? reliabilityController.State
+                : B9NavigationState.OutdoorGps;
+            bool indoorLocalized = state == B9NavigationState.IndoorVps;
+            bool activeOutdoorRoute = routeController != null
+                                      && routeController.State != B9OutdoorRouteController.RouteState.NoDestination;
+            bool activeIndoorRoute = indoorRouteController != null
+                                     && indoorRouteController.NavigationActive;
+            bool transitioning = state != B9NavigationState.OutdoorGps
+                                 && state != B9NavigationState.IndoorVps;
+            cancelNavigationButton.style.display = activeOutdoorRoute || activeIndoorRoute || transitioning
+                ? DisplayStyle.Flex
+                : DisplayStyle.None;
+            exitBuildingButton.style.display = indoorLocalized
+                                                && !reliabilityController.ExitRouteRequested
+                ? DisplayStyle.Flex
+                : DisplayStyle.None;
         }
 
         private string GetLocationMessage()
