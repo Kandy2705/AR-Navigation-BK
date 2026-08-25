@@ -157,9 +157,9 @@ namespace ARNavB9V2.Editor
             SetBool(serialized, "relocalization", false);
             SetInt(serialized, "numberOfFrames", 5);
             SetFloat(serialized, "frameCaptureInterval", 0.6f);
-            SetBool(serialized, "enableBlurCheck", true);
+            SetBool(serialized, "enableBlurCheck", false);
             SetBool(serialized, "showAlert", false);
-            SetBool(serialized, "firstLocalizationUntilSuccess", false);
+            SetBool(serialized, "firstLocalizationUntilSuccess", true);
             ClearPersistentEvent(serialized, "LocalizationInit");
             ClearPersistentEvent(serialized, "LocalizationRequested");
             ClearPersistentEvent(serialized, "LocalizationSuccess");

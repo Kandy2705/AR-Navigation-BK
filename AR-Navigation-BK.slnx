@@ -70,6 +70,7 @@
   <Project Path="McpUnity.Editor.csproj" />
   <Project Path="MultiSet-SDK.Core.csproj" />
   <Project Path="Unity.Recorder.csproj" />
+  <Project Path="ARNav.B9V2.EditorTests.csproj" />
   <Project Path="Unity.Multiplayer.Center.Common.csproj" />
   <Project Path="glTFast.Documentation.Examples.csproj" />
   <Project Path="Unity.ProBuilder.KdTree.csproj" />
@@ -88,12 +89,12 @@
   <Project Path="Unity.InputSystem.TestFramework.csproj" />
   <Project Path="UnityEditor.XR.LegacyInputHelpers.csproj" />
   <Project Path="Unity.ShaderGraph.Utilities.csproj" />
+  <Project Path="ARNav.B9V2.Editor.csproj" />
   <Project Path="Unity.VisualScripting.Shared.Editor.csproj" />
   <Project Path="Unity.Recorder.Base.csproj" />
   <Project Path="Unity.XR.ARFoundation.InternalUtils.csproj" />
   <Project Path="Unity.XR.ARFoundation.Editor.csproj" />
   <Project Path="Unity.EditorCoroutines.Editor.csproj" />
-  <Project Path="ARNav.B9V2.Editor.csproj" />
   <Project Path="TestAR.PlayModeTests.csproj" />
   <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
   <Project Path="MultiSet-SDK.Editor.csproj" />
@@ -101,7 +102,6 @@
   <Project Path="Unity.Bindings.OpenImageIO.Editor.csproj" />
   <Project Path="UnityEngine.SpatialTracking.csproj" />
   <Project Path="UnityEngine.XR.LegacyInputHelpers.csproj" />
-  <Project Path="ARNav.B9V2.EditorTests.csproj" />
   <Project Path="Unity.InputSystem.DocCodeSamples.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Shaders.csproj" />
   <Project Path="Unity.RenderPipelines.Core.Runtime.Shared.csproj" />

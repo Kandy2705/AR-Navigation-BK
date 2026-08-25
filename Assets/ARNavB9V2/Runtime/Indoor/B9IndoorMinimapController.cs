@@ -9,6 +9,7 @@ namespace ARNavB9V2.Indoor
     {
         [SerializeField] private B9SceneContext foundation;
         [SerializeField] private B9IndoorRouteController routeController;
+        [SerializeField] private B9IndoorPoseTracker poseTracker;
         [SerializeField] private Camera minimapCamera;
         [SerializeField] private RenderTexture renderTexture;
         [SerializeField] private Transform userMarker;
@@ -47,6 +48,11 @@ namespace ARNavB9V2.Indoor
             destinationMarker = destination;
             RecalculateMapBounds();
             ApplyCameraSettings();
+        }
+
+        public void AttachPoseTracker(B9IndoorPoseTracker tracker)
+        {
+            poseTracker = tracker;
         }
 
         public void Activate()
@@ -120,9 +126,10 @@ namespace ARNavB9V2.Indoor
                     userPosition.x,
                     markerWorldHeight,
                     userPosition.z);
-                Camera displayCamera = foundation != null ? foundation.ArCamera : null;
-                if (displayCamera != null)
-                    userMarker.rotation = Quaternion.Euler(0f, displayCamera.transform.eulerAngles.y, 0f);
+                float heading = poseTracker != null && poseTracker.IsTracking
+                    ? poseTracker.HeadingDegrees
+                    : routeController.CurrentHeadingDegrees;
+                userMarker.rotation = Quaternion.Euler(0f, heading, 0f);
             }
 
             if (destinationMarker != null)

@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using ARNavB9V2.Data;
+using ARNavB9V2.Experiment;
 using ARNavB9V2.Indoor;
 using ARNavB9V2.Outdoor;
 using ARNavB9V2.Vps;
@@ -20,6 +22,8 @@ namespace ARNavB9V2.UI
         [SerializeField] private B9VpsTransitionController vpsTransition;
         [SerializeField] private B9IndoorRouteController indoorRouteController;
         [SerializeField] private B9IndoorMinimapController indoorMinimapController;
+        [SerializeField] private B9IndoorPoseTracker indoorPoseTracker;
+        [SerializeField] private B9ExperimentLogger experimentLogger;
 
         private Label statusLabel;
         private Label gpsLabel;
@@ -30,6 +34,9 @@ namespace ARNavB9V2.UI
         private Label minimapHint;
         private Button outdoorStartButton;
         private Button retryVpsButton;
+        private Label experimentLabel;
+        private Button experimentToggleButton;
+        private Button experimentMarkerButton;
         private bool minimapExpanded;
         private float nextRefresh;
 
@@ -61,6 +68,15 @@ namespace ARNavB9V2.UI
             indoorMinimapController = indoorMinimap;
             if (destinationDropdown != null && !string.IsNullOrWhiteSpace(destinationDropdown.value))
                 indoorRouteController?.SetDestinationRoom(destinationDropdown.value);
+            RefreshStatus();
+        }
+
+        public void AttachResearchTools(
+            B9IndoorPoseTracker poseTracker,
+            B9ExperimentLogger logger)
+        {
+            indoorPoseTracker = poseTracker;
+            experimentLogger = logger;
             RefreshStatus();
         }
 
@@ -239,6 +255,50 @@ namespace ARNavB9V2.UI
             destinationSummary.style.marginTop = 10f;
             destinationPanel.Add(destinationSummary);
 
+            VisualElement experimentRow = new VisualElement();
+            experimentRow.style.flexDirection = FlexDirection.Row;
+            experimentRow.style.alignItems = Align.Center;
+            experimentRow.style.marginTop = 12f;
+            destinationPanel.Add(experimentRow);
+
+            experimentLabel = new Label("LOG · đang chuẩn bị");
+            experimentLabel.style.flexGrow = 1f;
+            experimentLabel.style.color = new Color(0.55f, 0.92f, 0.72f, 1f);
+            experimentLabel.style.fontSize = 16f;
+            experimentLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            experimentRow.Add(experimentLabel);
+
+            experimentMarkerButton = new Button(() =>
+            {
+                experimentLogger?.AddResearchMarker("manual_observation");
+                RefreshExperimentStatus();
+            })
+            {
+                text = "ĐÁNH DẤU"
+            };
+            experimentMarkerButton.style.height = 44f;
+            experimentMarkerButton.style.marginLeft = 8f;
+            experimentMarkerButton.style.backgroundColor = new Color(0.13f, 0.25f, 0.35f, 1f);
+            experimentMarkerButton.style.color = Color.white;
+            experimentMarkerButton.style.fontSize = 15f;
+            experimentRow.Add(experimentMarkerButton);
+
+            experimentToggleButton = new Button(() =>
+            {
+                experimentLogger?.ToggleTrial();
+                RefreshExperimentStatus();
+            })
+            {
+                text = "LƯU LẦN THỬ"
+            };
+            experimentToggleButton.style.height = 44f;
+            experimentToggleButton.style.marginLeft = 8f;
+            experimentToggleButton.style.backgroundColor = new Color(0.02f, 0.42f, 0.94f, 1f);
+            experimentToggleButton.style.color = Color.white;
+            experimentToggleButton.style.fontSize = 15f;
+            experimentToggleButton.style.unityFontStyleAndWeight = FontStyle.Bold;
+            experimentRow.Add(experimentToggleButton);
+
             if (minimapController != null && minimapController.RenderedTexture != null)
             {
                 minimapView.style.backgroundImage = new StyleBackground(
@@ -283,6 +343,8 @@ namespace ARNavB9V2.UI
         {
             if (statusLabel == null || gpsLabel == null || destinationSummary == null)
                 return;
+
+            RefreshExperimentStatus();
 
             if (vpsTransition != null
                 && vpsTransition.State != B9VpsTransitionController.TransitionState.WaitingForEntrance)
@@ -380,7 +442,8 @@ namespace ARNavB9V2.UI
                     break;
                 case B9IndoorRouteController.IndoorRouteState.Navigating:
                     statusLabel.text = $"Đi theo mũi tên tới {roomId}";
-                    gpsLabel.text = $"Trong B9{floor} · còn {indoorRouteController.RemainingDistanceMeters:0.0} m";
+                    gpsLabel.text = $"Trong B9{floor} · còn {indoorRouteController.RemainingDistanceMeters:0.0} m"
+                                    + GetIndoorTrackingSuffix();
                     destinationSummary.text = $"Đang dẫn đường bên trong tới {roomId}";
                     break;
                 case B9IndoorRouteController.IndoorRouteState.Arrived:
@@ -390,7 +453,8 @@ namespace ARNavB9V2.UI
                     break;
                 case B9IndoorRouteController.IndoorRouteState.RouteUnavailable:
                     statusLabel.text = $"Chưa tìm được đường tới {roomId}";
-                    gpsLabel.text = $"Trong B9{floor} · hãy đứng gần lối đi";
+                    gpsLabel.text = $"Trong B9{floor} · đang bắt lại lối đi"
+                                    + GetIndoorTrackingSuffix();
                     destinationSummary.text = "NavMesh chưa bắt được vị trí hiện tại";
                     break;
                 default:
@@ -398,6 +462,46 @@ namespace ARNavB9V2.UI
                     gpsLabel.text = $"Trong B9{floor} · đang chuẩn bị tuyến";
                     destinationSummary.text = $"Đích trong tòa: {roomId}";
                     break;
+            }
+        }
+
+        private string GetIndoorTrackingSuffix()
+        {
+            if (indoorPoseTracker == null || !indoorPoseTracker.IsTracking)
+                return string.Empty;
+            return $" · {indoorPoseTracker.StepCount} bước · {indoorPoseTracker.SourceLabel}";
+        }
+
+        private void RefreshExperimentStatus()
+        {
+            if (experimentLabel == null || experimentToggleButton == null)
+                return;
+            if (experimentLogger == null)
+            {
+                experimentLabel.text = "LOG · chưa kết nối";
+                experimentToggleButton.SetEnabled(false);
+                if (experimentMarkerButton != null)
+                    experimentMarkerButton.SetEnabled(false);
+                return;
+            }
+
+            experimentToggleButton.SetEnabled(true);
+            if (experimentMarkerButton != null)
+                experimentMarkerButton.SetEnabled(experimentLogger.IsRecording);
+            if (experimentLogger.IsRecording)
+            {
+                int elapsed = Mathf.FloorToInt(experimentLogger.ElapsedSeconds);
+                experimentLabel.text = $"LOG · ĐANG GHI {elapsed / 60:00}:{elapsed % 60:00}"
+                                       + $" · {experimentLogger.SampleCount} mẫu";
+                experimentToggleButton.text = "LƯU LẦN THỬ";
+            }
+            else
+            {
+                string filename = string.IsNullOrWhiteSpace(experimentLogger.LastSavedFilePath)
+                    ? "chưa có tệp"
+                    : Path.GetFileName(experimentLogger.LastSavedFilePath);
+                experimentLabel.text = "LOG · ĐÃ LƯU " + filename;
+                experimentToggleButton.text = "BẮT ĐẦU LẦN MỚI";
             }
         }
 

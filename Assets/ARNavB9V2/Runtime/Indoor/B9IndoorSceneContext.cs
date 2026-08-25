@@ -9,12 +9,14 @@ namespace ARNavB9V2.Indoor
         [SerializeField] private B9IndoorRouteController routeController;
         [SerializeField] private B9RouteRibbonRenderer ribbonRenderer;
         [SerializeField] private B9IndoorMinimapController minimapController;
+        [SerializeField] private B9IndoorPoseTracker poseTracker;
         [SerializeField] private Transform userMarker;
         [SerializeField] private Transform destinationMarker;
 
         public B9IndoorRouteController RouteController => routeController;
         public B9RouteRibbonRenderer RibbonRenderer => ribbonRenderer;
         public B9IndoorMinimapController MinimapController => minimapController;
+        public B9IndoorPoseTracker PoseTracker => poseTracker;
         public Transform UserMarker => userMarker;
         public Transform DestinationMarker => destinationMarker;
 
@@ -34,6 +36,7 @@ namespace ARNavB9V2.Indoor
 
         public void PrepareForLocalization()
         {
+            poseTracker?.StopTracking();
             minimapController?.Deactivate();
             routeController?.PrepareForLocalization();
             ribbonRenderer?.ClearPath();
@@ -41,8 +44,16 @@ namespace ARNavB9V2.Indoor
 
         public bool BeginNavigation(string roomId)
         {
+            poseTracker?.BeginTracking();
             minimapController?.Activate();
             return routeController != null && routeController.BeginNavigation(roomId);
+        }
+
+        public void AttachPoseTracking(B9IndoorPoseTracker tracker)
+        {
+            poseTracker = tracker;
+            routeController?.AttachPoseTracker(tracker);
+            minimapController?.AttachPoseTracker(tracker);
         }
 
         public bool ValidateConfiguration(out string reason)

@@ -5,6 +5,7 @@
     "ARNav.B9V2.Runtime",
     "Unity.AI.Navigation",
     "Unity.InputSystem",
+    "UnityEngine.UI",
     "Unity.XR.ARFoundation",
     "Unity.XR.CoreUtils"
   ],

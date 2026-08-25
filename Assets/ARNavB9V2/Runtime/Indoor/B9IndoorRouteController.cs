@@ -25,6 +25,7 @@ namespace ARNavB9V2.Indoor
         [SerializeField] private B9BuildingDefinition building;
         [SerializeField] private B9SceneContext foundation;
         [SerializeField] private Camera arCamera;
+        [SerializeField] private B9IndoorPoseTracker poseTracker;
         [SerializeField] private NavMeshSurface indoorNavMesh;
         [SerializeField] private B9RouteRibbonRenderer ribbonRenderer;
         [SerializeField] private string destinationRoomId = "B9-104";
@@ -47,10 +48,16 @@ namespace ARNavB9V2.Indoor
             ? destinationAnchor.transform.position
             : Vector3.zero;
         public Vector3 CurrentUserWorldPosition => arCamera != null
-            ? arCamera.transform.position
+            ? poseTracker != null && poseTracker.IsTracking
+                ? poseTracker.CurrentPosition
+                : arCamera.transform.position
             : Vector3.zero;
+        public float CurrentHeadingDegrees => poseTracker != null && poseTracker.IsTracking
+            ? poseTracker.HeadingDegrees
+            : arCamera != null ? arCamera.transform.eulerAngles.y : 0f;
         public float RemainingDistanceMeters { get; private set; }
         public bool NavigationActive => navigationActive;
+        public int RouteRevision { get; private set; }
         public event Action<IndoorRouteState> StateChanged;
 
         public void Configure(
@@ -68,6 +75,13 @@ namespace ARNavB9V2.Indoor
             ribbonRenderer = renderer;
             destinationRoomId = defaultRoomId;
             ResolveDestinationAnchor();
+        }
+
+        public void AttachPoseTracker(B9IndoorPoseTracker tracker)
+        {
+            poseTracker = tracker;
+            lastRoutedPosition = Vector3.positiveInfinity;
+            nextRefreshTime = 0f;
         }
 
         private void Awake()
@@ -152,7 +166,7 @@ namespace ARNavB9V2.Indoor
                 return;
             }
 
-            Vector3 userPosition = arCamera.transform.position;
+            Vector3 userPosition = CurrentUserWorldPosition;
             if (!force
                 && Time.unscaledTime < nextRefreshTime
                 && Vector3.Distance(lastRoutedPosition, userPosition) < routeRefreshDistanceMeters)
@@ -190,6 +204,7 @@ namespace ARNavB9V2.Indoor
 
             var points = new List<Vector3>(navMeshPath.corners.Length);
             points.AddRange(navMeshPath.corners);
+            RouteRevision++;
             RemainingDistanceMeters = CalculateDistance(points);
             if (RemainingDistanceMeters <= arrivalDistanceMeters)
             {

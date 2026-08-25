@@ -25,6 +25,10 @@ public static class IosPermissionPostprocessor
         plist.root.SetString(
             "NSLocationWhenInUseUsageDescription",
             "Location is required for outdoor navigation and indoor-outdoor handover.");
+        // Research CSV files are written to the app Documents folder. These keys make
+        // completed trials accessible through the iOS Files app and Finder device sharing.
+        plist.root.SetBoolean("UIFileSharingEnabled", true);
+        plist.root.SetBoolean("LSSupportsOpeningDocumentsInPlace", true);
         File.WriteAllText(plistPath, plist.WriteToString());
     }
 }

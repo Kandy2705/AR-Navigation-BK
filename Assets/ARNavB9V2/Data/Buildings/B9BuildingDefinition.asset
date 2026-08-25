@@ -27,22 +27,32 @@ MonoBehaviour:
   - roomId: B9-101
     displayName: B9-101
     floorId: F1
-    mapLocalPosition: {x: 1.3270006, y: -0.122, z: 0.41500038}
+    mapLocalPosition: {x: 2.6619985, y: -0.12000002, z: 0.50799763}
     mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
   - roomId: B9-102
     displayName: B9-102
     floorId: F1
-    mapLocalPosition: {x: -2.7230024, y: -0.122, z: -11.775004}
+    mapLocalPosition: {x: -0.2210051, y: -0.08000004, z: -6.9850063}
     mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
   - roomId: B9-103
     displayName: B9-103
     floorId: F1
-    mapLocalPosition: {x: -4.4230027, y: -0.12199995, z: -17.205006}
+    mapLocalPosition: {x: -1.8930061, y: -0.08400006, z: -12.446007}
     mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
   - roomId: B9-104
     displayName: B9-104
     floorId: F1
-    mapLocalPosition: {x: -7.8730006, y: -0.12200016, z: -26.075005}
+    mapLocalPosition: {x: -3.7269986, y: -0.04900011, z: -17.330004}
+    mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
+  - roomId: B9-105
+    displayName: B9-105
+    floorId: F1
+    mapLocalPosition: {x: -7.4130073, y: -0.1340002, z: -27.243013}
+    mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
+  - roomId: B9-106
+    displayName: B9-106
+    floorId: F1
+    mapLocalPosition: {x: -8.50701, y: -0.16499998, z: -30.78101}
     mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
   - roomId: B9-201
     displayName: B9-201

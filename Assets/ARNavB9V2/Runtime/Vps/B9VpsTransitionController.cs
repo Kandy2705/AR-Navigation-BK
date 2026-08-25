@@ -44,8 +44,13 @@ namespace ARNavB9V2.Vps
         [SerializeField] private B9SceneContext foundation;
         [SerializeField] private B9MapVisibility mapVisibility;
         [SerializeField] private B9IndoorSceneContext indoorContext;
-        [SerializeField] private float localizeDelaySeconds = 0.65f;
-        [SerializeField] private float scanTimeoutSeconds = 25f;
+        [SerializeField] private float localizeDelaySeconds = 0.5f;
+        [SerializeField] private float scanTimeoutSeconds = 60f;
+        [SerializeField, Range(1, 10)] private int initialLocalizationFrames = 5;
+        [SerializeField, Range(1, 10)] private int retryLocalizationFrames = 5;
+        [SerializeField, Min(0.1f)] private float localizationFrameIntervalSeconds = 0.6f;
+        [SerializeField] private bool localizationBlurCheck;
+        [SerializeField, Min(0f)] private float localizationPoseSettleSeconds = 0.35f;
         [SerializeField] private bool allowSdkInvocationInEditor;
 
         private UnityEvent localizationInitEvent;
@@ -56,11 +61,17 @@ namespace ARNavB9V2.Vps
         private float scanStartedAt;
         private bool eventsSubscribed;
         private bool indoorHandoverPending;
+        private int localizationAttemptCount;
 
         public TransitionState State { get; private set; } = TransitionState.WaitingForEntrance;
         public string FailureReason { get; private set; } = string.Empty;
         public string ActiveMapCode => building != null ? building.PrimaryMapCode : string.Empty;
         public bool RetryAvailable => State == TransitionState.Failed;
+        public int LocalizationAttemptCount => localizationAttemptCount;
+        public float CurrentScanElapsedSeconds => scanStartedAt > 0f
+            && (State == TransitionState.StartingVps || State == TransitionState.Scanning)
+                ? Mathf.Max(0f, Time.unscaledTime - scanStartedAt)
+                : 0f;
         public event Action<TransitionState> StateChanged;
 
         public void Configure(
@@ -84,6 +95,24 @@ namespace ARNavB9V2.Vps
         public void AttachIndoorNavigation(B9IndoorSceneContext context)
         {
             indoorContext = context;
+        }
+
+        public void ConfigureLocalizationCapture(
+            int initialFrames,
+            int retryFrames,
+            float frameIntervalSeconds,
+            bool enableBlurCheck,
+            float requestDelaySeconds,
+            float timeoutSeconds,
+            float poseSettleSeconds = 0.35f)
+        {
+            initialLocalizationFrames = Mathf.Clamp(initialFrames, 1, 10);
+            retryLocalizationFrames = Mathf.Clamp(retryFrames, 1, 10);
+            localizationFrameIntervalSeconds = Mathf.Max(0.1f, frameIntervalSeconds);
+            localizationBlurCheck = enableBlurCheck;
+            localizeDelaySeconds = Mathf.Max(0f, requestDelaySeconds);
+            scanTimeoutSeconds = Mathf.Max(5f, timeoutSeconds);
+            localizationPoseSettleSeconds = Mathf.Max(0f, poseSettleSeconds);
         }
 
         private void Awake()
@@ -120,6 +149,13 @@ namespace ARNavB9V2.Vps
             if (State == TransitionState.Scanning
                 && Time.unscaledTime - scanStartedAt >= scanTimeoutSeconds)
             {
+                if (mapLocalizationManager != null)
+                {
+                    TrySetFieldOrProperty(
+                        mapLocalizationManager.GetType(),
+                        "firstLocalizationUntilSuccess",
+                        false);
+                }
                 Fail("Quét VPS quá thời gian. Hãy hướng camera quanh sảnh rồi quét lại.");
             }
         }
@@ -143,6 +179,8 @@ namespace ARNavB9V2.Vps
             StopPendingRequest();
             FailureReason = string.Empty;
             indoorHandoverPending = false;
+            localizationAttemptCount++;
+            scanStartedAt = 0f;
 
             if (!ValidateRuntimeReferences(out string reason))
             {
@@ -244,7 +282,16 @@ namespace ARNavB9V2.Vps
             TrySetFieldOrProperty(type, "backgroundLocalization", false);
             TrySetFieldOrProperty(type, "relocalization", false);
             TrySetFieldOrProperty(type, "showAlert", false);
-            TrySetFieldOrProperty(type, "firstLocalizationUntilSuccess", false);
+            TrySetFieldOrProperty(type, "firstLocalizationUntilSuccess", true);
+            int frameCount = localizationAttemptCount <= 1
+                ? initialLocalizationFrames
+                : retryLocalizationFrames;
+            TrySetFieldOrProperty(type, "numberOfFrames", frameCount);
+            TrySetFieldOrProperty(
+                type,
+                "frameCaptureInterval",
+                localizationFrameIntervalSeconds);
+            TrySetFieldOrProperty(type, "enableBlurCheck", localizationBlurCheck);
             reason = string.Empty;
             return true;
         }
@@ -319,7 +366,11 @@ namespace ARNavB9V2.Vps
 
         private void HandleLocalizationRequested()
         {
-            scanStartedAt = Time.unscaledTime;
+            // MultiSet can issue multiple requests while
+            // firstLocalizationUntilSuccess is enabled. Keep one absolute timeout
+            // for the whole scan session instead of restarting it for every frame batch.
+            if (scanStartedAt <= 0f)
+                scanStartedAt = Time.unscaledTime;
             SetState(TransitionState.Scanning);
         }
 
@@ -336,10 +387,16 @@ namespace ARNavB9V2.Vps
 
         private IEnumerator CompleteIndoorHandoverAfterSdkPose()
         {
-            // MultiSet applies the Map Space pose around the success event. Two frames
-            // ensure the transform has settled before the B9 model/NavMesh are enabled.
+            // MultiSet applies Map Space around the success event. Give the transform
+            // enough time to settle before validating and accepting the pose.
             yield return null;
             yield return null;
+            if (localizationPoseSettleSeconds > 0f)
+                yield return new WaitForSecondsRealtime(localizationPoseSettleSeconds);
+
+            foundation.ModelRoot.gameObject.SetActive(true);
+            mapVisibility?.ApplyVisibilityPolicy();
+            ReanchorIndoorNavMesh();
 
             if (outdoorContext != null)
             {
@@ -360,9 +417,6 @@ namespace ARNavB9V2.Vps
                     outdoorContext.EntranceMarker.gameObject.SetActive(false);
             }
 
-            foundation.ModelRoot.gameObject.SetActive(true);
-            mapVisibility?.ApplyVisibilityPolicy();
-            ReanchorIndoorNavMesh();
             ConfigureIndoorMinimap();
             string selectedRoom = outdoorContext != null
                                   && outdoorContext.RouteController != null
@@ -376,9 +430,14 @@ namespace ARNavB9V2.Vps
         {
             if (State != TransitionState.StartingVps && State != TransitionState.Scanning)
                 return;
+
+            // A failed frame batch is not a failed user flow. MultiSet's
+            // firstLocalizationUntilSuccess mode will continue capturing. The Update
+            // timeout is the only condition that exposes the manual retry button.
+            if (scanStartedAt <= 0f)
+                scanStartedAt = Time.unscaledTime;
             indoorHandoverPending = false;
-            StopPendingRequest();
-            Fail("VPS chưa nhận ra vị trí. Đi theo đường tới cửa B9, lia chậm camera quanh sảnh rồi quét lại.");
+            SetState(TransitionState.Scanning);
         }
 
         private void ReanchorIndoorNavMesh()

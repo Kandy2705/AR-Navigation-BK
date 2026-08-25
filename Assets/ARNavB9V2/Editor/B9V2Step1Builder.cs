@@ -51,6 +51,99 @@ namespace ARNavB9V2.Editor
             Debug.Log($"[B9V2 Step1] COMPLETE scene={OutputScenePath} rooms={inventory.rooms.Count} map=MAP_9LME2PB7Y3EN");
         }
 
+        [MenuItem("Tools/AR Navigation V2/Sync MapB9 + POIs From HybridGPSMap")]
+        public static void SyncMapB9FromReference()
+        {
+            Inventory inventory = CaptureReferenceInventory();
+            B9BuildingDefinition definition = CreateOrUpdateDefinition(inventory);
+            UnityEngine.SceneManagement.Scene scene = EditorSceneManager.OpenScene(
+                OutputScenePath,
+                OpenSceneMode.Single);
+            B9SceneContext context = UnityEngine.Object.FindFirstObjectByType<B9SceneContext>(
+                FindObjectsInactive.Include);
+            if (context == null)
+                throw new InvalidOperationException("B9 V2 foundation context is missing.");
+            if (!context.ValidateConfiguration(out string failure))
+                throw new InvalidOperationException("B9 V2 foundation is invalid: " + failure);
+
+            context.ModelRoot.localPosition = inventory.mapPosition;
+            context.ModelRoot.localRotation = inventory.mapRotation;
+            context.ModelRoot.localScale = inventory.mapScale;
+            context.IndoorEntranceAnchor.localPosition = definition.IndoorEntranceMapLocalPosition;
+            context.IndoorEntranceAnchor.localRotation = definition.IndoorEntranceMapLocalRotation;
+
+            Transform anchorsRoot = context.RoomAnchors
+                .Where(anchor => anchor != null)
+                .Select(anchor => anchor.transform.parent)
+                .FirstOrDefault(parent => parent != null);
+            if (anchorsRoot == null)
+            {
+                GameObject anchorsGo = new GameObject("B9 Room Anchors");
+                anchorsGo.transform.SetParent(context.MapSpace, false);
+                anchorsRoot = anchorsGo.transform;
+            }
+
+            var existingAnchors = context.RoomAnchors
+                .Where(anchor => anchor != null)
+                .GroupBy(anchor => anchor.RoomId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            var synchronizedAnchors = new List<B9RoomAnchor>(definition.Rooms.Count);
+            var synchronizedRoomIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (B9BuildingDefinition.RoomDefinition room in definition.Rooms)
+            {
+                if (!existingAnchors.TryGetValue(room.RoomId, out B9RoomAnchor anchor))
+                {
+                    GameObject anchorGo = new GameObject(room.RoomId);
+                    anchorGo.transform.SetParent(anchorsRoot, false);
+                    anchor = anchorGo.AddComponent<B9RoomAnchor>();
+                }
+
+                anchor.name = room.RoomId;
+                anchor.transform.SetParent(anchorsRoot, false);
+                anchor.transform.localPosition = room.MapLocalPosition;
+                anchor.transform.localRotation = room.MapLocalRotation;
+                anchor.Configure(room.RoomId, room.FloorId);
+                EditorUtility.SetDirty(anchor);
+                synchronizedAnchors.Add(anchor);
+                synchronizedRoomIds.Add(room.RoomId);
+            }
+
+            foreach (B9RoomAnchor anchor in context.RoomAnchors.Where(anchor => anchor != null))
+            {
+                if (!synchronizedRoomIds.Contains(anchor.RoomId))
+                    UnityEngine.Object.DestroyImmediate(anchor.gameObject);
+            }
+
+            context.Configure(
+                definition,
+                context.ArSession,
+                context.XrOrigin,
+                context.ArCamera,
+                context.MinimapCamera,
+                context.MapSpace,
+                context.ModelRoot,
+                context.NavMeshSurface,
+                context.OutdoorEntranceAnchor,
+                context.IndoorEntranceAnchor,
+                synchronizedAnchors);
+            EditorUtility.SetDirty(context);
+
+            if (!context.ValidateConfiguration(out failure))
+                throw new InvalidOperationException("Synced B9 V2 foundation is invalid: " + failure);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene, OutputScenePath))
+                throw new InvalidOperationException("Could not save B9 V2 scene after MapB9 synchronization.");
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            B9BuildingDefinition.RoomDefinition room104 = definition.Rooms.FirstOrDefault(
+                room => string.Equals(room.RoomId, "B9-104", StringComparison.OrdinalIgnoreCase));
+            Debug.Log(
+                $"[B9V2 Sync] COMPLETE MapB9 + {synchronizedAnchors.Count} POIs from {ReferenceScenePath}. "
+                + $"B9-104 mapLocal={room104?.MapLocalPosition:F3}");
+        }
+
         private static Inventory CaptureReferenceInventory()
         {
             if (!System.IO.File.Exists(ReferenceScenePath))
