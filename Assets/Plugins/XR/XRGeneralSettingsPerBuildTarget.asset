@@ -75,8 +75,8 @@ MonoBehaviour:
   m_Name: iOS Providers
   m_EditorClassIdentifier:
   m_RequiresSettingsUpdate: 0
-  m_AutomaticLoading: 0
-  m_AutomaticRunning: 0
+  m_AutomaticLoading: 1
+  m_AutomaticRunning: 1
   m_Loaders:
   - {fileID: 11400000, guid: cfa19a7fe1f576946a96f251d6cc60ec, type: 2}
 --- !u!114 &6857799041469644696

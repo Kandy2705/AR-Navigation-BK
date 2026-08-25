@@ -36,6 +36,8 @@ namespace ARNav.Harmony
 
             HarmonyConfig config = manager.Config;
             bool adaptive = config.UseUncertaintyGuidance;
+            bool outdoorGuidance = manager.State == HarmonyState.Outdoor
+                                   || manager.State == HarmonyState.EnteringTransition;
             HarmonyReliabilityBand band;
             if (manager.State == HarmonyState.Uncertain)
             {
@@ -59,17 +61,30 @@ namespace ARNav.Harmony
 
             if (adaptive && band == HarmonyReliabilityBand.Medium)
             {
-                AppliedAlpha = config.mediumGuidanceAlpha;
+                // GPS ngoài trời thường dao động 10–25 m. Vẫn phải giữ tuyến đường đủ rõ;
+                // uncertainty được truyền bằng màu + message, không làm path gần như biến mất.
+                AppliedAlpha = outdoorGuidance
+                    ? Mathf.Max(0.8f, config.mediumGuidanceAlpha)
+                    : config.mediumGuidanceAlpha;
                 tint = config.mediumReliabilityTint;
                 GuidanceMessage = "Đang kiểm tra vị trí";
             }
             else if (adaptive && band == HarmonyReliabilityBand.Low)
             {
-                AppliedAlpha = 0f;
                 tint = config.lowReliabilityTint;
-                DirectionalGuidanceVisible = false;
-                GuidanceMessage =
-                    "Vị trí chưa ổn định, vui lòng quét lại khu vực";
+                if (outdoorGuidance)
+                {
+                    AppliedAlpha = 0.6f;
+                    DirectionalGuidanceVisible = true;
+                    GuidanceMessage = "GPS yếu — tuyến đường chỉ mang tính ước lượng";
+                }
+                else
+                {
+                    AppliedAlpha = 0f;
+                    DirectionalGuidanceVisible = false;
+                    GuidanceMessage =
+                        "Vị trí chưa ổn định, vui lòng quét lại khu vực";
+                }
             }
             else
             {

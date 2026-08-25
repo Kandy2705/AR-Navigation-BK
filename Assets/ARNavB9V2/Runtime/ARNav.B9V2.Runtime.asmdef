@@ -1,0 +1,19 @@
+{
+  "name": "ARNav.B9V2.Runtime",
+  "rootNamespace": "ARNavB9V2",
+  "references": [
+    "Unity.AI.Navigation",
+    "Unity.InputSystem",
+    "Unity.XR.ARFoundation",
+    "Unity.XR.CoreUtils"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

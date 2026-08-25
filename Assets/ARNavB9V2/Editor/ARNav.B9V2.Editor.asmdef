@@ -1,0 +1,20 @@
+{
+  "name": "ARNav.B9V2.Editor",
+  "rootNamespace": "ARNavB9V2.Editor",
+  "references": [
+    "ARNav.B9V2.Runtime",
+    "Unity.AI.Navigation",
+    "Unity.InputSystem",
+    "Unity.XR.ARFoundation",
+    "Unity.XR.CoreUtils"
+  ],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

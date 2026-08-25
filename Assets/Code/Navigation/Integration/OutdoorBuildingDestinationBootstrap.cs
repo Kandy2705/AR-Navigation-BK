@@ -39,8 +39,9 @@ public class OutdoorBuildingDestinationBootstrap : MonoBehaviour
     [Tooltip("Y world của marker outdoor (m).")]
     [SerializeField] private float markerY = 0.5f;
 
-    [Tooltip("Tạo capsule visual đơn giản nếu TargetAnchor mới spawn (dễ thấy trên map).")]
-    [SerializeField] private bool createSimpleVisual = true;
+    [Tooltip("Tạo capsule visual đơn giản nếu TargetAnchor mới spawn. Chỉ bật để debug Scene; " +
+             "marker 3D cỡ mét và TextMesh không billboard sẽ che camera AR trên thiết bị.")]
+    [SerializeField] private bool createSimpleVisual = false;
 
     [Header("Behavior")]
     [SerializeField] private bool runOnAwake = true;

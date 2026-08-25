@@ -34,8 +34,11 @@ public class SimpleGPSTracker : MonoBehaviour
     [SerializeField] private float compassSampleInterval = 0.3f;
     [Tooltip("Reject compass samples with headingAccuracy worse than this (degrees). " +
              "Samples reporting acc <= 0 are accepted (device không hỗ trợ field này). " +
-             "Lower = stricter. 15° cân bằng giữa loại nhiễu và đủ samples.")]
-    [SerializeField] private float maxAcceptableHeadingAccuracy = 15f;
+             "30° vẫn đủ để định hướng đường ngoài trời và tránh bỏ toàn bộ samples trên iPhone/iPad.")]
+    [SerializeField] private float maxAcceptableHeadingAccuracy = 30f;
+    [Tooltip("Nếu không có sample nào đạt ngưỡng chính, cho phép dùng circular mean của samples " +
+             "có accuracy dưới ngưỡng dự phòng này thay vì để hướng AR ngẫu nhiên.")]
+    [SerializeField] private float relaxedHeadingAccuracyLimit = 60f;
 
     [Header("North fine-tune / lock")]
     [Tooltip("Degrees added to compass-derived yaw (after avgHeading - cameraYaw). Use ~180 if the map is flipped vs real north. Loaded/saved via PlayerPrefs when options below are on.")]
@@ -44,8 +47,9 @@ public class SimpleGPSTracker : MonoBehaviour
     [SerializeField] private bool loadPersistedExtraNorthYaw = true;
     [Tooltip("After alignment, write extraNorthYawOffsetDegrees to PlayerPrefs (call PersistExtraNorthYawOffsetFromInspector context menu, or use API from UI).")]
     [SerializeField] private bool autoSaveExtraNorthYawAfterAlign = false;
-    [Tooltip("Each frame, force XR Origin world Y to the post-alignment value so drift scripts cannot rotate the rig. Recommended for north-up GPSMapPlane; disable if another system must drive origin yaw. Set script execution order AFTER AR if heading still slips.")]
-    [SerializeField] private bool lockXrOriginYawAfterNorthAlign = true;
+    [Tooltip("Each frame, force XR Origin world Y to the post-alignment value so drift scripts cannot rotate the rig. " +
+             "Keep OFF for handheld AR: continuously rewriting the rig yaw can fight ARKit pose updates and make world content appear screen-locked.")]
+    [SerializeField] private bool lockXrOriginYawAfterNorthAlign = false;
 
     [Header("GPS Filtering")]
     [Tooltip("Reject GPS fixes with accuracy worse than this (meters).")]
@@ -782,6 +786,9 @@ public class SimpleGPSTracker : MonoBehaviour
         float sinSum = 0f;
         float cosSum = 0f;
         int validSamples = 0;
+        float relaxedSinSum = 0f;
+        float relaxedCosSum = 0f;
+        int relaxedSamples = 0;
 
         for (int i = 0; i < compassSampleCount; i++)
         {
@@ -792,6 +799,14 @@ public class SimpleGPSTracker : MonoBehaviour
             // acc <= 0: device không report accuracy (một số Android) — buộc phải chấp nhận
             // acc > maxAcceptable: sample đang bị nhiễu (gần kim loại, magnetometer chưa calibrate)
             bool qualityOk = acc <= 0f || acc <= maxAcceptableHeadingAccuracy;
+
+            if (h >= 0f && (acc <= 0f || acc <= relaxedHeadingAccuracyLimit))
+            {
+                float relaxedRad = h * Mathf.Deg2Rad;
+                relaxedSinSum += Mathf.Sin(relaxedRad);
+                relaxedCosSum += Mathf.Cos(relaxedRad);
+                relaxedSamples++;
+            }
 
             if (h >= 0f && qualityOk)
             {
@@ -806,6 +821,19 @@ public class SimpleGPSTracker : MonoBehaviour
             {
                 Debug.LogWarning($"[SimpleGPSTracker] Compass sample {i + 1}/{compassSampleCount} rejected: " +
                                  $"heading={h:F1}° accuracy={acc:F1}° (> {maxAcceptableHeadingAccuracy:F0}° threshold)");
+            }
+        }
+
+        if (validSamples == 0)
+        {
+            if (relaxedSamples > 0)
+            {
+                sinSum = relaxedSinSum;
+                cosSum = relaxedCosSum;
+                validSamples = relaxedSamples;
+                Debug.LogWarning(
+                    $"[SimpleGPSTracker] Không có compass sample đạt ≤{maxAcceptableHeadingAccuracy:F0}°. " +
+                    $"Dùng {relaxedSamples} sample dự phòng ≤{relaxedHeadingAccuracyLimit:F0}° để tránh hướng AR ngẫu nhiên.");
             }
         }
 

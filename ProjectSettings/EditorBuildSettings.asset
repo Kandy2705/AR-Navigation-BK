@@ -5,10 +5,13 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
+  - enabled: 1
+    path: Assets/ARNavB9V2/Scenes/B9NavigationV2.unity
+    guid: c3eb5c61b82bc483283d83e4c0a15bee
   - enabled: 0
     path: Assets/Scenes/GPSMapPlane.unity
     guid: e91b6f3caf1b02f4fad8e133bd567864
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/HybridGPSMap.unity
     guid: a8f2c4d19e6b4c1d9f3e0725b4c8d901
   - enabled: 0

@@ -60,7 +60,11 @@ public static class IndoorXROriginDiagnostic
                 var poseDriver = cam.GetComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>();
                 if (poseDriver != null)
                 {
-                    report += $"    TrackedPoseDriver: trackingType={poseDriver.trackingType}, updateType={poseDriver.updateType}\n";
+                    report += $"    TrackedPoseDriver: enabled={poseDriver.enabled} trackingType={poseDriver.trackingType}, " +
+                              $"updateType={poseDriver.updateType}, ignoreTrackingState={poseDriver.ignoreTrackingState}\n";
+                    report += DescribeAction("position", poseDriver.positionInput);
+                    report += DescribeAction("rotation", poseDriver.rotationInput);
+                    report += DescribeAction("trackingState", poseDriver.trackingStateInput);
                 }
                 var arCam = cam.GetComponent<UnityEngine.XR.ARFoundation.ARCameraManager>();
                 report += $"    ARCameraManager: {(arCam != null ? $"present (enabled={arCam.enabled})" : "MISSING")}\n";
@@ -109,6 +113,26 @@ public static class IndoorXROriginDiagnostic
             sb.Insert(0, "/");
             sb.Insert(0, cur.name);
             cur = cur.parent;
+        }
+        return sb.ToString();
+    }
+
+    private static string DescribeAction(
+        string label,
+        UnityEngine.InputSystem.InputActionProperty property)
+    {
+        var action = property.action;
+        if (action == null)
+            return $"      {label}: NULL\n";
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(
+            $"      {label}: '{action.name}' enabled={action.enabled} externalRef={property.reference != null} " +
+            $"expected={action.expectedControlType} bindings={action.bindings.Count}");
+        for (int i = 0; i < action.bindings.Count; i++)
+        {
+            var binding = action.bindings[i];
+            sb.AppendLine($"        [{i}] path='{binding.effectivePath}' groups='{binding.groups}'");
         }
         return sb.ToString();
     }

@@ -71,10 +71,10 @@ namespace ARNav.Harmony
                 float confidenceScore = Mathf.InverseLerp(config.minimumVpsConfidence, 1f, vps.Confidence);
                 totalWeightedScore += confidenceScore * vw.accuracyOrConfidence;
             }
-            else
-            {
-                availableWeightSum -= vw.accuracyOrConfidence;
-            }
+            // Confidence is a required quality signal in the current HARMONY model.
+            // If the SDK does not expose it, keep its weight in the denominator and
+            // score it as zero. Renormalizing the missing signal away can make an
+            // unverified VPS sample exceed the indoor-entry reliability threshold.
 
             if (config.RequireMapIdMatch)
             {

@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8c8661ead20d41b2a55ae65f296ae73, type: 3}
+  m_Name: B9OutdoorMapDefinition
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Data.B9OutdoorMapDefinition
+  mapId: SchoolGround
+  originLatitude: 10.7734854
+  originLongitude: 106.6590233
+  entranceLatitude: 10.773456557544643
+  entranceLongitude: 106.66042980794792
+  entranceCampusPosition: {x: 153.83, y: 0, z: -3.19}
+  schoolGroundBoundsCenter: {x: 0, y: 0, z: 0}
+  schoolGroundBoundsSize: {x: 991, y: 2.220446e-16, z: 585}
+  editorMockStartCampusPosition: {x: 159.33334, y: 0.1088047, z: 81.66667}
+  arrivalRadiusMeters: 15

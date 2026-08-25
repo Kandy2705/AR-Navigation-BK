@@ -1,0 +1,23 @@
+{
+  "name": "ARNav.B9V2.EditorTests",
+  "rootNamespace": "ARNavB9V2.Tests",
+  "references": [
+    "ARNav.B9V2.Runtime",
+    "Unity.AI.Navigation",
+    "Unity.InputSystem",
+    "Unity.XR.ARFoundation",
+    "Unity.XR.CoreUtils",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "testAssemblies": true
+}

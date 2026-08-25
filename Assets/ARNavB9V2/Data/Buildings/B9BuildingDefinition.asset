@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f1f4cf9473bb456d89a26209c466807, type: 3}
+  m_Name: B9BuildingDefinition
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Data.B9BuildingDefinition
+  buildingId: B9
+  displayName: "T\xF2a B9"
+  primaryMapCode: MAP_9LME2PB7Y3EN
+  acceptedMapIds:
+  - MAP_9LME2PB7Y3EN
+  entranceLatitude: 10.773456557544643
+  entranceLongitude: 106.66042980794792
+  entranceCampusPosition: {x: 153.83, y: 0, z: -3.19}
+  transitionRadiusMeters: 15
+  indoorEntranceMapLocalPosition: {x: -2.6060388, y: -1.771205, z: -6.657221}
+  indoorEntranceMapLocalRotation: {x: 0.0015572918, y: -0.9341303, z: 0.004075905, w: -0.35690564}
+  rooms:
+  - roomId: B9-101
+    displayName: B9-101
+    floorId: F1
+    mapLocalPosition: {x: 1.3270006, y: -0.122, z: 0.41500038}
+    mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
+  - roomId: B9-102
+    displayName: B9-102
+    floorId: F1
+    mapLocalPosition: {x: -2.7230024, y: -0.122, z: -11.775004}
+    mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
+  - roomId: B9-103
+    displayName: B9-103
+    floorId: F1
+    mapLocalPosition: {x: -4.4230027, y: -0.12199995, z: -17.205006}
+    mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
+  - roomId: B9-104
+    displayName: B9-104
+    floorId: F1
+    mapLocalPosition: {x: -7.8730006, y: -0.12200016, z: -26.075005}
+    mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
+  - roomId: B9-201
+    displayName: B9-201
+    floorId: F2
+    mapLocalPosition: {x: 1.3269968, y: 3.4839995, z: 0.41499665}
+    mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
+  - roomId: B9-202
+    displayName: B9-202
+    floorId: F2
+    mapLocalPosition: {x: -3.4529974, y: 3.5639994, z: -13.705006}
+    mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
+  - roomId: B9-203
+    displayName: B9-203
+    floorId: F2
+    mapLocalPosition: {x: -4.4230075, y: 3.3539996, z: -17.205008}
+    mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}
+  - roomId: B9-204
+    displayName: B9-204
+    floorId: F2
+    mapLocalPosition: {x: -9.413006, y: 3.4739993, z: -29.145002}
+    mapLocalRotation: {x: 1.994549e-10, y: -0.53510886, z: 4.4568516e-12, w: -0.84478325}

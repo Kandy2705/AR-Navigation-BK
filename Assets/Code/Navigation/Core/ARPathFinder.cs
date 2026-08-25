@@ -65,6 +65,9 @@ public class ARPathFinder : MonoBehaviour
     [SerializeField] private bool clampPathYToCameraFoot = true;
     [Tooltip("Eye-to-foot distance assumed for the user when clampPathYToCameraFoot is on (meters).")]
     [SerializeField] private float cameraEyeToFootMeters = 1.6f;
+    [Tooltip("Ẩn đoạn ribbon ngay dưới camera và bắt đầu vẽ cách người dùng một đoạn. " +
+             "Tránh segment đầu phủ ngang toàn màn hình khi hướng Bắc chưa ổn định.")]
+    [SerializeField] private float pathStartTrimMeters = 1.2f;
     [SerializeField] private bool pathAlwaysOnTop = true;
     [SerializeField] private Material pathCenterMaterial;
     [SerializeField] private Material pathBorderMaterial;
@@ -258,6 +261,7 @@ public class ARPathFinder : MonoBehaviour
 
         int layer = LayerMask.NameToLayer(minimapLayerName);
         if (layer >= 0) go.layer = layer;
+        ExcludeMinimapMirrorFromArCamera();
 
         _minimapMirrorFilter = go.GetComponent<MeshFilter>();
         if (_minimapMirrorFilter == null) _minimapMirrorFilter = go.AddComponent<MeshFilter>();
@@ -316,6 +320,7 @@ public class ARPathFinder : MonoBehaviour
     void Start()
     {
         if (arCamera == null) arCamera = Camera.main;
+        ExcludeMinimapMirrorFromArCamera();
         if (navigationGpsTracker == null)
             navigationGpsTracker = FindFirstObjectByType<SimpleGPSTracker>();
         EnsureMeshComponents();
@@ -332,14 +337,36 @@ public class ARPathFinder : MonoBehaviour
     public void RebindToDisplayCamera(Camera cam)
     {
         if (cam != null)
+        {
             arCamera = cam;
+            ExcludeMinimapMirrorFromArCamera();
+        }
     }
 
     private void EnsureLiveArCamera()
     {
         if (arCamera != null && arCamera.isActiveAndEnabled)
+        {
+            ExcludeMinimapMirrorFromArCamera();
             return;
+        }
         arCamera = Camera.main;
+        ExcludeMinimapMirrorFromArCamera();
+    }
+
+    /// <summary>
+    /// The lifted path copy is only for the top-down minimap. If the AR camera also
+    /// renders that layer it appears as a huge coloured band across the phone view.
+    /// Keep the live AR camera from rendering the minimap-only layer at runtime.
+    /// </summary>
+    private void ExcludeMinimapMirrorFromArCamera()
+    {
+        if (arCamera == null) return;
+
+        int layer = LayerMask.NameToLayer(minimapLayerName);
+        if (layer < 0) return;
+
+        arCamera.cullingMask &= ~(1 << layer);
     }
 
     void Update()
@@ -589,6 +616,8 @@ public class ARPathFinder : MonoBehaviour
 
     private void ApplyCornersToRenderers(Vector3[] corners, float usedRadius)
     {
+        corners = TrimPathStart(corners, pathStartTrimMeters);
+
         // Làm tròn góc gấp trước khi dựng mesh/line (chỉ khi >= 3 điểm; đoạn thẳng 2 điểm bỏ qua).
         if (smoothCorners && corners != null && corners.Length >= 3)
             corners = NavMeshPathRibbon.SmoothCornersChaikin(corners, smoothIterations);
@@ -667,6 +696,37 @@ public class ARPathFinder : MonoBehaviour
             PathHudDebugLine = $"Path: OK line · ~{CurrentPathDistanceMeters:F0}m · {corners.Length} pts" +
                 (usedRadius > 0.01f ? $" · sample≤{usedRadius:F0}m" : string.Empty);
         }
+    }
+
+    private static Vector3[] TrimPathStart(Vector3[] corners, float trimMeters)
+    {
+        if (corners == null || corners.Length < 2 || trimMeters <= 0.01f)
+            return corners;
+
+        float remaining = trimMeters;
+        for (int i = 1; i < corners.Length; i++)
+        {
+            Vector3 from = corners[i - 1];
+            Vector3 to = corners[i];
+            float segmentLength = Vector3.Distance(from, to);
+            if (segmentLength <= 0.001f)
+                continue;
+
+            if (remaining < segmentLength)
+            {
+                Vector3 trimmedStart = Vector3.Lerp(from, to, remaining / segmentLength);
+                int tailCount = corners.Length - i;
+                var result = new Vector3[tailCount + 1];
+                result[0] = trimmedStart;
+                Array.Copy(corners, i, result, 1, tailCount);
+                return result;
+            }
+
+            remaining -= segmentLength;
+        }
+
+        // Tuyến ngắn hơn khoảng trim: giữ lại để arrival logic/visual vẫn hoạt động.
+        return corners;
     }
 
     /// <summary>Exact world-space segment from start to target (plus mesh height offset in ribbon builder).</summary>

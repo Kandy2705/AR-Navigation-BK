@@ -257,6 +257,7 @@ public class HybridModeController : MonoBehaviour
         }
 
         CachePresentationReferences();
+        EnsureARCameraPoseTracking(ResolveOutdoorPresentationCamera());
         CreateTransitionOverlayIfNeeded();
         CreateSharedOutdoorHudIfNeeded();
         CreateRuntimeModeSwitcherIfNeeded();
@@ -290,7 +291,11 @@ public class HybridModeController : MonoBehaviour
         NavigationManager.OnARExited  -= HandleNavARExited;
     }
 
-    private void HandleNavAREntered() => SetRuntimeModeSwitcherVisible(true);
+    private void HandleNavAREntered()
+    {
+        SetRuntimeModeSwitcherVisible(true);
+        EnsureARCameraPoseTracking(ResolveOutdoorPresentationCamera());
+    }
     private void HandleNavARExited()  => SetRuntimeModeSwitcherVisible(false);
 
     private void Update()
@@ -799,12 +804,39 @@ public class HybridModeController : MonoBehaviour
         SetRuntimeModeButtonsInteractable(false);
         runtimePermissionStatus = "Allow Camera";
 
-        yield return Application.RequestUserAuthorization(UserAuthorization.WebCam);
+        IosCameraPermissionBridge.AuthorizationStatus nativeStatus =
+            IosCameraPermissionBridge.GetAuthorizationStatus();
+        Debug.Log($"[HybridMode] iOS native camera authorization before request: {nativeStatus}.");
 
-        if (!Application.HasUserAuthorization(UserAuthorization.WebCam))
+        if (nativeStatus == IosCameraPermissionBridge.AuthorizationStatus.NotDetermined &&
+            IosCameraPermissionBridge.RequestAuthorization())
         {
-            runtimePermissionStatus = "Camera denied";
-            Debug.LogError("[HybridMode] iOS camera permission is required before AR can render the device camera.");
+            float elapsed = 0f;
+            while (nativeStatus == IosCameraPermissionBridge.AuthorizationStatus.NotDetermined &&
+                   elapsed < permissionRequestTimeoutSeconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+                nativeStatus = IosCameraPermissionBridge.GetAuthorizationStatus();
+            }
+        }
+        else if (nativeStatus == IosCameraPermissionBridge.AuthorizationStatus.Unavailable)
+        {
+            // Fallback for an old Xcode export that does not contain the native bridge.
+            yield return Application.RequestUserAuthorization(UserAuthorization.WebCam);
+            nativeStatus = Application.HasUserAuthorization(UserAuthorization.WebCam)
+                ? IosCameraPermissionBridge.AuthorizationStatus.Authorized
+                : IosCameraPermissionBridge.AuthorizationStatus.Denied;
+        }
+
+        if (nativeStatus != IosCameraPermissionBridge.AuthorizationStatus.Authorized)
+        {
+            runtimePermissionStatus = nativeStatus == IosCameraPermissionBridge.AuthorizationStatus.Restricted
+                ? "Camera restricted"
+                : "Camera denied";
+            Debug.LogError(
+                $"[HybridMode] iOS camera permission failed with native status {nativeStatus}. " +
+                "Reset Location & Privacy or allow Camera in iOS Settings before entering AR.");
             SetRuntimeModeButtonsInteractable(true);
             pendingPermissionRoutine = null;
             yield break;
@@ -1404,6 +1436,22 @@ public class HybridModeController : MonoBehaviour
         UnityEngine.XR.ARFoundation.ARCameraBackground bg =
             cam.GetComponent<UnityEngine.XR.ARFoundation.ARCameraBackground>();
         if (bg != null) bg.enabled = enabled;
+
+        ArCameraPoseGuard poseGuard = cam.GetComponent<ArCameraPoseGuard>();
+        if (enabled)
+        {
+            EnsureARCameraPoseTracking(cam);
+        }
+        else if (poseGuard != null)
+        {
+            poseGuard.enabled = false;
+        }
+    }
+
+    private static void EnsureARCameraPoseTracking(Camera cam)
+    {
+        if (cam == null) return;
+        ArCameraPoseGuard.EnsureOn(cam);
     }
 
     private void SetRootsActive(List<GameObject> roots, bool active)

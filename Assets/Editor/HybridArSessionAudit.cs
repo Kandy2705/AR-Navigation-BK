@@ -1,7 +1,9 @@
 #if UNITY_EDITOR
 using System.Text;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.XR.ARFoundation;
 
 /// <summary>
@@ -10,6 +12,8 @@ using UnityEngine.XR.ARFoundation;
 /// </summary>
 public static class HybridArSessionAudit
 {
+    private const string HybridScenePath = "Assets/Scenes/HybridGPSMap.unity";
+
     [MenuItem("Tools/TestAR/Hybrid/Log All ARSession In Open Scenes")]
     public static void LogAllArSessionsInOpenScenes()
     {
@@ -48,6 +52,76 @@ public static class HybridArSessionAudit
         }
 
         Debug.Log(sb.ToString());
+    }
+
+    [MenuItem("Tools/TestAR/Hybrid/Fix HybridGPSMap Single ARSession")]
+    public static void FixHybridGpsMapSingleArSession()
+    {
+        Scene scene = SceneManager.GetActiveScene();
+        if (!scene.IsValid() || scene.path != HybridScenePath)
+        {
+            Debug.LogError(
+                $"[HybridArSessionAudit] Open {HybridScenePath} before applying the single-session fix.");
+            return;
+        }
+
+        ARSession[] sessions = Object.FindObjectsByType<ARSession>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        ARSession primary = null;
+        foreach (ARSession session in sessions)
+        {
+            if (session != null &&
+                GetHierarchyPath(session.transform).StartsWith("OutdoorEnvironment/"))
+            {
+                primary = session;
+                break;
+            }
+        }
+
+        if (primary == null)
+        {
+            Debug.LogError("[HybridArSessionAudit] OutdoorEnvironment AR Session was not found.");
+            return;
+        }
+
+        int disabledDuplicates = 0;
+        foreach (ARSession session in sessions)
+        {
+            if (session == null) continue;
+
+            bool shouldEnable = ReferenceEquals(session, primary);
+            if (session.enabled == shouldEnable) continue;
+
+            Undo.RecordObject(session, "Fix HybridGPSMap single AR Session");
+            session.enabled = shouldEnable;
+            EditorUtility.SetDirty(session);
+            if (!shouldEnable) disabledDuplicates++;
+        }
+
+        HybridModeController controller = Object.FindFirstObjectByType<HybridModeController>(
+            FindObjectsInactive.Include);
+        if (controller != null)
+        {
+            var serialized = new SerializedObject(controller);
+            SetBool(serialized, "requestIOSCameraPermissionBeforeAR", true);
+            SetBool(serialized, "enforceSingleARSessionAtRuntime", true);
+            SetBool(serialized, "disableIndoorARSessionDuplicates", true);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(controller);
+        }
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log(
+            $"[HybridArSessionAudit] HybridGPSMap saved with one startup AR Session. " +
+            $"Primary='{GetHierarchyPath(primary.transform)}', disabled duplicates={disabledDuplicates}.");
+    }
+
+    private static void SetBool(SerializedObject serialized, string propertyName, bool value)
+    {
+        SerializedProperty property = serialized.FindProperty(propertyName);
+        if (property != null) property.boolValue = value;
     }
 
     private static string GetHierarchyPath(Transform t)

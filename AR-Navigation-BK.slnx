@@ -29,6 +29,7 @@
   <Project Path="Unity.Recorder.Editor.csproj" />
   <Project Path="Unity.VisualStudio.Editor.csproj" />
   <Project Path="Unity.InputSystem.csproj" />
+  <Project Path="ARNav.B9V2.Runtime.csproj" />
   <Project Path="PPv2URPConverters.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="Unity.XR.ARKit.Editor.csproj" />
@@ -92,6 +93,7 @@
   <Project Path="Unity.XR.ARFoundation.InternalUtils.csproj" />
   <Project Path="Unity.XR.ARFoundation.Editor.csproj" />
   <Project Path="Unity.EditorCoroutines.Editor.csproj" />
+  <Project Path="ARNav.B9V2.Editor.csproj" />
   <Project Path="TestAR.PlayModeTests.csproj" />
   <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
   <Project Path="MultiSet-SDK.Editor.csproj" />
@@ -99,6 +101,7 @@
   <Project Path="Unity.Bindings.OpenImageIO.Editor.csproj" />
   <Project Path="UnityEngine.SpatialTracking.csproj" />
   <Project Path="UnityEngine.XR.LegacyInputHelpers.csproj" />
+  <Project Path="ARNav.B9V2.EditorTests.csproj" />
   <Project Path="Unity.InputSystem.DocCodeSamples.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Shaders.csproj" />
   <Project Path="Unity.RenderPipelines.Core.Runtime.Shared.csproj" />

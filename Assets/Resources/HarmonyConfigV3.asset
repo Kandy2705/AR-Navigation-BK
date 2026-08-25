@@ -58,7 +58,14 @@ MonoBehaviour:
   highReliabilityTint: {r: 1, g: 1, b: 1, a: 1}
   mediumReliabilityTint: {r: 1, g: 0.82, b: 0.3, a: 1}
   lowReliabilityTint: {r: 1, g: 0.35, b: 0.25, a: 1}
-  buildingMapRules: []
+  buildingMapRules:
+  - building: 9
+    acceptedMapIds:
+    - MAP_9LME2PB7Y3EN
+  - building: 10
+    acceptedMapIds:
+    - MAP_0QG8RRPF65OT
+    - MAP_19VPMO5MUY2E
   csvSampleIntervalSeconds: 0.25
   falseSwitchWindowSeconds: 8
   wrongWayMinimumMovementMeters: 0.35
