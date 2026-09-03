@@ -481,6 +481,13 @@ namespace ARNavB9V2.UI
             RefreshActionButtons();
 
             if (reliabilityController != null
+                && reliabilityController.PdrFallbackDestinationArrived)
+            {
+                RefreshPdrFallbackArrivalStatus();
+                return;
+            }
+
+            if (reliabilityController != null
                 && reliabilityController.State == B9NavigationState.ExitingWithPdr)
             {
                 RefreshExitPdrStatus();
@@ -580,6 +587,22 @@ namespace ARNavB9V2.UI
             destinationSummary.text = "Đi theo đường liền mạch · VPS chỉ bật khi vào đúng vùng scan";
         }
 
+        private void RefreshPdrFallbackArrivalStatus()
+        {
+            if (retryVpsButton != null)
+                retryVpsButton.style.display = DisplayStyle.None;
+            if (outdoorStartButton != null)
+                outdoorStartButton.style.display = DisplayStyle.Flex;
+
+            string roomId = indoorRouteController != null
+                            && !string.IsNullOrWhiteSpace(indoorRouteController.DestinationRoomId)
+                ? indoorRouteController.DestinationRoomId
+                : "điểm đích";
+            statusLabel.text = $"Đã đến {roomId}";
+            gpsLabel.text = "PDR đã tới điểm đích · đã dừng quét VPS";
+            destinationSummary.text = "Hoàn thành chỉ đường · có thể chọn điểm đến tiếp theo";
+        }
+
         private void RefreshIndoorExitStatus()
         {
             if (retryVpsButton != null)
@@ -655,10 +678,15 @@ namespace ARNavB9V2.UI
 
         private void RefreshIndoorStatus(string roomId)
         {
+            bool approximate = vpsTransition != null
+                               && vpsTransition.IsApproximatePdrLocalization;
+            string trackingLabel = approximate
+                ? "PDR gần đúng · VPS quá 30 giây"
+                : "VPS đã căn chỉnh";
             if (indoorRouteController == null)
             {
                 statusLabel.text = "Đã định vị bên trong tòa B9";
-                gpsLabel.text = "B9 · VPS đã căn chỉnh";
+                gpsLabel.text = "B9 · " + trackingLabel;
                 destinationSummary.text = $"Đã vào B9 · đang chuẩn bị đường tới {roomId}";
                 return;
             }
@@ -670,18 +698,19 @@ namespace ARNavB9V2.UI
             {
                 case B9IndoorRouteController.IndoorRouteState.Calculating:
                     statusLabel.text = $"Đang tính đường tới {roomId}…";
-                    gpsLabel.text = $"Trong B9{floor} · VPS đã căn chỉnh";
+                    gpsLabel.text = $"Trong B9{floor} · {trackingLabel}";
                     destinationSummary.text = $"Đích trong tòa: {roomId}";
                     break;
                 case B9IndoorRouteController.IndoorRouteState.Navigating:
                     statusLabel.text = $"Đi theo mũi tên tới {roomId}";
                     gpsLabel.text = $"Trong B9{floor} · còn {indoorRouteController.RemainingDistanceMeters:0.0} m"
+                                    + $" · {trackingLabel}"
                                     + GetIndoorTrackingSuffix();
                     destinationSummary.text = $"Đang dẫn đường bên trong tới {roomId}";
                     break;
                 case B9IndoorRouteController.IndoorRouteState.Arrived:
                     statusLabel.text = $"Đã đến {roomId}";
-                    gpsLabel.text = $"Trong B9{floor} · đã tới điểm đích";
+                    gpsLabel.text = $"Trong B9{floor} · đã tới điểm đích · {trackingLabel}";
                     destinationSummary.text = $"Hoàn thành tuyến tới {roomId}";
                     break;
                 case B9IndoorRouteController.IndoorRouteState.RouteUnavailable:
@@ -692,7 +721,7 @@ namespace ARNavB9V2.UI
                     break;
                 default:
                     statusLabel.text = "Đã định vị bên trong tòa B9";
-                    gpsLabel.text = $"Trong B9{floor} · đang chuẩn bị tuyến";
+                    gpsLabel.text = $"Trong B9{floor} · đang chuẩn bị tuyến · {trackingLabel}";
                     destinationSummary.text = $"Đích trong tòa: {roomId}";
                     break;
             }
@@ -848,7 +877,9 @@ namespace ARNavB9V2.UI
             bool activeIndoorRoute = indoorRouteController != null
                                      && indoorRouteController.NavigationActive;
             bool transitioning = state != B9NavigationState.OutdoorGps
-                                 && state != B9NavigationState.IndoorVps;
+                                 && state != B9NavigationState.IndoorVps
+                                 && (reliabilityController == null
+                                     || !reliabilityController.PdrFallbackDestinationArrived);
             cancelNavigationButton.style.display = activeOutdoorRoute || activeIndoorRoute || transitioning
                 ? DisplayStyle.Flex
                 : DisplayStyle.None;

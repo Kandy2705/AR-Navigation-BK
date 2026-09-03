@@ -298,12 +298,23 @@ namespace ARNavB9V2.Experiment
         {
             if (transition.Current == B9NavigationState.IndoorVps)
             {
-                HandoverSucceeded = true;
-                WriteEventRow(
-                    "handover_completed",
-                    transition.Previous.ToString(),
-                    transition.Current.ToString(),
-                    "GPS_TO_VPS success");
+                if (transition.Source == B9PoseSource.Vps)
+                {
+                    HandoverSucceeded = true;
+                    WriteEventRow(
+                        "handover_completed",
+                        transition.Previous.ToString(),
+                        transition.Current.ToString(),
+                        "GPS_TO_VPS success");
+                }
+                else
+                {
+                    WriteEventRow(
+                        "handover_completed_approximate",
+                        transition.Previous.ToString(),
+                        transition.Current.ToString(),
+                        "Indoor navigation continued from PDR approximate pose; VPS was not accepted");
+                }
             }
             WriteEventRow(
                 "reliability_state",

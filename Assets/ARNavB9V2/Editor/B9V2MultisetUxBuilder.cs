@@ -34,15 +34,7 @@ namespace ARNavB9V2.Editor
             if (existing != null)
                 UnityEngine.Object.DestroyImmediate(existing);
 
-            ConfigureMultiSetLocalizer(vps.MapLocalizationManager);
-            vps.TransitionController.ConfigureLocalizationCapture(
-                initialFrames: 5,
-                retryFrames: 5,
-                frameIntervalSeconds: 0.6f,
-                enableBlurCheck: false,
-                requestDelaySeconds: 0.5f,
-                timeoutSeconds: 60f,
-                poseSettleSeconds: 0.35f);
+            vps.TransitionController.ConfigureLocalizationTiming(0.35f);
             EditorUtility.SetDirty(vps.TransitionController);
 
             GameObject root = new GameObject(RootName);
@@ -82,26 +74,8 @@ namespace ARNavB9V2.Editor
             AssetDatabase.Refresh();
             Debug.Log(
                 "[B9V2 Step5] COMPLETE official MultiSet LoaderPanel UX + resilient "
-                + "localization (5 frames, retry until success, 60s session, no blur rejection). "
+                + "localization using the official MultiSet defaults. "
                 + "Custom indoor route/minimap remain unchanged.");
-        }
-
-        private static void ConfigureMultiSetLocalizer(MonoBehaviour localizer)
-        {
-            if (localizer == null)
-                throw new InvalidOperationException("MultiSet MapLocalizationManager is missing.");
-
-            var serialized = new SerializedObject(localizer);
-            SetInt(serialized, "numberOfFrames", 5);
-            SetFloat(serialized, "frameCaptureInterval", 0.6f);
-            SetBool(serialized, "enableBlurCheck", false);
-            SetBool(serialized, "showAlert", false);
-            SetBool(serialized, "autoLocalize", false);
-            SetBool(serialized, "backgroundLocalization", false);
-            SetBool(serialized, "relocalization", false);
-            SetBool(serialized, "firstLocalizationUntilSuccess", true);
-            serialized.ApplyModifiedPropertiesWithoutUndo();
-            EditorUtility.SetDirty(localizer);
         }
 
         private static void LocalizeLoaderText(GameObject loader)
@@ -115,30 +89,5 @@ namespace ARNavB9V2.Editor
                 loading.text = "MULTISET VPS · ĐANG QUÉT KỸ VỊ TRÍ…";
         }
 
-        private static void SetInt(SerializedObject serialized, string name, int value)
-        {
-            RequiredProperty(serialized, name).intValue = value;
-        }
-
-        private static void SetFloat(SerializedObject serialized, string name, float value)
-        {
-            RequiredProperty(serialized, name).floatValue = value;
-        }
-
-        private static void SetBool(SerializedObject serialized, string name, bool value)
-        {
-            RequiredProperty(serialized, name).boolValue = value;
-        }
-
-        private static SerializedProperty RequiredProperty(
-            SerializedObject serialized,
-            string name)
-        {
-            SerializedProperty property = serialized.FindProperty(name);
-            if (property == null)
-                throw new InvalidOperationException(
-                    $"MultiSet {serialized.targetObject.GetType().Name} is missing '{name}'.");
-            return property;
-        }
     }
 }

@@ -45,12 +45,6 @@ namespace ARNavB9V2.Vps
         [SerializeField] private B9SceneContext foundation;
         [SerializeField] private B9MapVisibility mapVisibility;
         [SerializeField] private B9IndoorSceneContext indoorContext;
-        [SerializeField] private float localizeDelaySeconds = 0.5f;
-        [SerializeField] private float scanTimeoutSeconds = 60f;
-        [SerializeField, Range(1, 10)] private int initialLocalizationFrames = 5;
-        [SerializeField, Range(1, 10)] private int retryLocalizationFrames = 5;
-        [SerializeField, Min(0.1f)] private float localizationFrameIntervalSeconds = 0.6f;
-        [SerializeField] private bool localizationBlurCheck;
         [SerializeField, Min(0f)] private float localizationPoseSettleSeconds = 0.35f;
         [SerializeField] private bool allowSdkInvocationInEditor;
         [SerializeField] private bool externalHandoverControl;
@@ -68,7 +62,8 @@ namespace ARNavB9V2.Vps
         private UnityEvent localizationRequestedEvent;
         private UnityEvent localizationSuccessEvent;
         private UnityEvent localizationFailureEvent;
-        private Coroutine requestCoroutine;
+        private Coroutine sdkStartCoroutine;
+        private bool localizationInitObserved;
         private float scanStartedAt;
         private bool eventsSubscribed;
         private bool indoorHandoverPending;
@@ -83,6 +78,7 @@ namespace ARNavB9V2.Vps
         public TransitionState State { get; private set; } = TransitionState.WaitingForEntrance;
         public string FailureReason { get; private set; } = string.Empty;
         public string ActiveMapCode => building != null ? building.PrimaryMapCode : string.Empty;
+        public bool IsApproximatePdrLocalization { get; private set; }
         public bool RetryAvailable => useRecoveryFsm && State == TransitionState.Failed;
         public int LocalizationAttemptCount => localizationAttemptCount;
         public float LastLocalizationQuality { get; private set; } = 0.5f;
@@ -107,7 +103,9 @@ namespace ARNavB9V2.Vps
             : "LastTrusted";
         public string LastGateReason { get; private set; } = string.Empty;
         public float CurrentScanElapsedSeconds => scanStartedAt > 0f
-            && (State == TransitionState.StartingVps || State == TransitionState.Scanning)
+            && (State == TransitionState.StartingVps
+                || State == TransitionState.Scanning
+                || State == TransitionState.Failed)
                 ? Mathf.Max(0f, Time.unscaledTime - scanStartedAt)
                 : 0f;
         public event Action<TransitionState> StateChanged;
@@ -153,21 +151,8 @@ namespace ARNavB9V2.Vps
             indoorContext = context;
         }
 
-        public void ConfigureLocalizationCapture(
-            int initialFrames,
-            int retryFrames,
-            float frameIntervalSeconds,
-            bool enableBlurCheck,
-            float requestDelaySeconds,
-            float timeoutSeconds,
-            float poseSettleSeconds = 0.35f)
+        public void ConfigureLocalizationTiming(float poseSettleSeconds = 0.35f)
         {
-            initialLocalizationFrames = Mathf.Clamp(initialFrames, 1, 10);
-            retryLocalizationFrames = Mathf.Clamp(retryFrames, 1, 10);
-            localizationFrameIntervalSeconds = Mathf.Max(0.1f, frameIntervalSeconds);
-            localizationBlurCheck = enableBlurCheck;
-            localizeDelaySeconds = Mathf.Max(0f, requestDelaySeconds);
-            scanTimeoutSeconds = Mathf.Max(5f, timeoutSeconds);
             localizationPoseSettleSeconds = Mathf.Max(0f, poseSettleSeconds);
         }
 
@@ -179,6 +164,9 @@ namespace ARNavB9V2.Vps
                 foundation.ModelRoot.gameObject.SetActive(false);
             indoorContext?.PrepareForLocalization();
             TrySubscribeSdkEvents();
+            // Keep the official MultiSet component dormant outdoors. Its own
+            // auto/background/relocalization flow starts inside the VPS region.
+            SetMultiSetLocalizerEnabled(false);
         }
 
         private void OnEnable()
@@ -188,8 +176,9 @@ namespace ARNavB9V2.Vps
 
         private void OnDisable()
         {
+            StopSdkStartCoroutine();
             UnsubscribeSdkEvents();
-            StopPendingRequest();
+            SetMultiSetLocalizerEnabled(false);
         }
 
         private void Update()
@@ -203,18 +192,8 @@ namespace ARNavB9V2.Vps
                 BeginAutomaticLocalization();
             }
 
-            if (State == TransitionState.Scanning
-                && Time.unscaledTime - scanStartedAt >= scanTimeoutSeconds)
-            {
-                if (mapLocalizationManager != null)
-                {
-                    TrySetFieldOrProperty(
-                        mapLocalizationManager.GetType(),
-                        "firstLocalizationUntilSuccess",
-                        false);
-                }
-                Fail("Quét VPS quá thời gian. Hãy hướng camera quanh sảnh rồi quét lại.");
-            }
+            // MultiSet owns first-localization retry, background localization and
+            // relocalization. HARMONY does not run a competing scan timeout.
         }
 
         public void BeginAutomaticLocalization()
@@ -233,17 +212,12 @@ namespace ARNavB9V2.Vps
 
         public void CancelLocalization()
         {
-            StopPendingRequest();
+            StopSdkStartCoroutine();
+            SetMultiSetLocalizerEnabled(false);
+            IsApproximatePdrLocalization = false;
             indoorHandoverPending = false;
             scanStartedAt = 0f;
             FailureReason = string.Empty;
-            if (mapLocalizationManager != null)
-            {
-                TrySetFieldOrProperty(
-                    mapLocalizationManager.GetType(),
-                    "firstLocalizationUntilSuccess",
-                    false);
-            }
             SetState(TransitionState.WaitingForEntrance);
         }
 
@@ -257,11 +231,14 @@ namespace ARNavB9V2.Vps
 
         private void StartLocalizationAttempt()
         {
-            StopPendingRequest();
+            StopSdkStartCoroutine();
+            SetMultiSetLocalizerEnabled(false);
+            IsApproximatePdrLocalization = false;
             FailureReason = string.Empty;
             LastGateReason = string.Empty;
             ResetResearchGateState();
             indoorHandoverPending = false;
+            localizationInitObserved = false;
             localizationAttemptCount++;
             scanStartedAt = 0f;
 
@@ -278,20 +255,41 @@ namespace ARNavB9V2.Vps
             }
 
             TrySubscribeSdkEvents();
+            if (!eventsSubscribed)
+            {
+                Fail("Không nối được callback LocalizationSuccess/Failure của MultiSet.");
+                return;
+            }
+
+            scanStartedAt = Time.unscaledTime;
             SetState(TransitionState.StartingVps);
-            requestCoroutine = StartCoroutine(RequestLocalizationAfterDelay());
+            SetMultiSetLocalizerEnabled(true);
+            sdkStartCoroutine = StartCoroutine(StartOfficialMultiSetLocalization());
         }
 
-        private IEnumerator RequestLocalizationAfterDelay()
+        private IEnumerator StartOfficialMultiSetLocalization()
         {
-            if (localizeDelaySeconds > 0f)
-                yield return new WaitForSecondsRealtime(localizeDelaySeconds);
+            // Enabling the component subscribes it to MultiSet authentication again.
+            // If authentication completed while it was disabled outdoors, that event
+            // is not replayed, so trigger the SDK's public entry point once. MultiSet
+            // remains responsible for frame count/interval, first-success retries,
+            // background localization and relocalization.
+            yield return new WaitForSecondsRealtime(2.25f);
+
+            if (localizationInitObserved
+                || mapLocalizationManager == null
+                || !mapLocalizationManager.isActiveAndEnabled
+                || State != TransitionState.StartingVps)
+            {
+                sdkStartCoroutine = null;
+                yield break;
+            }
 
 #if UNITY_EDITOR
             if (!allowSdkInvocationInEditor)
             {
-                requestCoroutine = null;
-                Fail("VPS thật chỉ quét trên iPhone. Build iOS để thử camera hoặc dùng Debug/Simulate VPS Success.");
+                sdkStartCoroutine = null;
+                Fail("VPS thật chỉ quét trên thiết bị. Build iOS/Android để thử camera hoặc dùng Debug/Simulate VPS Success.");
                 yield break;
             }
 #endif
@@ -304,34 +302,32 @@ namespace ARNavB9V2.Vps
                 null);
             if (method == null)
             {
-                requestCoroutine = null;
+                sdkStartCoroutine = null;
                 Fail("MultiSet MapLocalizationManager không có LocalizeFrame().");
                 yield break;
             }
 
-            scanStartedAt = Time.unscaledTime;
-            SetState(TransitionState.Scanning);
             try
             {
                 method.Invoke(mapLocalizationManager, null);
             }
             catch (TargetInvocationException exception)
             {
-                requestCoroutine = null;
+                sdkStartCoroutine = null;
                 string detail = exception.InnerException != null
                     ? exception.InnerException.Message
                     : exception.Message;
-                Fail("Không thể bắt đầu VPS: " + detail);
+                Fail("Không thể bắt đầu MultiSet VPS: " + detail);
                 yield break;
             }
             catch (Exception exception)
             {
-                requestCoroutine = null;
-                Fail("Không thể bắt đầu VPS: " + exception.Message);
+                sdkStartCoroutine = null;
+                Fail("Không thể bắt đầu MultiSet VPS: " + exception.Message);
                 yield break;
             }
 
-            requestCoroutine = null;
+            sdkStartCoroutine = null;
         }
 
         private bool ConfigureMultiSetForB9(out string reason)
@@ -361,22 +357,9 @@ namespace ARNavB9V2.Vps
                 return false;
             }
 
-            TrySetFieldOrProperty(type, "autoLocalize", false);
-            TrySetFieldOrProperty(type, "backgroundLocalization", false);
-            TrySetFieldOrProperty(type, "relocalization", false);
-            TrySetFieldOrProperty(type, "showAlert", false);
-            TrySetFieldOrProperty(type, "firstLocalizationUntilSuccess", useRecoveryFsm);
-            int frameCount = !useQualityThreshold
-                ? 1
-                : localizationAttemptCount <= 1
-                ? initialLocalizationFrames
-                : retryLocalizationFrames;
-            TrySetFieldOrProperty(type, "numberOfFrames", frameCount);
-            TrySetFieldOrProperty(
-                type,
-                "frameCaptureInterval",
-                localizationFrameIntervalSeconds);
-            TrySetFieldOrProperty(type, "enableBlurCheck", localizationBlurCheck);
+            // The package prefab remains authoritative for autoLocalize,
+            // backgroundLocalization, relocalization, frame capture, blur checking
+            // and first-localization retry.
             reason = string.Empty;
             return true;
         }
@@ -445,15 +428,15 @@ namespace ARNavB9V2.Vps
 
         private void HandleLocalizationInit()
         {
+            localizationInitObserved = true;
             if (State == TransitionState.StartingVps)
                 SetState(TransitionState.Scanning);
         }
 
         private void HandleLocalizationRequested()
         {
-            // MultiSet can issue multiple requests while
-            // firstLocalizationUntilSuccess is enabled. Keep one absolute timeout
-            // for the whole scan session instead of restarting it for every frame batch.
+            // MultiSet can issue multiple requests through first-success retry,
+            // background localization and relocalization.
             if (scanStartedAt <= 0f)
                 scanStartedAt = Time.unscaledTime;
             SetState(TransitionState.Scanning);
@@ -465,16 +448,15 @@ namespace ARNavB9V2.Vps
                 return;
             if (indoorHandoverPending)
                 return;
+            StopSdkStartCoroutine();
             indoorHandoverPending = true;
             VpsValid = true;
             localizationSucceededAt = Time.unscaledTime;
-            StopPendingRequest();
             StartCoroutine(CompleteIndoorHandoverAfterSdkPose());
         }
 
         private IEnumerator CompleteIndoorHandoverAfterSdkPose()
         {
-            yield return null;
             yield return null;
             Transform mapSpace = foundation != null ? foundation.MapSpace : null;
             Camera camera = foundation != null ? foundation.ArCamera : null;
@@ -529,6 +511,47 @@ namespace ARNavB9V2.Vps
                 yield break;
             }
 
+            ActivateIndoorNavigation();
+        }
+
+        public bool CompleteApproximatePdrLocalization(
+            Vector3 estimatedMapWorldPosition,
+            Quaternion estimatedMapWorldRotation,
+            string detail = "MultiSet did not localize within the time limit")
+        {
+            bool scanSessionActive = State == TransitionState.StartingVps
+                                      || State == TransitionState.Scanning
+                                      || State == TransitionState.Failed
+                                      && scanStartedAt > 0f;
+            if (!scanSessionActive)
+                return false;
+            if (!ValidateRuntimeReferences(out _))
+                return false;
+
+            StopSdkStartCoroutine();
+            SetMultiSetLocalizerEnabled(false);
+            indoorHandoverPending = false;
+            VpsValid = false;
+            IsApproximatePdrLocalization = true;
+            LastGateReason = detail ?? "PDR approximate pose";
+            ExperimentDecision?.Invoke("pdr_approximate_localization", LastGateReason);
+
+            if (!ReanchorMapSpaceToApproximatePose(
+                    estimatedMapWorldPosition,
+                    estimatedMapWorldRotation))
+            {
+                IsApproximatePdrLocalization = false;
+                return false;
+            }
+
+            return ActivateIndoorNavigation();
+        }
+
+        private bool ActivateIndoorNavigation()
+        {
+            if (foundation == null || foundation.ModelRoot == null)
+                return false;
+
             foundation.ModelRoot.gameObject.SetActive(true);
             mapVisibility?.ApplyVisibilityPolicy();
             ReanchorIndoorNavMesh();
@@ -559,6 +582,27 @@ namespace ARNavB9V2.Vps
                 : "B9-104";
             indoorContext?.BeginNavigation(selectedRoom);
             SetState(TransitionState.IndoorLocalized);
+            return true;
+        }
+
+        private bool ReanchorMapSpaceToApproximatePose(
+            Vector3 estimatedMapWorldPosition,
+            Quaternion estimatedMapWorldRotation)
+        {
+            Transform mapSpace = foundation != null ? foundation.MapSpace : null;
+            Camera camera = foundation != null ? foundation.ArCamera : null;
+            if (mapSpace == null || camera == null)
+                return false;
+
+            Vector3 mapLocalPosition = mapSpace.InverseTransformPoint(
+                estimatedMapWorldPosition);
+            Quaternion mapLocalRotation = Quaternion.Inverse(mapSpace.rotation)
+                                          * estimatedMapWorldRotation;
+            mapSpace.rotation = camera.transform.rotation
+                                * Quaternion.Inverse(mapLocalRotation);
+            Vector3 mappedPosition = mapSpace.TransformPoint(mapLocalPosition);
+            mapSpace.position += camera.transform.position - mappedPosition;
+            return true;
         }
 
         private void HandleLocalizationFailure()
@@ -570,13 +614,8 @@ namespace ARNavB9V2.Vps
             ExperimentDecision?.Invoke(
                 "quality_threshold_failed",
                 "VPS provider invalid: MultiSet LocalizationFailure");
-            if (!useRecoveryFsm)
-            {
-                Fail("MultiSet không nhận diện được vị trí; Recovery FSM đang tắt.");
-                return;
-            }
-
-            // A failed frame batch is not a failed user flow when recovery is enabled.
+            // The official firstLocalizationUntilSuccess flow owns retry. A failed
+            // frame batch is not treated as a failed navigation session here.
             if (scanStartedAt <= 0f)
                 scanStartedAt = Time.unscaledTime;
             indoorHandoverPending = false;
@@ -756,55 +795,9 @@ namespace ARNavB9V2.Vps
         {
             indoorHandoverPending = false;
             FailureReason = reason;
-            if (!useRecoveryFsm)
-            {
-                Fail(reason);
-                return;
-            }
-
+            // Keep listening to MultiSet's background/relocalization callbacks. Do
+            // not launch a second custom LocalizeFrame loop beside the SDK.
             SetState(TransitionState.Scanning);
-            StopPendingRequest();
-            requestCoroutine = StartCoroutine(RetryAfterGateRejection());
-        }
-
-        private IEnumerator RetryAfterGateRejection()
-        {
-            yield return new WaitForSecondsRealtime(localizationFrameIntervalSeconds);
-            if (State != TransitionState.Scanning || mapLocalizationManager == null)
-            {
-                requestCoroutine = null;
-                yield break;
-            }
-
-            MethodInfo method = mapLocalizationManager.GetType().GetMethod(
-                "LocalizeFrame",
-                ReflectionFlags,
-                null,
-                Type.EmptyTypes,
-                null);
-            if (method == null)
-            {
-                requestCoroutine = null;
-                Fail("MultiSet không có LocalizeFrame() để Recovery FSM thử lại.");
-                yield break;
-            }
-
-            localizationAttemptCount++;
-            try
-            {
-                TrySetFieldOrProperty(
-                    mapLocalizationManager.GetType(),
-                    "firstLocalizationUntilSuccess",
-                    true);
-                method.Invoke(mapLocalizationManager, null);
-            }
-            catch (Exception exception)
-            {
-                requestCoroutine = null;
-                Fail("Recovery VPS thất bại: " + exception.Message);
-                yield break;
-            }
-            requestCoroutine = null;
         }
 
         private bool TryReadLocalizationString(out string value, params string[] memberNames)
@@ -920,6 +913,8 @@ namespace ARNavB9V2.Vps
 
         private void Fail(string reason)
         {
+            StopSdkStartCoroutine();
+            SetMultiSetLocalizerEnabled(false);
             indoorHandoverPending = false;
             FailureReason = reason;
             SetState(TransitionState.Failed);
@@ -933,12 +928,32 @@ namespace ARNavB9V2.Vps
             StateChanged?.Invoke(value);
         }
 
-        private void StopPendingRequest()
+        private void SetMultiSetLocalizerEnabled(bool value)
         {
-            if (requestCoroutine == null)
+            if (mapLocalizationManager == null)
                 return;
-            StopCoroutine(requestCoroutine);
-            requestCoroutine = null;
+
+            GameObject localizerObject = mapLocalizationManager.gameObject;
+            if (value)
+            {
+                if (!localizerObject.activeSelf)
+                    localizerObject.SetActive(true);
+                mapLocalizationManager.enabled = true;
+                return;
+            }
+
+            mapLocalizationManager.StopAllCoroutines();
+            mapLocalizationManager.enabled = false;
+            if (localizerObject.activeSelf)
+                localizerObject.SetActive(false);
+        }
+
+        private void StopSdkStartCoroutine()
+        {
+            if (sdkStartCoroutine == null)
+                return;
+            StopCoroutine(sdkStartCoroutine);
+            sdkStartCoroutine = null;
         }
 
         private bool TrySetFieldOrProperty(Type type, string memberName, object value)

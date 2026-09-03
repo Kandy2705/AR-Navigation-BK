@@ -66,6 +66,7 @@ namespace ARNavB9V2.Reliability
                                                  || next == B9NavigationState.VpsFailed
                                                  || next == B9NavigationState.OutdoorGps,
                 B9NavigationState.VpsFailed => next == B9NavigationState.VpsScanning
+                                               || next == B9NavigationState.IndoorVps
                                                || next == B9NavigationState.OutdoorGps,
                 B9NavigationState.IndoorVps => next == B9NavigationState.ExitingWithPdr,
                 B9NavigationState.ExitingWithPdr => next == B9NavigationState.OutdoorGps,

@@ -163,6 +163,23 @@ namespace ARNavB9V2.Indoor
             SetState(IndoorRouteState.WaitingForLocalization);
         }
 
+        public bool CompleteFromPdrFallback(string roomId)
+        {
+            if (!SetDestinationRoom(roomId))
+                return false;
+
+            navigationActive = false;
+            navigatingToExit = false;
+            exitAnchor = null;
+            RemainingDistanceMeters = 0f;
+            LastArrivalWasExit = false;
+            lastRoutedPosition = Vector3.positiveInfinity;
+            ribbonRenderer?.ClearPath();
+            SetState(IndoorRouteState.Arrived);
+            enabled = false;
+            return true;
+        }
+
         public bool SetDestinationRoom(string roomId)
         {
             if (building == null || !building.TryGetRoom(roomId, out _))

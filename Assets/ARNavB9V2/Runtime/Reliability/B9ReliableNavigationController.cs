@@ -30,6 +30,9 @@ namespace ARNavB9V2.Reliability
         [SerializeField, Min(0.2f)] private float innerNavMeshSampleRadiusMeters = 3f;
         [SerializeField, Min(0.2f)] private float destinationSampleRadiusMeters = 6f;
         [SerializeField, Min(0f)] private float minimumPdrHoldSeconds = 0.35f;
+        [SerializeField, Min(0.5f)] private float pdrFallbackArrivalDistanceMeters = 1.8f;
+        [SerializeField, Min(1f)] private float forcedApproximateLocalizationSeconds = 30f;
+        [SerializeField, Min(1f)] private float approximatePoseSampleRadiusMeters = 12f;
         [Header("Indoor -> outdoor reliability")]
         [SerializeField, Min(1f)] private float maximumExitGpsAccuracyMeters = 30f;
         [SerializeField, Min(1f)] private float maximumExitGpsPdrSeparationMeters = 35f;
@@ -65,6 +68,9 @@ namespace ARNavB9V2.Reliability
         private bool previousGpsThresholdPassed;
         private bool previousGpsDwellPassed;
         private float stateChangedAt;
+        private bool pdrFallbackDestinationArrived;
+        private Vector3 pdrFallbackArrivalCampusPosition;
+        private bool forcedApproximateLocalizationUsed;
 
         public B9NavigationState State => stateMachine.Current;
         public B9PoseSource ActiveSource { get; private set; } = B9PoseSource.Gps;
@@ -72,6 +78,8 @@ namespace ARNavB9V2.Reliability
         {
             get
             {
+                if (pdrFallbackDestinationArrived)
+                    return pdrFallbackArrivalCampusPosition;
                 if (transitionPdr != null && transitionPdr.IsTracking)
                     return transitionPdr.CampusPosition;
                 if (State == B9NavigationState.IndoorVps
@@ -99,6 +107,7 @@ namespace ARNavB9V2.Reliability
             }
         }
         public float TransitionRemainingDistanceMeters { get; private set; }
+        public bool PdrFallbackDestinationArrived => pdrFallbackDestinationArrived;
         public bool ExitRouteRequested => exitRouteRequested;
         public string ActiveExitName => activeExitPortal != null
             ? activeExitPortal.DisplayName
@@ -182,7 +191,13 @@ namespace ARNavB9V2.Reliability
                     break;
                 case B9NavigationState.VpsScanning:
                 case B9NavigationState.VpsFailed:
-                    UpdatePdrPresentation();
+                    if (!pdrFallbackDestinationArrived)
+                    {
+                        UpdatePdrPresentation();
+                        EvaluatePdrFallbackArrival();
+                        if (!pdrFallbackDestinationArrived)
+                            TryForceApproximateLocalization();
+                    }
                     break;
                 case B9NavigationState.ExitingWithPdr:
                     UpdateExitPdrPresentation();
@@ -202,6 +217,20 @@ namespace ARNavB9V2.Reliability
         {
             if (outdoor?.RouteController == null || string.IsNullOrWhiteSpace(roomId))
                 return false;
+
+            if (pdrFallbackDestinationArrived)
+            {
+                if (!outdoor.RouteController.SetDestinationRoom(roomId))
+                    return false;
+
+                pdrFallbackDestinationArrived = false;
+                forcedApproximateLocalizationUsed = false;
+                indoor?.PrepareForLocalization();
+                transitionPdr?.BeginTracking(pdrFallbackArrivalCampusPosition);
+                vpsTransition?.BeginAutomaticLocalization();
+                UpdatePdrPresentation(force: true);
+                return true;
+            }
 
             if (State == B9NavigationState.IndoorVps)
             {
@@ -227,6 +256,14 @@ namespace ARNavB9V2.Reliability
         {
             if (outdoor?.RouteController == null || string.IsNullOrWhiteSpace(destinationId))
                 return false;
+
+            if (pdrFallbackDestinationArrived)
+            {
+                pdrFallbackDestinationArrived = false;
+                indoor?.StopNavigation();
+                RestoreOutdoorGps("new outdoor destination after PDR arrival");
+                return outdoor.RouteController.SetOutdoorDestination(destinationId);
+            }
 
             switch (State)
             {
@@ -299,6 +336,15 @@ namespace ARNavB9V2.Reliability
 
         public void CancelNavigation()
         {
+            if (pdrFallbackDestinationArrived)
+            {
+                pdrFallbackDestinationArrived = false;
+                indoor?.StopNavigation();
+                RestoreOutdoorGps("navigation ended after PDR arrival");
+                outdoor?.RouteController?.CancelNavigation();
+                return;
+            }
+
             switch (State)
             {
                 case B9NavigationState.OutdoorGps:
@@ -338,6 +384,7 @@ namespace ARNavB9V2.Reliability
             if (!geometry.ContainsOuterCampusPoint(campusPoint))
                 return;
 
+            forcedApproximateLocalizationUsed = false;
             transitionPdr.BeginTracking(campusPoint);
             enteredPdrAt = Time.unscaledTime;
             outdoor.PoseController.enabled = false;
@@ -377,6 +424,83 @@ namespace ARNavB9V2.Reliability
                 return;
             nextGuidanceAt = Time.unscaledTime + guidanceRefreshSeconds;
             BuildContinuousTransitionGuidance();
+        }
+
+        private void EvaluatePdrFallbackArrival()
+        {
+            if (transitionPdr == null || !transitionPdr.IsTracking || geometry == null)
+                return;
+
+            B9RoomAnchor destination = FindSelectedRoomAnchor();
+            B9PortalAnchor portal = geometry.PrimaryPortal;
+            if (destination == null || portal == null)
+                return;
+
+            Vector3 destinationCampus = portal.MapWorldToCampusPoint(
+                destination.transform.position);
+            Vector3 currentCampus = transitionPdr.CampusPosition;
+            destinationCampus.y = currentCampus.y;
+            float distance = Vector3.Distance(currentCampus, destinationCampus);
+            if (distance > pdrFallbackArrivalDistanceMeters)
+                return;
+
+            pdrFallbackDestinationArrived = true;
+            forcedApproximateLocalizationUsed = false;
+            pdrFallbackArrivalCampusPosition = currentCampus;
+            TransitionRemainingDistanceMeters = 0f;
+            vpsTransition?.CancelLocalization();
+            outdoor?.RibbonRenderer?.ClearPath();
+            outdoor?.MinimapController?.ClearPoseOverride();
+            outdoor?.RouteController?.CancelNavigation();
+            transitionPdr.StopTracking();
+            indoor?.RouteController?.CompleteFromPdrFallback(destination.RoomId);
+            ExperimentDecision?.Invoke(
+                "pdr_destination_arrived",
+                $"PDR reached {destination.RoomId} within {distance:0.00}m; VPS scan stopped");
+        }
+
+        private void TryForceApproximateLocalization()
+        {
+            if (forcedApproximateLocalizationUsed
+                || vpsTransition == null
+                || transitionPdr == null
+                || !transitionPdr.IsTracking
+                || vpsTransition.CurrentScanElapsedSeconds
+                   < forcedApproximateLocalizationSeconds)
+                return;
+
+            B9PortalAnchor portal = geometry != null ? geometry.PrimaryPortal : null;
+            if (portal == null)
+                return;
+
+            Vector3 campusPosition = transitionPdr.CampusPosition;
+            Vector3 estimatedMapPosition = portal.CampusToMapWorldPoint(campusPosition);
+            Quaternion estimatedMapRotation = portal.CampusToMapWorldRotation(
+                Quaternion.Euler(0f, transitionPdr.HeadingDegrees, 0f));
+            bool navMeshSampled = NavMesh.SamplePosition(
+                estimatedMapPosition,
+                out NavMeshHit nearestHit,
+                approximatePoseSampleRadiusMeters,
+                NavMesh.AllAreas);
+            if (navMeshSampled)
+                estimatedMapPosition = nearestHit.position;
+            else if (portal.IndoorMapAnchor != null)
+                estimatedMapPosition = portal.IndoorMapAnchor.position;
+
+            string detail = navMeshSampled
+                ? $"30s VPS timeout; PDR pose projected to nearest B9 NavMesh point ({nearestHit.distance:0.00}m)"
+                : "30s VPS timeout; PDR pose projected to B9 entrance fallback point";
+            if (!vpsTransition.CompleteApproximatePdrLocalization(
+                    estimatedMapPosition,
+                    estimatedMapRotation,
+                    detail))
+                return;
+
+            forcedApproximateLocalizationUsed = true;
+            ActiveSource = B9PoseSource.Pdr;
+            CandidateSource = "PDR_APPROXIMATE";
+            DecisionReason = detail;
+            ExperimentDecision?.Invoke("pdr_approximate_handover_completed", detail);
         }
 
         private void UpdateExitPdrPresentation()
@@ -658,14 +782,21 @@ namespace ARNavB9V2.Reliability
             outdoor?.MinimapController?.ClearPoseOverride();
             if (geometry?.CampusModelProxy != null)
                 geometry.CampusModelProxy.gameObject.SetActive(false);
-            ActiveSource = B9PoseSource.Vps;
-            ChangeState(B9NavigationState.IndoorVps, "MultiSet localization accepted");
+            bool approximate = vpsTransition != null
+                               && vpsTransition.IsApproximatePdrLocalization;
+            ActiveSource = approximate ? B9PoseSource.Pdr : B9PoseSource.Vps;
+            ChangeState(
+                B9NavigationState.IndoorVps,
+                approximate
+                    ? "30s VPS timeout; indoor navigation started from approximate PDR pose"
+                    : "MultiSet localization accepted");
         }
 
         private void RestoreOutdoorGps(string reason)
         {
             transitionPdr?.StopTracking();
             outdoor?.MinimapController?.ClearPoseOverride();
+            forcedApproximateLocalizationUsed = false;
             if (outdoor != null)
             {
                 outdoor.PoseController.enabled = true;

@@ -152,14 +152,8 @@ namespace ARNavB9V2.Editor
             SetObject(serialized, "mapSpace", foundation.MapSpace.gameObject);
             SetEnum(serialized, "localizationType", 0); // MultiSet.LocalizationType.Map
             SetString(serialized, "mapOrMapsetCode", foundation.Building.PrimaryMapCode);
-            SetBool(serialized, "autoLocalize", false);
-            SetBool(serialized, "backgroundLocalization", false);
-            SetBool(serialized, "relocalization", false);
-            SetInt(serialized, "numberOfFrames", 5);
-            SetFloat(serialized, "frameCaptureInterval", 0.6f);
-            SetBool(serialized, "enableBlurCheck", false);
-            SetBool(serialized, "showAlert", false);
-            SetBool(serialized, "firstLocalizationUntilSuccess", true);
+            // Keep the SDK prefab defaults for automatic localization, background
+            // localization, relocalization and frame capture behavior.
             ClearPersistentEvent(serialized, "LocalizationInit");
             ClearPersistentEvent(serialized, "LocalizationRequested");
             ClearPersistentEvent(serialized, "LocalizationSuccess");

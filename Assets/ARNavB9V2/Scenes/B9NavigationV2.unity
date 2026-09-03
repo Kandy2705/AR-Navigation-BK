@@ -2307,40 +2307,8 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1126238782}
     - target: {fileID: 4364491679768462058, guid: b8f581a9eb1fb4b579ffe724f743f9e3, type: 3}
-      propertyPath: showAlert
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4364491679768462058, guid: b8f581a9eb1fb4b579ffe724f743f9e3, type: 3}
-      propertyPath: autoLocalize
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4364491679768462058, guid: b8f581a9eb1fb4b579ffe724f743f9e3, type: 3}
-      propertyPath: numberOfFrames
-      value: 5
-      objectReference: {fileID: 0}
-    - target: {fileID: 4364491679768462058, guid: b8f581a9eb1fb4b579ffe724f743f9e3, type: 3}
-      propertyPath: relocalization
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4364491679768462058, guid: b8f581a9eb1fb4b579ffe724f743f9e3, type: 3}
-      propertyPath: enableBlurCheck
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4364491679768462058, guid: b8f581a9eb1fb4b579ffe724f743f9e3, type: 3}
       propertyPath: mapOrMapsetCode
       value: MAP_9LME2PB7Y3EN
-      objectReference: {fileID: 0}
-    - target: {fileID: 4364491679768462058, guid: b8f581a9eb1fb4b579ffe724f743f9e3, type: 3}
-      propertyPath: frameCaptureInterval
-      value: 0.6
-      objectReference: {fileID: 0}
-    - target: {fileID: 4364491679768462058, guid: b8f581a9eb1fb4b579ffe724f743f9e3, type: 3}
-      propertyPath: backgroundLocalization
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4364491679768462058, guid: b8f581a9eb1fb4b579ffe724f743f9e3, type: 3}
-      propertyPath: firstLocalizationUntilSuccess
-      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4364491679768462058, guid: b8f581a9eb1fb4b579ffe724f743f9e3, type: 3}
       propertyPath: LocalizationInit.m_PersistentCalls.m_Calls.Array.size
@@ -2624,7 +2592,7 @@ Transform:
   m_GameObject: {fileID: 821694289}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0.09, y: 0, z: -0.23}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3623,12 +3591,6 @@ MonoBehaviour:
   foundation: {fileID: 2128632167}
   mapVisibility: {fileID: 2128632166}
   indoorContext: {fileID: 275848107}
-  localizeDelaySeconds: 0.5
-  scanTimeoutSeconds: 60
-  initialLocalizationFrames: 5
-  retryLocalizationFrames: 5
-  localizationFrameIntervalSeconds: 0.6
-  localizationBlurCheck: 0
   localizationPoseSettleSeconds: 0.35
   allowSdkInvocationInEditor: 0
   externalHandoverControl: 1
@@ -5505,6 +5467,9 @@ MonoBehaviour:
   innerNavMeshSampleRadiusMeters: 3
   destinationSampleRadiusMeters: 6
   minimumPdrHoldSeconds: 0.35
+  pdrFallbackArrivalDistanceMeters: 1.8
+  forcedApproximateLocalizationSeconds: 30
+  approximatePoseSampleRadiusMeters: 12
   maximumExitGpsAccuracyMeters: 30
   maximumExitGpsPdrSeparationMeters: 35
   exitGpsStableSeconds: 1.5
