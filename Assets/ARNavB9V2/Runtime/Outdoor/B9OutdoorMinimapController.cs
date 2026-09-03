@@ -9,6 +9,7 @@ namespace ARNavB9V2.Outdoor
     {
         [SerializeField] private B9OutdoorMapDefinition outdoorMap;
         [SerializeField] private B9OutdoorLocationProvider locationProvider;
+        [SerializeField] private B9OutdoorRouteController routeController;
         [SerializeField] private Camera minimapCamera;
         [SerializeField] private RenderTexture renderTexture;
         [SerializeField] private Transform userMarker;
@@ -62,6 +63,11 @@ namespace ARNavB9V2.Outdoor
             cameraFollowSmoothTimeSeconds = Mathf.Max(0.05f, followSmoothTimeSeconds);
             ApplyCameraSettings();
             ApplyMarkerPresentation();
+        }
+
+        public void AttachRouteController(B9OutdoorRouteController route)
+        {
+            routeController = route;
         }
 
         public void SetOverviewMode(bool enabled)
@@ -156,7 +162,9 @@ namespace ARNavB9V2.Outdoor
 
             if (entranceMarker != null && outdoorMap != null)
             {
-                Vector3 entrance = outdoorMap.EntranceCampusPosition;
+                Vector3 entrance = routeController != null && routeController.HasDestination
+                    ? routeController.ActiveDestinationPosition
+                    : outdoorMap.EntranceCampusPosition;
                 entranceMarker.position = new Vector3(
                     entrance.x,
                     entrance.y + markerHeightMeters,

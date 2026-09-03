@@ -25,9 +25,13 @@ namespace ARNavB9V2.Outdoor
         [SerializeField] private B9OutdoorMapDefinition outdoorMap;
         [SerializeField] private B9OutdoorLocationProvider locationProvider;
         [SerializeField] private Transform b9EntranceAnchor;
+        [SerializeField] private B9CampusDestinationCatalog campusDestinations;
+        [SerializeField] private List<B9OutdoorDestinationAnchor> destinationAnchors =
+            new List<B9OutdoorDestinationAnchor>();
         [SerializeField] private NavMeshSurface schoolGroundNavMesh;
         [SerializeField] private B9RouteRibbonRenderer ribbonRenderer;
         [SerializeField] private string selectedRoomId = "B9-104";
+        [SerializeField] private string selectedDestinationId = "B9";
         [SerializeField] private float routeRefreshSeconds = 0.6f;
         [SerializeField] private float routeRefreshDistanceMeters = 1.25f;
         [SerializeField] private float minimumStartSampleRadiusMeters = 4f;
@@ -37,11 +41,26 @@ namespace ARNavB9V2.Outdoor
         private NavMeshPath navMeshPath;
         private Vector3 lastRoutedPosition = Vector3.positiveInfinity;
         private float nextRefreshTime;
+        private B9OutdoorDestinationAnchor activeDestinationAnchor;
 
         public RouteState State { get; private set; } = RouteState.NoDestination;
         public string SelectedRoomId => selectedRoomId;
+        public string SelectedDestinationId => selectedDestinationId;
+        public string SelectedDestinationName => activeDestinationAnchor != null
+            ? activeDestinationAnchor.DisplayName
+            : IsIndoorB9Destination ? "Tòa B9" : selectedDestinationId;
+        public bool HasDestination => !string.IsNullOrWhiteSpace(selectedDestinationId);
+        public bool IsIndoorB9Destination => string.Equals(
+                                                 selectedDestinationId,
+                                                 "B9",
+                                                 StringComparison.OrdinalIgnoreCase)
+                                             && !string.IsNullOrWhiteSpace(selectedRoomId);
+        public Vector3 ActiveDestinationPosition => DestinationTransform != null
+            ? DestinationTransform.position
+            : Vector3.zero;
         public float RemainingDistanceMeters { get; private set; }
-        public bool HasArrivedAtEntrance => State == RouteState.ArrivedAtB9Entrance;
+        public bool HasArrivedAtDestination => State == RouteState.ArrivedAtB9Entrance;
+        public bool HasArrivedAtEntrance => IsIndoorB9Destination && HasArrivedAtDestination;
         public event Action<RouteState> StateChanged;
 
         public void ConfigureRefreshSmoothing(float minimumSeconds, float minimumDistanceMeters)
@@ -66,6 +85,18 @@ namespace ARNavB9V2.Outdoor
             schoolGroundNavMesh = navMeshSurface;
             ribbonRenderer = renderer;
             selectedRoomId = defaultRoomId;
+            selectedDestinationId = "B9";
+        }
+
+        public void ConfigureCampusDestinations(
+            B9CampusDestinationCatalog catalog,
+            IReadOnlyList<B9OutdoorDestinationAnchor> anchors)
+        {
+            campusDestinations = catalog;
+            destinationAnchors = anchors != null
+                ? new List<B9OutdoorDestinationAnchor>(anchors)
+                : new List<B9OutdoorDestinationAnchor>();
+            ResolveActiveDestination();
         }
 
         private void Awake()
@@ -87,7 +118,7 @@ namespace ARNavB9V2.Outdoor
         /// <summary>Immediately evaluates arrival or recalculates the outdoor route.</summary>
         public void RefreshNow()
         {
-            if (string.IsNullOrWhiteSpace(selectedRoomId))
+            if (!HasDestination || DestinationTransform == null)
                 return;
 
             if (locationProvider == null || !locationProvider.HasReliableFix)
@@ -99,9 +130,9 @@ namespace ARNavB9V2.Outdoor
             double entranceDistance = B9OutdoorMapDefinition.DistanceMeters(
                 locationProvider.Latitude,
                 locationProvider.Longitude,
-                outdoorMap.EntranceLatitude,
-                outdoorMap.EntranceLongitude);
-            if (entranceDistance <= outdoorMap.ArrivalRadiusMeters)
+                DestinationLatitude,
+                DestinationLongitude);
+            if (entranceDistance <= DestinationArrivalRadius)
             {
                 RemainingDistanceMeters = (float)entranceDistance;
                 bool routeNeedsRefresh = ribbonRenderer != null
@@ -143,17 +174,43 @@ namespace ARNavB9V2.Outdoor
                 return false;
 
             selectedRoomId = roomId.Trim().ToUpperInvariant();
+            selectedDestinationId = "B9";
+            ResolveActiveDestination();
+            BeginSelectedDestination();
+            return true;
+        }
+
+        public bool SetOutdoorDestination(string destinationId)
+        {
+            if (campusDestinations == null
+                || !campusDestinations.TryGet(destinationId, out _))
+                return false;
+
+            selectedDestinationId = destinationId.Trim().ToUpperInvariant();
+            selectedRoomId = string.Empty;
+            if (!ResolveActiveDestination())
+                return false;
+
+            BeginSelectedDestination();
+            return true;
+        }
+
+        private void BeginSelectedDestination()
+        {
             lastRoutedPosition = Vector3.positiveInfinity;
             nextRefreshTime = 0f;
             SetState(locationProvider != null && locationProvider.HasReliableFix
                 ? RouteState.Calculating
                 : RouteState.WaitingForGps);
-            return true;
+            if (enabled)
+                RefreshNow();
         }
 
         public void CancelNavigation()
         {
             selectedRoomId = string.Empty;
+            selectedDestinationId = string.Empty;
+            activeDestinationAnchor = null;
             RemainingDistanceMeters = 0f;
             lastRoutedPosition = Vector3.positiveInfinity;
             nextRefreshTime = 0f;
@@ -166,8 +223,9 @@ namespace ARNavB9V2.Outdoor
             bool preserveGuidanceOnFailure)
         {
             navMeshPath ??= new NavMeshPath();
+            Transform destination = DestinationTransform;
             if (schoolGroundNavMesh == null || schoolGroundNavMesh.navMeshData == null
-                || b9EntranceAnchor == null || ribbonRenderer == null)
+                || destination == null || ribbonRenderer == null)
             {
                 if (!preserveGuidanceOnFailure)
                 {
@@ -199,9 +257,9 @@ namespace ARNavB9V2.Outdoor
                     startSampleRadius,
                     NavMesh.AllAreas)
                 || !NavMesh.SamplePosition(
-                    b9EntranceAnchor.position,
+                    destination.position,
                     out NavMeshHit endHit,
-                    entranceSampleRadiusMeters,
+                    Mathf.Max(entranceSampleRadiusMeters, DestinationArrivalRadius + 3f),
                     NavMesh.AllAreas)
                 || !NavMesh.CalculatePath(
                     startHit.position,
@@ -213,7 +271,7 @@ namespace ARNavB9V2.Outdoor
                 || navMeshPath.corners.Length < 2)
             {
                 if (preserveGuidanceOnFailure
-                    && Vector3.Distance(userPosition, b9EntranceAnchor.position) > 0.25f)
+                    && Vector3.Distance(userPosition, destination.position) > 0.25f)
                 {
                     // GPS can place the user just outside the baked NavMesh near the
                     // entrance. Keep a short final guide to the VPS scan point instead
@@ -221,7 +279,7 @@ namespace ARNavB9V2.Outdoor
                     var finalGuide = new List<Vector3>(2)
                     {
                         userPosition,
-                        b9EntranceAnchor.position,
+                        destination.position,
                     };
                     RemainingDistanceMeters = CalculateDistance(finalGuide);
                     ribbonRenderer.SetPath(finalGuide);
@@ -246,14 +304,52 @@ namespace ARNavB9V2.Outdoor
             if (Vector3.Distance(userPosition, startHit.position) > 0.25f)
                 points.Add(userPosition);
             points.AddRange(navMeshPath.corners);
-            if (Vector3.Distance(points[points.Count - 1], b9EntranceAnchor.position) > 0.25f)
-                points.Add(b9EntranceAnchor.position);
+            if (Vector3.Distance(points[points.Count - 1], destination.position) > 0.25f)
+                points.Add(destination.position);
 
             RemainingDistanceMeters = CalculateDistance(points);
             ribbonRenderer.SetPath(points);
             SetState(successState);
             return true;
         }
+
+        private bool ResolveActiveDestination()
+        {
+            activeDestinationAnchor = null;
+            if (destinationAnchors != null)
+            {
+                for (int i = 0; i < destinationAnchors.Count; i++)
+                {
+                    B9OutdoorDestinationAnchor candidate = destinationAnchors[i];
+                    if (candidate != null && string.Equals(
+                            candidate.DestinationId,
+                            selectedDestinationId,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        activeDestinationAnchor = candidate;
+                        return true;
+                    }
+                }
+            }
+
+            return IsIndoorB9Destination && b9EntranceAnchor != null;
+        }
+
+        private Transform DestinationTransform => activeDestinationAnchor != null
+            ? activeDestinationAnchor.transform
+            : IsIndoorB9Destination ? b9EntranceAnchor : null;
+
+        private double DestinationLatitude => activeDestinationAnchor != null
+            ? activeDestinationAnchor.Latitude
+            : outdoorMap.EntranceLatitude;
+
+        private double DestinationLongitude => activeDestinationAnchor != null
+            ? activeDestinationAnchor.Longitude
+            : outdoorMap.EntranceLongitude;
+
+        private float DestinationArrivalRadius => activeDestinationAnchor != null
+            ? activeDestinationAnchor.ArrivalRadiusMeters
+            : outdoorMap.ArrivalRadiusMeters;
 
         private static float CalculateDistance(IReadOnlyList<Vector3> points)
         {

@@ -403,6 +403,55 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2128632168}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &116194183
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 116194184}
+  - component: {fileID: 116194185}
+  m_Layer: 0
+  m_Name: A4 Outdoor Destination
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &116194184
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 116194183}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 117.45269, y: 0.1088047, z: -25.41868}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1026455658}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &116194185
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 116194183}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0c1d871e503c4a3da343d4727e2ad21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Outdoor.B9OutdoorDestinationAnchor
+  destinationId: A4
+  displayName: "T\xF2a A4"
+  latitude: 10.7732556
+  longitude: 106.6600972
+  arrivalRadiusMeters: 12
 --- !u!1 &149622950
 GameObject:
   m_ObjectHideFlags: 0
@@ -525,6 +574,55 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 183847834}
   m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &252546115
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 252546116}
+  - component: {fileID: 252546117}
+  m_Layer: 0
+  m_Name: A2 Outdoor Destination
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &252546116
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 252546115}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 104.08773, y: 0.1088047, z: -52.153908}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1026455658}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &252546117
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 252546115}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0c1d871e503c4a3da343d4727e2ad21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Outdoor.B9OutdoorDestinationAnchor
+  destinationId: A2
+  displayName: "T\xF2a A2"
+  latitude: 10.7730139
+  longitude: 106.659975
+  arrivalRadiusMeters: 12
 --- !u!1 &262444593
 GameObject:
   m_ObjectHideFlags: 0
@@ -1636,6 +1734,104 @@ MonoBehaviour:
   m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Scene.B9RoomAnchor
   roomId: B9-201
   floorId: F2
+--- !u!1 &529911165
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 529911166}
+  - component: {fileID: 529911167}
+  m_Layer: 0
+  m_Name: B10 Outdoor Destination
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &529911166
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 529911165}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 203.73459, y: 0.1088047, z: 20.97286}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1026455658}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &529911167
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 529911165}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0c1d871e503c4a3da343d4727e2ad21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Outdoor.B9OutdoorDestinationAnchor
+  destinationId: B10
+  displayName: "T\xF2a B10"
+  latitude: 10.773675
+  longitude: 106.6608861
+  arrivalRadiusMeters: 12
+--- !u!1 &565277175
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 565277176}
+  - component: {fileID: 565277177}
+  m_Layer: 0
+  m_Name: B9 Outdoor Destination
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &565277176
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 565277175}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 153.83, y: 0, z: -3.19}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1026455658}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &565277177
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 565277175}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0c1d871e503c4a3da343d4727e2ad21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Outdoor.B9OutdoorDestinationAnchor
+  destinationId: B9
+  displayName: "T\xF2a B9"
+  latitude: 10.773456557544643
+  longitude: 106.66042980794792
+  arrivalRadiusMeters: 15
 --- !u!1 &582207032
 GameObject:
   m_ObjectHideFlags: 0
@@ -2349,6 +2545,7 @@ MonoBehaviour:
   indoorPose: {fileID: 1430106192}
   reliabilityController: {fileID: 2078052975}
   transitionPdr: {fileID: 481276156}
+  harmonyVersion: 5
   autoStartSession: 1
   sampleIntervalSeconds: 1
   flushIntervalSeconds: 5
@@ -2678,6 +2875,55 @@ Transform:
   - {fileID: 1315837536}
   m_Father: {fileID: 381201652}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &933439019
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 933439020}
+  - component: {fileID: 933439021}
+  m_Layer: 0
+  m_Name: A5 Outdoor Destination
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &933439020
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 933439019}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3.5326564, y: 0.34919333, z: -5.7629414}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1026455658}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &933439021
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 933439019}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0c1d871e503c4a3da343d4727e2ad21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Outdoor.B9OutdoorDestinationAnchor
+  destinationId: A5
+  displayName: "T\xF2a A5"
+  latitude: 10.7734333
+  longitude: 106.6590556
+  arrivalRadiusMeters: 12
 --- !u!1 &988134377
 GameObject:
   m_ObjectHideFlags: 0
@@ -2851,6 +3097,45 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 7925265499283984297, guid: 178353d9f880049c38fbd0a7e3bdd3d2, type: 3}
   m_PrefabInstance: {fileID: 1005036376}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1026455657
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1026455658}
+  m_Layer: 0
+  m_Name: '[B9 V2] Campus Outdoor Destinations'
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1026455658
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1026455657}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 565277176}
+  - {fileID: 252546116}
+  - {fileID: 1901188320}
+  - {fileID: 116194184}
+  - {fileID: 933439020}
+  - {fileID: 2038490179}
+  - {fileID: 1491465713}
+  - {fileID: 529911166}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1045037669
 GameObject:
   m_ObjectHideFlags: 0
@@ -3064,6 +3349,60 @@ Transform:
   m_Children:
   - {fileID: 1126238783}
   m_Father: {fileID: 2128632168}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1119853725
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1119853727}
+  - component: {fileID: 1119853726}
+  m_Layer: 0
+  m_Name: '[B9 V2] HARMONY V1-V5 Experiment'
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1119853726
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119853725}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 911ea7d9386fb430ab9db4c4503abaa0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Experiment.B9HarmonyExperimentController
+  selectedVersion: 5
+  reliabilityController: {fileID: 2078052975}
+  vpsTransition: {fileID: 1191010517}
+  locationProvider: {fileID: 1641562030}
+  transitionPdr: {fileID: 481276156}
+  indoorPose: {fileID: 1430106192}
+  outdoorRibbon: {fileID: 1309318413}
+  indoorRibbon: {fileID: 616125152}
+  experimentLogger: {fileID: 793933506}
+  rememberSelection: 1
+--- !u!4 &1119853727
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119853725}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1123246283
 GameObject:
@@ -3293,6 +3632,14 @@ MonoBehaviour:
   localizationPoseSettleSeconds: 0.35
   allowSdkInvocationInEditor: 0
   externalHandoverControl: 1
+  useQualityThreshold: 1
+  useTemporalDwell: 1
+  useMapIdCheck: 1
+  useRecoveryFsm: 1
+  minimumLocalizationQuality: 0.45
+  localizationDwellSeconds: 1.2
+  stablePositionDeltaMeters: 2.5
+  stableHeadingDeltaDegrees: 60
 --- !u!4 &1191010518
 Transform:
   m_ObjectHideFlags: 0
@@ -3779,6 +4126,55 @@ Transform:
   - {fileID: 358427220}
   m_Father: {fileID: 714530707}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1491465712
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1491465713}
+  - component: {fileID: 1491465714}
+  m_Layer: 0
+  m_Name: B8 Outdoor Destination
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1491465713
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1491465712}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 125.0537, y: 0.1088047, z: 33.26159}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1026455658}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1491465714
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1491465712}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0c1d871e503c4a3da343d4727e2ad21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Outdoor.B9OutdoorDestinationAnchor
+  destinationId: B8
+  displayName: "T\xF2a B8"
+  latitude: 10.7737861
+  longitude: 106.6601667
+  arrivalRadiusMeters: 12
 --- !u!1 &1501150066
 GameObject:
   m_ObjectHideFlags: 0
@@ -4025,6 +4421,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Outdoor.B9OutdoorMinimapController
   outdoorMap: {fileID: 11400000, guid: 1404397f5749747319725b8d66a17ffb, type: 2}
   locationProvider: {fileID: 1641562030}
+  routeController: {fileID: 1641562028}
   minimapCamera: {fileID: 102909988}
   renderTexture: {fileID: 8400000, guid: d235a6c6fcaa649c4a8669d38ddd0cf3, type: 2}
   userMarker: {fileID: 873949302}
@@ -4066,9 +4463,20 @@ MonoBehaviour:
   outdoorMap: {fileID: 11400000, guid: 1404397f5749747319725b8d66a17ffb, type: 2}
   locationProvider: {fileID: 1641562030}
   b9EntranceAnchor: {fileID: 771344380}
+  campusDestinations: {fileID: 11400000, guid: 186a397be734c423d9ef157e460c00f0, type: 2}
+  destinationAnchors:
+  - {fileID: 565277177}
+  - {fileID: 252546117}
+  - {fileID: 1901188321}
+  - {fileID: 116194185}
+  - {fileID: 933439021}
+  - {fileID: 2038490180}
+  - {fileID: 1491465714}
+  - {fileID: 529911167}
   schoolGroundNavMesh: {fileID: 647751775}
   ribbonRenderer: {fileID: 1309318413}
   selectedRoomId: B9-104
+  selectedDestinationId: B9
   routeRefreshSeconds: 0.18
   routeRefreshDistanceMeters: 0.3
   minimumStartSampleRadiusMeters: 4
@@ -4752,6 +5160,55 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1901188319
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1901188320}
+  - component: {fileID: 1901188321}
+  m_Layer: 0
+  m_Name: A3 Outdoor Destination
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1901188320
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901188319}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 167.88327, y: 0.1088047, z: -18.969723}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1026455658}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1901188321
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901188319}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0c1d871e503c4a3da343d4727e2ad21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Outdoor.B9OutdoorDestinationAnchor
+  destinationId: A3
+  displayName: "T\xF2a A3"
+  latitude: 10.7733139
+  longitude: 106.6605583
+  arrivalRadiusMeters: 12
 --- !u!1 &1970190429
 GameObject:
   m_ObjectHideFlags: 0
@@ -4784,6 +5241,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.UI.B9NavigationHud
   document: {fileID: 1970190431}
   building: {fileID: 11400000, guid: e2717c802647348a28f3d28025b9ff38, type: 2}
+  campusDestinations: {fileID: 11400000, guid: 186a397be734c423d9ef157e460c00f0, type: 2}
   locationProvider: {fileID: 1641562030}
   routeController: {fileID: 1641562028}
   minimapController: {fileID: 1641562026}
@@ -4794,6 +5252,7 @@ MonoBehaviour:
   experimentLogger: {fileID: 793933506}
   logExporter: {fileID: 1889002489}
   reliabilityController: {fileID: 2078052975}
+  harmonyExperiment: {fileID: 1119853726}
 --- !u!114 &1970190431
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4943,6 +5402,55 @@ MonoBehaviour:
   m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Scene.B9RoomAnchor
   roomId: B9-203
   floorId: F2
+--- !u!1 &2038490178
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2038490179}
+  - component: {fileID: 2038490180}
+  m_Layer: 0
+  m_Name: B6 Outdoor Destination
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2038490179
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2038490178}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 31.782934, y: 0.1088047, z: 32.652996}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1026455658}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2038490180
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2038490178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0c1d871e503c4a3da343d4727e2ad21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Outdoor.B9OutdoorDestinationAnchor
+  destinationId: B6
+  displayName: "T\xF2a B6"
+  latitude: 10.7737806
+  longitude: 106.6593139
+  arrivalRadiusMeters: 12
 --- !u!1 &2078052973
 GameObject:
   m_ObjectHideFlags: 0
@@ -5411,3 +5919,5 @@ SceneRoots:
   - {fileID: 1973413240}
   - {fileID: 2093257315}
   - {fileID: 1889002490}
+  - {fileID: 1026455658}
+  - {fileID: 1119853727}

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ARNavB9V2.Handover;
+using ARNavB9V2.Experiment;
 using ARNavB9V2.Indoor;
 using ARNavB9V2.Outdoor;
 using ARNavB9V2.Scene;
@@ -48,6 +49,22 @@ namespace ARNavB9V2.Reliability
         private float exitGpsStableSince = -1f;
         private Vector3 previousExitGpsPosition;
         private bool hasPreviousExitGpsPosition;
+        private string pendingOutdoorDestinationId = string.Empty;
+        private string pendingIndoorRoomId = string.Empty;
+        private bool useQualityThreshold = true;
+        private bool useTemporalDwell = true;
+        private bool useRecoveryFsm = true;
+        private bool useContinuityGate = true;
+        private B9HarmonyExperimentProfile experimentProfile =
+            B9HarmonyExperimentProfile.For(B9HarmonyVersion.V5_FullHarmony);
+        private int qualityGpsSampleVersion = -1;
+        private Vector3 previousQualityGpsPosition;
+        private float previousQualityGpsAt;
+        private float gpsMotionScore = 1f;
+        private float gpsQualityStableSince = -1f;
+        private bool previousGpsThresholdPassed;
+        private bool previousGpsDwellPassed;
+        private float stateChangedAt;
 
         public B9NavigationState State => stateMachine.Current;
         public B9PoseSource ActiveSource { get; private set; } = B9PoseSource.Gps;
@@ -88,7 +105,27 @@ namespace ARNavB9V2.Reliability
             : string.Empty;
         public int StableExitGpsSamples => stableExitGpsSamples;
         public int RequiredStableExitGpsSamples => minimumStableGpsSamples;
+        public float GpsReliability { get; private set; }
+        public float GpsStableSeconds => gpsQualityStableSince < 0f
+            ? 0f
+            : Mathf.Max(0f, Time.unscaledTime - gpsQualityStableSince);
+        public bool GpsThresholdPassed { get; private set; }
+        public bool GpsDwellGatePassed { get; private set; }
+        public string CandidateSource { get; private set; } = "GPS";
+        public string DecisionReason { get; private set; } = "boot";
+        public float StateAgeSeconds => Mathf.Max(0f, Time.unscaledTime - stateChangedAt);
         public event Action<B9ReliabilityTransition> StateChanged;
+        public event Action<string, string> ExperimentDecision;
+
+        public void ApplyExperimentProfile(B9HarmonyExperimentProfile profile)
+        {
+            useQualityThreshold = profile.QualityThreshold;
+            useTemporalDwell = profile.TemporalDwell;
+            useRecoveryFsm = profile.RecoveryFsm;
+            useContinuityGate = profile.ContinuityGate;
+            experimentProfile = profile;
+            ResetExitGpsStability();
+        }
 
         public void Configure(
             B9SceneContext sceneFoundation,
@@ -111,6 +148,7 @@ namespace ARNavB9V2.Reliability
         {
             indoorPreviewPath = new NavMeshPath();
             vpsTransition?.SetExternalHandoverControl(true);
+            stateChangedAt = Time.unscaledTime;
         }
 
         private void OnEnable()
@@ -131,6 +169,7 @@ namespace ARNavB9V2.Reliability
 
         private void Update()
         {
+            EvaluateGpsResearchState();
             switch (State)
             {
                 case B9NavigationState.OutdoorGps:
@@ -154,6 +193,70 @@ namespace ARNavB9V2.Reliability
 
         public bool RequestExitToOutdoor()
         {
+            pendingOutdoorDestinationId = string.Empty;
+            pendingIndoorRoomId = string.Empty;
+            return RequestNearestExit();
+        }
+
+        public bool NavigateToIndoorRoom(string roomId)
+        {
+            if (outdoor?.RouteController == null || string.IsNullOrWhiteSpace(roomId))
+                return false;
+
+            if (State == B9NavigationState.IndoorVps)
+            {
+                CancelExitRequest();
+                if (!outdoor.RouteController.SetDestinationRoom(roomId))
+                    return false;
+                return indoor != null && indoor.BeginNavigation(roomId);
+            }
+
+            if (State == B9NavigationState.ExitingWithPdr)
+            {
+                if (!outdoor.RouteController.SetDestinationRoom(roomId))
+                    return false;
+                pendingOutdoorDestinationId = string.Empty;
+                pendingIndoorRoomId = roomId.Trim().ToUpperInvariant();
+                return true;
+            }
+
+            return outdoor.RouteController.SetDestinationRoom(roomId);
+        }
+
+        public bool NavigateToOutdoorDestination(string destinationId)
+        {
+            if (outdoor?.RouteController == null || string.IsNullOrWhiteSpace(destinationId))
+                return false;
+
+            switch (State)
+            {
+                case B9NavigationState.OutdoorGps:
+                    return outdoor.RouteController.SetOutdoorDestination(destinationId);
+                case B9NavigationState.EnteringWithPdr:
+                case B9NavigationState.VpsScanning:
+                case B9NavigationState.VpsFailed:
+                    vpsTransition?.CancelLocalization();
+                    RestoreOutdoorGps("destination changed to outdoor building");
+                    return outdoor.RouteController.SetOutdoorDestination(destinationId);
+                case B9NavigationState.IndoorVps:
+                    if (!outdoor.RouteController.SetOutdoorDestination(destinationId))
+                        return false;
+                    pendingOutdoorDestinationId = destinationId.Trim().ToUpperInvariant();
+                    pendingIndoorRoomId = string.Empty;
+                    return RequestNearestExit();
+                case B9NavigationState.ExitingWithPdr:
+                    if (!outdoor.RouteController.SetOutdoorDestination(destinationId))
+                        return false;
+                    pendingOutdoorDestinationId = destinationId.Trim().ToUpperInvariant();
+                    pendingIndoorRoomId = string.Empty;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private bool RequestNearestExit()
+        {
             if (State != B9NavigationState.IndoorVps || geometry == null || indoor == null)
                 return false;
 
@@ -171,6 +274,8 @@ namespace ARNavB9V2.Reliability
 
             exitRouteRequested = false;
             activeExitPortal = null;
+            pendingOutdoorDestinationId = string.Empty;
+            pendingIndoorRoomId = string.Empty;
             return false;
         }
 
@@ -181,7 +286,11 @@ namespace ARNavB9V2.Reliability
 
             exitRouteRequested = false;
             activeExitPortal = null;
-            string roomId = outdoor?.RouteController?.SelectedRoomId;
+            pendingOutdoorDestinationId = string.Empty;
+            pendingIndoorRoomId = string.Empty;
+            string roomId = indoor?.RouteController?.DestinationRoomId;
+            if (!string.IsNullOrWhiteSpace(roomId))
+                outdoor?.RouteController?.SetDestinationRoom(roomId);
             if (!string.IsNullOrWhiteSpace(roomId))
                 indoor?.BeginNavigation(roomId);
             else
@@ -205,6 +314,9 @@ namespace ARNavB9V2.Reliability
                 case B9NavigationState.IndoorVps:
                     exitRouteRequested = false;
                     activeExitPortal = null;
+                    pendingOutdoorDestinationId = string.Empty;
+                    pendingIndoorRoomId = string.Empty;
+                    outdoor?.RouteController?.CancelNavigation();
                     indoor?.StopNavigation();
                     break;
                 case B9NavigationState.ExitingWithPdr:
@@ -219,7 +331,7 @@ namespace ARNavB9V2.Reliability
             if (geometry == null || outdoor == null || outdoor.LocationProvider == null
                 || !outdoor.LocationProvider.HasReliableFix
                 || outdoor.RouteController == null
-                || string.IsNullOrWhiteSpace(outdoor.RouteController.SelectedRoomId))
+                || !outdoor.RouteController.IsIndoorB9Destination)
                 return;
 
             Vector3 campusPoint = outdoor.LocationProvider.CampusPosition;
@@ -364,7 +476,17 @@ namespace ARNavB9V2.Reliability
                     break;
                 case B9VpsTransitionController.TransitionState.Failed:
                     if (State == B9NavigationState.VpsScanning)
-                        ChangeState(B9NavigationState.VpsFailed, vpsTransition.FailureReason);
+                    {
+                        if (useRecoveryFsm)
+                        {
+                            ChangeState(B9NavigationState.VpsFailed, vpsTransition.FailureReason);
+                        }
+                        else
+                        {
+                            vpsTransition.CancelLocalization();
+                            RestoreOutdoorGps("VPS failed; recovery FSM disabled");
+                        }
+                    }
                     break;
             }
         }
@@ -426,25 +548,36 @@ namespace ARNavB9V2.Reliability
         private void EvaluateStableOutdoorGps()
         {
             B9OutdoorLocationProvider gps = outdoor?.LocationProvider;
-            if (gps == null || gps.SampleVersion == lastExitGpsSampleVersion)
+            if (gps == null)
                 return;
-            lastExitGpsSampleVersion = gps.SampleVersion;
+
+            bool newSample = gps.SampleVersion != lastExitGpsSampleVersion;
+            if (newSample)
+                lastExitGpsSampleVersion = gps.SampleVersion;
 
             Vector3 gpsPosition = gps.TargetCampusPosition;
-            bool reliable = gps.HasReliableFix
-                            && gps.HorizontalAccuracyMeters > 0f
-                            && gps.HorizontalAccuracyMeters <= maximumExitGpsAccuracyMeters
-                            && transitionPdr != null
-                            && Vector3.Distance(gpsPosition, transitionPdr.CampusPosition)
-                            <= maximumExitGpsPdrSeparationMeters;
-            if (reliable && hasPreviousExitGpsPosition)
+            bool reliable = gps.HasReliableFix;
+            if (reliable && useQualityThreshold)
             {
-                reliable = Vector3.Distance(gpsPosition, previousExitGpsPosition)
-                           <= maximumGpsSampleJumpMeters;
+                reliable = GpsThresholdPassed;
+                if (reliable && useContinuityGate)
+                {
+                    reliable = transitionPdr != null
+                               && Vector3.Distance(gpsPosition, transitionPdr.CampusPosition)
+                               <= maximumExitGpsPdrSeparationMeters;
+                    if (reliable && newSample && hasPreviousExitGpsPosition)
+                    {
+                        reliable = Vector3.Distance(gpsPosition, previousExitGpsPosition)
+                                   <= maximumGpsSampleJumpMeters;
+                    }
+                }
             }
 
-            previousExitGpsPosition = gpsPosition;
-            hasPreviousExitGpsPosition = true;
+            if (newSample)
+            {
+                previousExitGpsPosition = gpsPosition;
+                hasPreviousExitGpsPosition = true;
+            }
             if (!reliable)
             {
                 stableExitGpsSamples = 0;
@@ -452,12 +585,17 @@ namespace ARNavB9V2.Reliability
                 return;
             }
 
-            stableExitGpsSamples++;
+            if (newSample)
+                stableExitGpsSamples++;
             if (exitGpsStableSince < 0f)
                 exitGpsStableSince = Time.unscaledTime;
-            if (stableExitGpsSamples >= minimumStableGpsSamples
-                && Time.unscaledTime - exitGpsStableSince >= exitGpsStableSeconds)
+            bool dwellPassed = !useTemporalDwell || GpsDwellGatePassed;
+            if (dwellPassed)
             {
+                ExperimentDecision?.Invoke(
+                    "dwell_passed",
+                    $"GPS dwell passed: {GpsStableSeconds:0.00}s >= "
+                    + $"{experimentProfile.GpsDwellSeconds:0.00}s");
                 CompleteExitToGps();
             }
         }
@@ -474,11 +612,27 @@ namespace ARNavB9V2.Reliability
                 if (outdoor.RouteController != null)
                 {
                     outdoor.RouteController.enabled = true;
-                    outdoor.RouteController.CancelNavigation();
+                    if (!string.IsNullOrWhiteSpace(pendingIndoorRoomId))
+                    {
+                        outdoor.RouteController.SetDestinationRoom(pendingIndoorRoomId);
+                        outdoor.RouteController.RefreshNow();
+                    }
+                    else if (!string.IsNullOrWhiteSpace(pendingOutdoorDestinationId))
+                    {
+                        outdoor.RouteController.SetOutdoorDestination(
+                            pendingOutdoorDestinationId);
+                        outdoor.RouteController.RefreshNow();
+                    }
+                    else
+                    {
+                        outdoor.RouteController.CancelNavigation();
+                    }
                 }
             }
             exitRouteRequested = false;
             activeExitPortal = null;
+            pendingOutdoorDestinationId = string.Empty;
+            pendingIndoorRoomId = string.Empty;
             ActiveSource = B9PoseSource.Gps;
             ChangeState(B9NavigationState.OutdoorGps, "stable GPS reacquired after leaving B9");
         }
@@ -492,6 +646,10 @@ namespace ARNavB9V2.Reliability
             exitGpsStableSince = -1f;
             previousExitGpsPosition = Vector3.zero;
             hasPreviousExitGpsPosition = false;
+            qualityGpsSampleVersion = -1;
+            gpsQualityStableSince = -1f;
+            previousGpsThresholdPassed = false;
+            previousGpsDwellPassed = false;
         }
 
         private void CompleteIndoorHandover()
@@ -523,12 +681,135 @@ namespace ARNavB9V2.Reliability
             B9NavigationState previous = stateMachine.Current;
             if (!stateMachine.TryTransition(next))
                 return;
+            stateChangedAt = Time.unscaledTime;
             StateChanged?.Invoke(new B9ReliabilityTransition(
                 previous,
                 next,
                 ActiveSource,
                 reason,
                 Time.unscaledTime));
+        }
+
+        private void EvaluateGpsResearchState()
+        {
+            B9OutdoorLocationProvider gps = outdoor?.LocationProvider;
+            if (gps == null)
+                return;
+
+            if (gps.SampleVersion != qualityGpsSampleVersion)
+            {
+                float now = Time.unscaledTime;
+                if (qualityGpsSampleVersion >= 0)
+                {
+                    float dt = Mathf.Max(0.01f, now - previousQualityGpsAt);
+                    float speed = Vector3.Distance(
+                        gps.TargetCampusPosition,
+                        previousQualityGpsPosition) / dt;
+                    gpsMotionScore = DescendingScore(speed, 2.25f, 4.5f);
+                }
+                else
+                {
+                    gpsMotionScore = 1f;
+                }
+                qualityGpsSampleVersion = gps.SampleVersion;
+                previousQualityGpsPosition = gps.TargetCampusPosition;
+                previousQualityGpsAt = now;
+            }
+
+            bool valid = gps.HasReliableFix && gps.SampleAgeSeconds <= 5f;
+            float accuracy = valid
+                ? DescendingScore(gps.HorizontalAccuracyMeters, 5f, 30f)
+                : 0f;
+            float freshness = valid
+                ? DescendingScore(gps.SampleAgeSeconds, 0.75f, 5f)
+                : 0f;
+            float motion = valid ? gpsMotionScore : 0f;
+            bool nearTransition = State != B9NavigationState.OutdoorGps
+                                  || geometry != null
+                                  && geometry.ContainsOuterCampusPoint(gps.CampusPosition);
+            float transition = nearTransition ? 0.75f : 1f;
+
+            float withoutDwellWeight = experimentProfile.GpsWeightSum
+                                       - experimentProfile.GpsWeightDwell;
+            float withoutDwell = (
+                accuracy * experimentProfile.GpsWeightAccuracy
+                + freshness * experimentProfile.GpsWeightFreshness
+                + motion * experimentProfile.GpsWeightMotion
+                + transition * experimentProfile.GpsWeightTransition)
+                / Mathf.Max(0.0001f, withoutDwellWeight);
+            bool stableQuality = valid
+                                 && withoutDwell >= experimentProfile.GpsExitReliability;
+            if (stableQuality)
+            {
+                if (gpsQualityStableSince < 0f)
+                {
+                    gpsQualityStableSince = Time.unscaledTime;
+                    if (useTemporalDwell)
+                        ExperimentDecision?.Invoke("dwell_started", "GPS dwell started");
+                }
+            }
+            else if (gpsQualityStableSince >= 0f)
+            {
+                if (useTemporalDwell)
+                {
+                    ExperimentDecision?.Invoke(
+                        "dwell_reset",
+                        $"GPS dwell reset because qGPS={withoutDwell:0.00} dropped below "
+                        + $"tauGPS={experimentProfile.GpsExitReliability:0.00}");
+                }
+                gpsQualityStableSince = -1f;
+            }
+
+            float dwell = experimentProfile.GpsDwellSeconds <= 0f
+                ? 1f
+                : Mathf.Clamp01(GpsStableSeconds / experimentProfile.GpsDwellSeconds);
+            GpsReliability = Mathf.Clamp01((
+                accuracy * experimentProfile.GpsWeightAccuracy
+                + freshness * experimentProfile.GpsWeightFreshness
+                + motion * experimentProfile.GpsWeightMotion
+                + transition * experimentProfile.GpsWeightTransition
+                + dwell * experimentProfile.GpsWeightDwell)
+                / experimentProfile.GpsWeightSum);
+            GpsThresholdPassed = valid
+                                 && GpsReliability >= experimentProfile.GpsExitReliability;
+            GpsDwellGatePassed = !useTemporalDwell
+                                 || GpsStableSeconds >= experimentProfile.GpsDwellSeconds;
+            CandidateSource = State == B9NavigationState.ExitingWithPdr
+                              && GpsThresholdPassed && GpsDwellGatePassed
+                ? "GPS"
+                : ActiveSource.ToString();
+            DecisionReason = !valid
+                ? "GPS provider invalid or stale"
+                : !GpsThresholdPassed
+                    ? $"qGPS={GpsReliability:0.00} < tauGPS={experimentProfile.GpsExitReliability:0.00}"
+                    : !GpsDwellGatePassed
+                        ? $"GPS dwell {GpsStableSeconds:0.00}s/{experimentProfile.GpsDwellSeconds:0.00}s"
+                        : $"qGPS={GpsReliability:0.00} and GPS dwell gate passed";
+
+            if (GpsThresholdPassed != previousGpsThresholdPassed)
+            {
+                ExperimentDecision?.Invoke(
+                    GpsThresholdPassed ? "quality_threshold_passed" : "quality_threshold_failed",
+                    $"qGPS={GpsReliability:0.00} "
+                    + (GpsThresholdPassed ? ">=" : "<")
+                    + $" tauGPS={experimentProfile.GpsExitReliability:0.00}");
+                previousGpsThresholdPassed = GpsThresholdPassed;
+            }
+            if (GpsDwellGatePassed && !previousGpsDwellPassed && useTemporalDwell)
+            {
+                ExperimentDecision?.Invoke(
+                    "dwell_passed",
+                    $"GPS dwell passed: {GpsStableSeconds:0.00}s >= "
+                    + $"{experimentProfile.GpsDwellSeconds:0.00}s");
+            }
+            previousGpsDwellPassed = GpsDwellGatePassed;
+        }
+
+        private static float DescendingScore(float value, float good, float bad)
+        {
+            if (!float.IsFinite(value))
+                return 0f;
+            return 1f - Mathf.InverseLerp(good, bad, value);
         }
 
         public bool ValidateConfiguration(out string reason)

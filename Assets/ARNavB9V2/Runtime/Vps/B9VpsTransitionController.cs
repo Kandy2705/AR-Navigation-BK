@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 using ARNavB9V2.Data;
+using ARNavB9V2.Experiment;
 using ARNavB9V2.Indoor;
 using ARNavB9V2.Outdoor;
 using ARNavB9V2.Scene;
@@ -53,6 +54,15 @@ namespace ARNavB9V2.Vps
         [SerializeField, Min(0f)] private float localizationPoseSettleSeconds = 0.35f;
         [SerializeField] private bool allowSdkInvocationInEditor;
         [SerializeField] private bool externalHandoverControl;
+        [Header("HARMONY experiment gates")]
+        [SerializeField] private bool useQualityThreshold = true;
+        [SerializeField] private bool useTemporalDwell = true;
+        [SerializeField] private bool useMapIdCheck = true;
+        [SerializeField] private bool useRecoveryFsm = true;
+        [SerializeField, Range(0f, 1f)] private float minimumLocalizationQuality = 0.45f;
+        [SerializeField, Min(0f)] private float localizationDwellSeconds = 1.2f;
+        [SerializeField, Min(0.1f)] private float stablePositionDeltaMeters = 2.5f;
+        [SerializeField, Range(1f, 180f)] private float stableHeadingDeltaDegrees = 60f;
 
         private UnityEvent localizationInitEvent;
         private UnityEvent localizationRequestedEvent;
@@ -63,17 +73,57 @@ namespace ARNavB9V2.Vps
         private bool eventsSubscribed;
         private bool indoorHandoverPending;
         private int localizationAttemptCount;
+        private B9HarmonyExperimentProfile experimentProfile =
+            B9HarmonyExperimentProfile.For(B9HarmonyVersion.V5_FullHarmony);
+        private float localizationSucceededAt = -1f;
+        private float vpsStableSince = -1f;
+        private bool previousVpsThresholdPassed;
+        private bool previousVpsDwellPassed;
 
         public TransitionState State { get; private set; } = TransitionState.WaitingForEntrance;
         public string FailureReason { get; private set; } = string.Empty;
         public string ActiveMapCode => building != null ? building.PrimaryMapCode : string.Empty;
-        public bool RetryAvailable => State == TransitionState.Failed;
+        public bool RetryAvailable => useRecoveryFsm && State == TransitionState.Failed;
         public int LocalizationAttemptCount => localizationAttemptCount;
+        public float LastLocalizationQuality { get; private set; } = 0.5f;
+        public bool VpsValid { get; private set; }
+        public float VpsAgeSeconds => localizationSucceededAt < 0f
+            ? float.PositiveInfinity
+            : Mathf.Max(0f, Time.unscaledTime - localizationSucceededAt);
+        public float LastVpsConfidence { get; private set; }
+        public bool LastVpsConfidenceAvailable { get; private set; }
+        public string LastLocalizedMapId { get; private set; } = string.Empty;
+        public bool LastMapIdAvailable { get; private set; }
+        public bool LastMapMatchesBuilding { get; private set; }
+        public float VpsStableSeconds => vpsStableSince < 0f
+            ? 0f
+            : Mathf.Max(0f, Time.unscaledTime - vpsStableSince);
+        public bool VpsThresholdPassed { get; private set; }
+        public bool VpsDwellGatePassed { get; private set; }
+        public float LastPositionDeltaMeters { get; private set; }
+        public float LastHeadingDeltaDegrees { get; private set; }
+        public string CandidateSource => VpsThresholdPassed && VpsDwellGatePassed
+            ? "VPS"
+            : "LastTrusted";
+        public string LastGateReason { get; private set; } = string.Empty;
         public float CurrentScanElapsedSeconds => scanStartedAt > 0f
             && (State == TransitionState.StartingVps || State == TransitionState.Scanning)
                 ? Mathf.Max(0f, Time.unscaledTime - scanStartedAt)
                 : 0f;
         public event Action<TransitionState> StateChanged;
+        public event Action<string, string> ExperimentDecision;
+
+        public void ApplyExperimentProfile(B9HarmonyExperimentProfile profile)
+        {
+            useQualityThreshold = profile.QualityThreshold;
+            useTemporalDwell = profile.TemporalDwell;
+            useMapIdCheck = profile.MapIdCheck;
+            useRecoveryFsm = profile.RecoveryFsm;
+            experimentProfile = profile;
+            minimumLocalizationQuality = profile.VpsEnterReliability;
+            localizationDwellSeconds = profile.VpsDwellSeconds;
+            ResetResearchGateState();
+        }
 
         public void SetExternalHandoverControl(bool enabled)
         {
@@ -209,6 +259,8 @@ namespace ARNavB9V2.Vps
         {
             StopPendingRequest();
             FailureReason = string.Empty;
+            LastGateReason = string.Empty;
+            ResetResearchGateState();
             indoorHandoverPending = false;
             localizationAttemptCount++;
             scanStartedAt = 0f;
@@ -313,8 +365,10 @@ namespace ARNavB9V2.Vps
             TrySetFieldOrProperty(type, "backgroundLocalization", false);
             TrySetFieldOrProperty(type, "relocalization", false);
             TrySetFieldOrProperty(type, "showAlert", false);
-            TrySetFieldOrProperty(type, "firstLocalizationUntilSuccess", true);
-            int frameCount = localizationAttemptCount <= 1
+            TrySetFieldOrProperty(type, "firstLocalizationUntilSuccess", useRecoveryFsm);
+            int frameCount = !useQualityThreshold
+                ? 1
+                : localizationAttemptCount <= 1
                 ? initialLocalizationFrames
                 : retryLocalizationFrames;
             TrySetFieldOrProperty(type, "numberOfFrames", frameCount);
@@ -412,18 +466,68 @@ namespace ARNavB9V2.Vps
             if (indoorHandoverPending)
                 return;
             indoorHandoverPending = true;
+            VpsValid = true;
+            localizationSucceededAt = Time.unscaledTime;
             StopPendingRequest();
             StartCoroutine(CompleteIndoorHandoverAfterSdkPose());
         }
 
         private IEnumerator CompleteIndoorHandoverAfterSdkPose()
         {
-            // MultiSet applies Map Space around the success event. Give the transform
-            // enough time to settle before validating and accepting the pose.
             yield return null;
             yield return null;
+            Transform mapSpace = foundation != null ? foundation.MapSpace : null;
+            Camera camera = foundation != null ? foundation.ArCamera : null;
+            Vector3 previousPosition = mapSpace != null && camera != null
+                ? mapSpace.InverseTransformPoint(camera.transform.position)
+                : Vector3.zero;
+            Quaternion previousRotation = mapSpace != null && camera != null
+                ? Quaternion.Inverse(mapSpace.rotation) * camera.transform.rotation
+                : Quaternion.identity;
             if (localizationPoseSettleSeconds > 0f)
                 yield return new WaitForSecondsRealtime(localizationPoseSettleSeconds);
+
+            while (State == TransitionState.StartingVps || State == TransitionState.Scanning)
+            {
+                Vector3 currentPosition = mapSpace != null && camera != null
+                    ? mapSpace.InverseTransformPoint(camera.transform.position)
+                    : previousPosition;
+                Quaternion currentRotation = mapSpace != null && camera != null
+                    ? Quaternion.Inverse(mapSpace.rotation) * camera.transform.rotation
+                    : previousRotation;
+                bool gatesPassed = EvaluateExperimentGates(
+                    previousPosition,
+                    previousRotation,
+                    currentPosition,
+                    currentRotation,
+                    out string gateFailure);
+                previousPosition = currentPosition;
+                previousRotation = currentRotation;
+
+                if (!gatesPassed)
+                {
+                    bool waitingForDwellQuality = useTemporalDwell
+                                                  && useQualityThreshold
+                                                  && LastMapGatePassed();
+                    if (waitingForDwellQuality)
+                    {
+                        yield return new WaitForSecondsRealtime(0.1f);
+                        continue;
+                    }
+                    RejectLocalization(gateFailure);
+                    yield break;
+                }
+
+                if (!useTemporalDwell || VpsDwellGatePassed)
+                    break;
+                yield return new WaitForSecondsRealtime(0.1f);
+            }
+
+            if (State != TransitionState.StartingVps && State != TransitionState.Scanning)
+            {
+                indoorHandoverPending = false;
+                yield break;
+            }
 
             foundation.ModelRoot.gameObject.SetActive(true);
             mapVisibility?.ApplyVisibilityPolicy();
@@ -462,13 +566,314 @@ namespace ARNavB9V2.Vps
             if (State != TransitionState.StartingVps && State != TransitionState.Scanning)
                 return;
 
-            // A failed frame batch is not a failed user flow. MultiSet's
-            // firstLocalizationUntilSuccess mode will continue capturing. The Update
-            // timeout is the only condition that exposes the manual retry button.
+            VpsValid = false;
+            ExperimentDecision?.Invoke(
+                "quality_threshold_failed",
+                "VPS provider invalid: MultiSet LocalizationFailure");
+            if (!useRecoveryFsm)
+            {
+                Fail("MultiSet không nhận diện được vị trí; Recovery FSM đang tắt.");
+                return;
+            }
+
+            // A failed frame batch is not a failed user flow when recovery is enabled.
             if (scanStartedAt <= 0f)
                 scanStartedAt = Time.unscaledTime;
             indoorHandoverPending = false;
             SetState(TransitionState.Scanning);
+        }
+
+        private bool EvaluateExperimentGates(
+            Vector3 startPosition,
+            Quaternion startRotation,
+            Vector3 endPosition,
+            Quaternion endRotation,
+            out string failure)
+        {
+            LastPositionDeltaMeters = Vector3.Distance(startPosition, endPosition);
+            LastHeadingDeltaDegrees = Quaternion.Angle(startRotation, endRotation);
+            float positionScore = DescendingScore(LastPositionDeltaMeters, 0.35f, 3f);
+            float headingScore = DescendingScore(LastHeadingDeltaDegrees, 5f, 45f);
+            float motionScore = Mathf.Min(positionScore, headingScore);
+            bool confidenceAvailable = TryReadLocalizationFloat(
+                out float sdkConfidence,
+                "confidence",
+                "Confidence",
+                "localizationConfidence",
+                "lastConfidence");
+            if (confidenceAvailable && sdkConfidence > 1f)
+                sdkConfidence *= 0.01f;
+            sdkConfidence = Mathf.Clamp01(sdkConfidence);
+            LastVpsConfidenceAvailable = confidenceAvailable;
+            // MapLocalizationManager 1.9.2 exposes a no-argument success event. When
+            // confidence is unavailable, successful provider validation is the explicit
+            // fallback signal; availability remains false in CSV for auditability.
+            LastVpsConfidence = confidenceAvailable ? sdkConfidence : 1f;
+            float confidenceScore = confidenceAvailable
+                ? Mathf.InverseLerp(
+                    experimentProfile.MinimumVpsConfidence,
+                    1f,
+                    sdkConfidence)
+                : 1f;
+
+            LastMapIdAvailable = TryReadLocalizationString(
+                out string mapId,
+                "localizedMapId",
+                "mapId",
+                "MapId",
+                "mapID",
+                "currentMapId");
+            LastLocalizedMapId = LastMapIdAvailable ? mapId : string.Empty;
+            LastMapMatchesBuilding = LastMapIdAvailable
+                                     && building != null
+                                     && building.IsAcceptedMapId(mapId);
+            if (useMapIdCheck)
+            {
+                if (!LastMapIdAvailable)
+                {
+                    failure = "Không đọc được Map-ID từ kết quả MultiSet.";
+                    LastGateReason = failure;
+                    return false;
+                }
+                if (!LastMapMatchesBuilding)
+                {
+                    failure = "Map-ID không khớp B9: " + mapId;
+                    LastGateReason = failure;
+                    return false;
+                }
+            }
+
+            float dwellScore = experimentProfile.VpsDwellSeconds <= 0f
+                ? 1f
+                : Mathf.Clamp01(VpsStableSeconds / experimentProfile.VpsDwellSeconds);
+            LastLocalizationQuality = Mathf.Clamp01((
+                confidenceScore * experimentProfile.VpsWeightConfidence
+                + 1f * experimentProfile.VpsWeightFreshness
+                + motionScore * experimentProfile.VpsWeightMotion
+                + (LastMapMatchesBuilding ? 1f : 0f) * experimentProfile.VpsWeightMapMatch
+                + dwellScore * experimentProfile.VpsWeightDwell)
+                / experimentProfile.VpsWeightSum);
+            VpsThresholdPassed = VpsValid
+                                 && LastLocalizationQuality
+                                 >= experimentProfile.VpsEnterReliability;
+            if (VpsThresholdPassed)
+            {
+                if (vpsStableSince < 0f)
+                {
+                    vpsStableSince = Time.unscaledTime;
+                    if (useTemporalDwell)
+                        ExperimentDecision?.Invoke("dwell_started", "VPS dwell started");
+                }
+            }
+            else if (vpsStableSince >= 0f)
+            {
+                if (useTemporalDwell)
+                {
+                    ExperimentDecision?.Invoke(
+                        "dwell_reset",
+                        $"VPS dwell reset because qVPS={LastLocalizationQuality:0.00} "
+                        + $"dropped below tauVPS={experimentProfile.VpsEnterReliability:0.00}");
+                }
+                vpsStableSince = -1f;
+            }
+            VpsDwellGatePassed = !useTemporalDwell
+                                 || VpsStableSeconds >= experimentProfile.VpsDwellSeconds;
+            PublishVpsGateChanges();
+
+            if (useQualityThreshold && !VpsThresholdPassed)
+            {
+                failure = $"Chất lượng VPS {LastLocalizationQuality:0.00} dưới ngưỡng "
+                          + experimentProfile.VpsEnterReliability.ToString("0.00");
+                LastGateReason = failure;
+                return false;
+            }
+
+            if (useTemporalDwell && !VpsDwellGatePassed)
+            {
+                failure = $"VPS dwell {VpsStableSeconds:0.00}s/"
+                          + $"{experimentProfile.VpsDwellSeconds:0.00}s";
+                LastGateReason = failure;
+                return false;
+            }
+
+            failure = string.Empty;
+            LastGateReason = "accepted";
+            return true;
+        }
+
+        private bool LastMapGatePassed()
+        {
+            return !useMapIdCheck || LastMapIdAvailable && LastMapMatchesBuilding;
+        }
+
+        private void PublishVpsGateChanges()
+        {
+            if (VpsThresholdPassed != previousVpsThresholdPassed)
+            {
+                ExperimentDecision?.Invoke(
+                    VpsThresholdPassed ? "quality_threshold_passed" : "quality_threshold_failed",
+                    $"qVPS={LastLocalizationQuality:0.00} "
+                    + (VpsThresholdPassed ? ">=" : "<")
+                    + $" tauVPS={experimentProfile.VpsEnterReliability:0.00}");
+                previousVpsThresholdPassed = VpsThresholdPassed;
+            }
+            if (VpsDwellGatePassed && !previousVpsDwellPassed && useTemporalDwell)
+            {
+                ExperimentDecision?.Invoke(
+                    "dwell_passed",
+                    $"VPS dwell passed: {VpsStableSeconds:0.00}s >= "
+                    + $"{experimentProfile.VpsDwellSeconds:0.00}s");
+            }
+            previousVpsDwellPassed = VpsDwellGatePassed;
+        }
+
+        private void ResetResearchGateState()
+        {
+            VpsValid = false;
+            localizationSucceededAt = -1f;
+            vpsStableSince = -1f;
+            VpsThresholdPassed = false;
+            VpsDwellGatePassed = !useTemporalDwell;
+            previousVpsThresholdPassed = false;
+            previousVpsDwellPassed = VpsDwellGatePassed;
+            LastPositionDeltaMeters = 0f;
+            LastHeadingDeltaDegrees = 0f;
+            LastVpsConfidence = 0f;
+            LastVpsConfidenceAvailable = false;
+            LastLocalizedMapId = string.Empty;
+            LastMapIdAvailable = false;
+            LastMapMatchesBuilding = false;
+        }
+
+        private static float DescendingScore(float value, float good, float bad)
+        {
+            if (!float.IsFinite(value))
+                return 0f;
+            return 1f - Mathf.InverseLerp(good, bad, value);
+        }
+
+        private void RejectLocalization(string reason)
+        {
+            indoorHandoverPending = false;
+            FailureReason = reason;
+            if (!useRecoveryFsm)
+            {
+                Fail(reason);
+                return;
+            }
+
+            SetState(TransitionState.Scanning);
+            StopPendingRequest();
+            requestCoroutine = StartCoroutine(RetryAfterGateRejection());
+        }
+
+        private IEnumerator RetryAfterGateRejection()
+        {
+            yield return new WaitForSecondsRealtime(localizationFrameIntervalSeconds);
+            if (State != TransitionState.Scanning || mapLocalizationManager == null)
+            {
+                requestCoroutine = null;
+                yield break;
+            }
+
+            MethodInfo method = mapLocalizationManager.GetType().GetMethod(
+                "LocalizeFrame",
+                ReflectionFlags,
+                null,
+                Type.EmptyTypes,
+                null);
+            if (method == null)
+            {
+                requestCoroutine = null;
+                Fail("MultiSet không có LocalizeFrame() để Recovery FSM thử lại.");
+                yield break;
+            }
+
+            localizationAttemptCount++;
+            try
+            {
+                TrySetFieldOrProperty(
+                    mapLocalizationManager.GetType(),
+                    "firstLocalizationUntilSuccess",
+                    true);
+                method.Invoke(mapLocalizationManager, null);
+            }
+            catch (Exception exception)
+            {
+                requestCoroutine = null;
+                Fail("Recovery VPS thất bại: " + exception.Message);
+                yield break;
+            }
+            requestCoroutine = null;
+        }
+
+        private bool TryReadLocalizationString(out string value, params string[] memberNames)
+        {
+            value = ReadMemberValue(mapLocalizationManager, memberNames)?.ToString();
+            if (!string.IsNullOrWhiteSpace(value))
+                return true;
+            object response = ReadMemberValue(
+                mapLocalizationManager,
+                "lastLocalizationResult",
+                "localizationResult",
+                "lastResponse",
+                "response");
+            value = ReadMemberValue(response, memberNames)?.ToString();
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
+        private bool TryReadLocalizationFloat(out float value, params string[] memberNames)
+        {
+            object raw = ReadMemberValue(mapLocalizationManager, memberNames);
+            if (raw == null)
+            {
+                object response = ReadMemberValue(
+                    mapLocalizationManager,
+                    "lastLocalizationResult",
+                    "localizationResult",
+                    "lastResponse",
+                    "response");
+                raw = ReadMemberValue(response, memberNames);
+            }
+
+            try
+            {
+                if (raw != null)
+                {
+                    value = Convert.ToSingle(raw);
+                    return float.IsFinite(value);
+                }
+            }
+            catch
+            {
+                // Optional SDK metadata can have a vendor-specific representation.
+            }
+            value = 0f;
+            return false;
+        }
+
+        private static object ReadMemberValue(object source, params string[] memberNames)
+        {
+            if (source == null)
+                return null;
+            Type type = source.GetType();
+            for (int i = 0; i < memberNames.Length; i++)
+            {
+                try
+                {
+                    FieldInfo field = type.GetField(memberNames[i], ReflectionFlags);
+                    if (field != null)
+                        return field.GetValue(source);
+                    PropertyInfo property = type.GetProperty(memberNames[i], ReflectionFlags);
+                    if (property != null && property.CanRead)
+                        return property.GetValue(source);
+                }
+                catch
+                {
+                    // Continue through aliases when an SDK property getter is unavailable.
+                }
+            }
+            return null;
         }
 
         private void ReanchorIndoorNavMesh()

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using ARNavB9V2.Data;
 using ARNavB9V2.Experiment;
 using ARNavB9V2.Indoor;
@@ -17,6 +16,7 @@ namespace ARNavB9V2.UI
     {
         [SerializeField] private UIDocument document;
         [SerializeField] private B9BuildingDefinition building;
+        [SerializeField] private B9CampusDestinationCatalog campusDestinations;
         [SerializeField] private B9OutdoorLocationProvider locationProvider;
         [SerializeField] private B9OutdoorRouteController routeController;
         [SerializeField] private B9OutdoorMinimapController minimapController;
@@ -27,9 +27,11 @@ namespace ARNavB9V2.UI
         [SerializeField] private B9ExperimentLogger experimentLogger;
         [SerializeField] private B9ExperimentLogExporter logExporter;
         [SerializeField] private B9ReliableNavigationController reliabilityController;
+        [SerializeField] private B9HarmonyExperimentController harmonyExperiment;
 
         private Label statusLabel;
         private Label gpsLabel;
+        private Label harmonyProfileLabel;
         private Label destinationSummary;
         private DropdownField destinationDropdown;
         private VisualElement minimapFrame;
@@ -45,6 +47,9 @@ namespace ARNavB9V2.UI
         private Button logExportButton;
         private bool minimapExpanded;
         private float nextRefresh;
+        private readonly List<Button> harmonyVersionButtons = new List<Button>();
+        private readonly Dictionary<string, string> destinationChoiceValues =
+            new Dictionary<string, string>();
 
         public void Configure(
             UIDocument uiDocument,
@@ -98,6 +103,17 @@ namespace ARNavB9V2.UI
             RefreshStatus();
         }
 
+        public void AttachCampusDestinations(B9CampusDestinationCatalog catalog)
+        {
+            campusDestinations = catalog;
+        }
+
+        public void AttachHarmonyExperiment(B9HarmonyExperimentController controller)
+        {
+            harmonyExperiment = controller;
+            RefreshHarmonySelector();
+        }
+
         private void OnEnable()
         {
             BuildInterface();
@@ -106,10 +122,8 @@ namespace ARNavB9V2.UI
         private void Start()
         {
             BuildInterface();
-            if (routeController != null && destinationDropdown != null)
-                routeController.SetDestinationRoom(destinationDropdown.value);
-            if (indoorRouteController != null && destinationDropdown != null)
-                indoorRouteController.SetDestinationRoom(destinationDropdown.value);
+            if (destinationDropdown != null)
+                ApplyDestinationChoice(destinationDropdown.value);
         }
 
         private void Update()
@@ -157,6 +171,50 @@ namespace ARNavB9V2.UI
             gpsLabel.style.fontSize = 20f;
             gpsLabel.style.marginTop = 6f;
             statusPanel.Add(gpsLabel);
+
+            harmonyProfileLabel = new Label("HARMONY V5 · Full HARMONY");
+            harmonyProfileLabel.style.color = new Color(0.72f, 0.88f, 1f, 1f);
+            harmonyProfileLabel.style.fontSize = 16f;
+            harmonyProfileLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            harmonyProfileLabel.style.marginTop = 10f;
+            statusPanel.Add(harmonyProfileLabel);
+
+            VisualElement versionRow = new VisualElement();
+            versionRow.style.flexDirection = FlexDirection.Row;
+            versionRow.style.marginTop = 7f;
+            statusPanel.Add(versionRow);
+            harmonyVersionButtons.Clear();
+            B9HarmonyVersion[] versions =
+            {
+                B9HarmonyVersion.V1_FixedGeometric,
+                B9HarmonyVersion.V2_ReliableHandover,
+                B9HarmonyVersion.V3_NoDwellTime,
+                B9HarmonyVersion.V4_NoMapIdCheck,
+                B9HarmonyVersion.V5_FullHarmony,
+                B9HarmonyVersion.BQ_QualityThreshold,
+                B9HarmonyVersion.BT_QualityDwell,
+            };
+            for (int i = 0; i < versions.Length; i++)
+            {
+                B9HarmonyVersion version = versions[i];
+                string buttonLabel = B9HarmonyExperimentProfile.For(version).VersionCode;
+                var versionButton = new Button(() =>
+                {
+                    harmonyExperiment?.SelectVersion(version);
+                    RefreshHarmonySelector();
+                })
+                {
+                    text = buttonLabel
+                };
+                versionButton.style.flexGrow = 1f;
+                versionButton.style.height = 40f;
+                versionButton.style.marginRight = i < versions.Length - 1 ? 5f : 0f;
+                versionButton.style.color = Color.white;
+                versionButton.style.fontSize = 17f;
+                versionButton.style.unityFontStyleAndWeight = FontStyle.Bold;
+                versionRow.Add(versionButton);
+                harmonyVersionButtons.Add(versionButton);
+            }
 
             retryVpsButton = new Button(() => vpsTransition?.RetryLocalization())
             {
@@ -229,20 +287,19 @@ namespace ARNavB9V2.UI
             destinationPanel.pickingMode = PickingMode.Position;
             root.Add(destinationPanel);
 
-            Label title = new Label("ĐIỂM ĐẾN · TÒA B9");
+            Label title = new Label("ĐIỂM ĐẾN · KHUÔN VIÊN / B9");
             title.style.color = new Color(0.38f, 0.8f, 1f, 1f);
             title.style.fontSize = 21f;
             title.style.unityFontStyleAndWeight = FontStyle.Bold;
             destinationPanel.Add(title);
 
-            List<string> rooms = building.Rooms.Select(room => room.RoomId).ToList();
-            string initialRoom = rooms.Contains("B9-104") ? "B9-104" : rooms.FirstOrDefault();
-            destinationDropdown = new DropdownField("Chọn phòng", rooms, initialRoom);
+            List<string> choices = BuildDestinationChoices(out string initialChoice);
+            destinationDropdown = new DropdownField("Chọn điểm đến", choices, initialChoice);
             destinationDropdown.style.marginTop = 10f;
             destinationDropdown.style.fontSize = 26f;
             destinationDropdown.RegisterValueChangedCallback(evt =>
             {
-                ApplyDestination(evt.newValue);
+                ApplyDestinationChoice(evt.newValue);
                 RefreshStatus();
             });
             destinationPanel.Add(destinationDropdown);
@@ -250,7 +307,7 @@ namespace ARNavB9V2.UI
             outdoorStartButton = new Button(() =>
             {
                 if (destinationDropdown != null)
-                    ApplyDestination(destinationDropdown.value);
+                    ApplyDestinationChoice(destinationDropdown.value);
             })
             {
                 text = "BẮT ĐẦU / ĐỔI ĐIỂM ĐẾN"
@@ -420,6 +477,7 @@ namespace ARNavB9V2.UI
                 return;
 
             RefreshExperimentStatus();
+            RefreshHarmonySelector();
             RefreshActionButtons();
 
             if (reliabilityController != null
@@ -466,14 +524,29 @@ namespace ARNavB9V2.UI
             {
                 statusLabel.text = "Chưa có bộ điều khiển tuyến đường";
             }
+            else if (!routeController.HasDestination)
+            {
+                statusLabel.text = "Hãy chọn điểm đến";
+                gpsLabel.text = $"GPS ±{locationProvider.HorizontalAccuracyMeters:0} m · sẵn sàng";
+                destinationSummary.text = "Có thể chọn phòng B9 hoặc một tòa outdoor";
+            }
             else
             {
-                statusLabel.text = GetRouteMessage(routeController.State);
+                statusLabel.text = GetRouteMessage(routeController);
                 gpsLabel.text = $"GPS ±{locationProvider.HorizontalAccuracyMeters:0} m · "
                                 + $"còn {routeController.RemainingDistanceMeters:0} m";
-                destinationSummary.text = routeController.HasArrivedAtEntrance
-                    ? $"Đã tới cửa B9 · đích sau VPS: {routeController.SelectedRoomId}"
-                    : $"Đang đi tới cửa B9 trước · đích cuối: {routeController.SelectedRoomId}";
+                if (routeController.IsIndoorB9Destination)
+                {
+                    destinationSummary.text = routeController.HasArrivedAtEntrance
+                        ? $"Đã tới cửa B9 · đích sau VPS: {routeController.SelectedRoomId}"
+                        : $"Đang đi tới cửa B9 trước · đích cuối: {routeController.SelectedRoomId}";
+                }
+                else
+                {
+                    destinationSummary.text = routeController.HasArrivedAtDestination
+                        ? "Đã tới " + routeController.SelectedDestinationName
+                        : "Đang dẫn đường outdoor tới " + routeController.SelectedDestinationName;
+                }
             }
         }
 
@@ -481,7 +554,10 @@ namespace ARNavB9V2.UI
         {
             bool failed = reliabilityController.State == B9NavigationState.VpsFailed;
             if (retryVpsButton != null)
-                retryVpsButton.style.display = failed ? DisplayStyle.Flex : DisplayStyle.None;
+                retryVpsButton.style.display = failed && vpsTransition != null
+                                               && vpsTransition.RetryAvailable
+                    ? DisplayStyle.Flex
+                    : DisplayStyle.None;
             if (outdoorStartButton != null)
                 outdoorStartButton.style.display = DisplayStyle.None;
 
@@ -537,7 +613,9 @@ namespace ARNavB9V2.UI
         {
             bool failed = vpsTransition.State == B9VpsTransitionController.TransitionState.Failed;
             if (retryVpsButton != null)
-                retryVpsButton.style.display = failed ? DisplayStyle.Flex : DisplayStyle.None;
+                retryVpsButton.style.display = failed && vpsTransition.RetryAvailable
+                    ? DisplayStyle.Flex
+                    : DisplayStyle.None;
             if (outdoorStartButton != null)
                 outdoorStartButton.style.display = DisplayStyle.None;
 
@@ -666,19 +744,94 @@ namespace ARNavB9V2.UI
                 experimentLabel.text = "LOG · " + logExporter.LastMessage;
         }
 
-        private void ApplyDestination(string roomId)
+        private void RefreshHarmonySelector()
         {
-            reliabilityController?.CancelExitRequest();
-            routeController?.SetDestinationRoom(roomId);
-            if (reliabilityController != null
-                && reliabilityController.State == B9NavigationState.IndoorVps)
+            if (harmonyProfileLabel == null)
+                return;
+
+            B9HarmonyExperimentProfile profile = harmonyExperiment != null
+                ? harmonyExperiment.ActiveProfile
+                : B9HarmonyExperimentProfile.For(B9HarmonyVersion.V5_FullHarmony);
+            harmonyProfileLabel.text = $"HARMONY {profile.VersionCode} · {profile.DisplayName}  "
+                                       + $"Q{Mark(profile.QualityThreshold)} "
+                                       + $"D{Mark(profile.TemporalDwell)} "
+                                       + $"M{Mark(profile.MapIdCheck)} "
+                                       + $"R{Mark(profile.RecoveryFsm)} "
+                                       + $"A{Mark(profile.AdaptiveGuidance)}";
+
+            for (int i = 0; i < harmonyVersionButtons.Count; i++)
             {
-                indoorRouteController?.BeginNavigation(roomId);
+                string buttonCode = harmonyVersionButtons[i].text;
+                bool selected = string.Equals(
+                    buttonCode,
+                    profile.VersionCode,
+                    System.StringComparison.Ordinal);
+                harmonyVersionButtons[i].style.backgroundColor = selected
+                    ? new Color(0.02f, 0.42f, 0.94f, 1f)
+                    : new Color(0.12f, 0.2f, 0.29f, 1f);
+            }
+        }
+
+        private static string Mark(bool enabled) => enabled ? "✓" : "–";
+
+        private void ApplyDestinationChoice(string choice)
+        {
+            if (string.IsNullOrWhiteSpace(choice)
+                || !destinationChoiceValues.TryGetValue(choice, out string target))
+                return;
+
+            if (target.StartsWith("outdoor:", System.StringComparison.Ordinal))
+            {
+                string destinationId = target.Substring("outdoor:".Length);
+                if (reliabilityController != null)
+                    reliabilityController.NavigateToOutdoorDestination(destinationId);
+                else
+                    routeController?.SetOutdoorDestination(destinationId);
             }
             else
             {
-                indoorRouteController?.SetDestinationRoom(roomId);
+                string roomId = target.Substring("room:".Length);
+                if (reliabilityController != null)
+                    reliabilityController.NavigateToIndoorRoom(roomId);
+                else
+                {
+                    routeController?.SetDestinationRoom(roomId);
+                    indoorRouteController?.SetDestinationRoom(roomId);
+                }
             }
+        }
+
+        private List<string> BuildDestinationChoices(out string initialChoice)
+        {
+            destinationChoiceValues.Clear();
+            var choices = new List<string>();
+            initialChoice = string.Empty;
+
+            foreach (B9BuildingDefinition.RoomDefinition room in building.Rooms)
+            {
+                string label = "[Trong] B9 · " + room.RoomId;
+                choices.Add(label);
+                destinationChoiceValues[label] = "room:" + room.RoomId;
+                if (room.RoomId == "B9-104")
+                    initialChoice = label;
+            }
+
+            if (campusDestinations != null)
+            {
+                foreach (B9CampusDestinationCatalog.Destination destination
+                         in campusDestinations.Destinations)
+                {
+                    if (destination == null || destination.IndoorNavigationAvailable)
+                        continue;
+                    string label = "[Ngoài] " + destination.DisplayName;
+                    choices.Add(label);
+                    destinationChoiceValues[label] = "outdoor:" + destination.Id;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(initialChoice) && choices.Count > 0)
+                initialChoice = choices[0];
+            return choices;
         }
 
         private void RefreshActionButtons()
@@ -718,17 +871,18 @@ namespace ARNavB9V2.UI
             };
         }
 
-        private static string GetRouteMessage(B9OutdoorRouteController.RouteState state)
+        private static string GetRouteMessage(B9OutdoorRouteController route)
         {
-            return state switch
+            string destination = route != null ? route.SelectedDestinationName : "điểm đến";
+            return route != null ? route.State switch
             {
                 B9OutdoorRouteController.RouteState.WaitingForGps => "Đang chờ GPS…",
-                B9OutdoorRouteController.RouteState.Calculating => "Đang tính đường tới cửa B9…",
-                B9OutdoorRouteController.RouteState.NavigatingToB9Entrance => "Đi theo mũi tên tới cửa B9",
-                B9OutdoorRouteController.RouteState.ArrivedAtB9Entrance => "Đã đến cửa B9",
+                B9OutdoorRouteController.RouteState.Calculating => "Đang tính đường tới " + destination + "…",
+                B9OutdoorRouteController.RouteState.NavigatingToB9Entrance => "Đi theo mũi tên tới " + destination,
+                B9OutdoorRouteController.RouteState.ArrivedAtB9Entrance => "Đã đến " + destination,
                 B9OutdoorRouteController.RouteState.RouteUnavailable => "Không tìm được đường trên SchoolGround",
                 _ => "Hãy chọn phòng cần đến",
-            };
+            } : "Chưa có tuyến đường";
         }
 
         private static VisualElement CreatePanel(Color color, float radius)

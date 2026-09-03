@@ -35,6 +35,7 @@ namespace ARNavB9V2.Outdoor
         private Coroutine initializationRoutine;
         private bool hasSmoothedPosition;
         private double lastProcessedTimestamp = double.MinValue;
+        private float lastSampleReceivedAt = -1f;
         private Vector3 targetCampusPosition;
         private Vector3 presentationVelocity;
 
@@ -48,6 +49,9 @@ namespace ARNavB9V2.Outdoor
         public bool HasHeading { get; private set; }
         public int SampleVersion { get; private set; }
         public bool HasReliableFix => State == LocationState.Ready;
+        public float SampleAgeSeconds => lastSampleReceivedAt < 0f
+            ? float.PositiveInfinity
+            : Mathf.Max(0f, Time.unscaledTime - lastSampleReceivedAt);
 
         public void Configure(
             B9OutdoorMapDefinition definition,
@@ -173,6 +177,7 @@ namespace ARNavB9V2.Outdoor
                 return;
 
             lastProcessedTimestamp = sample.timestamp;
+            lastSampleReceivedAt = Time.unscaledTime;
             Latitude = sample.latitude;
             Longitude = sample.longitude;
             HorizontalAccuracyMeters = sample.horizontalAccuracy;
@@ -243,6 +248,7 @@ namespace ARNavB9V2.Outdoor
             HasHeading = true;
             State = LocationState.Ready;
             hasSmoothedPosition = true;
+            lastSampleReceivedAt = Time.unscaledTime;
             if (changed || forceVersionIncrement)
                 SampleVersion++;
         }

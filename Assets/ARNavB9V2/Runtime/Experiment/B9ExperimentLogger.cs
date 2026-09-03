@@ -23,6 +23,8 @@ namespace ARNavB9V2.Experiment
         [SerializeField] private B9IndoorPoseTracker indoorPose;
         [SerializeField] private B9ReliableNavigationController reliabilityController;
         [SerializeField] private B9TransitionPdrTracker transitionPdr;
+        [SerializeField] private B9HarmonyVersion harmonyVersion =
+            B9HarmonyVersion.V5_FullHarmony;
         [SerializeField] private bool autoStartSession = true;
         [SerializeField, Range(0.1f, 5f)] private float sampleIntervalSeconds = 0.5f;
         [SerializeField, Range(1f, 30f)] private float flushIntervalSeconds = 5f;
@@ -39,6 +41,9 @@ namespace ARNavB9V2.Experiment
         private float wrongWayBaseline;
         private string lastDestination = string.Empty;
         private string finalReason = string.Empty;
+        private B9PoseSource lastLoggedSource = B9PoseSource.Gps;
+        private B9HarmonyExperimentProfile harmonyProfile =
+            B9HarmonyExperimentProfile.For(B9HarmonyVersion.V5_FullHarmony);
 
         public bool IsRecording => eventsWriter != null && samplesWriter != null;
         public string SessionId { get; private set; } = string.Empty;
@@ -54,6 +59,8 @@ namespace ARNavB9V2.Experiment
         public int RecoveryCount { get; private set; }
         public bool HandoverSucceeded { get; private set; }
         public bool DestinationArrived { get; private set; }
+        public int SourceToggleCount { get; private set; }
+        public B9HarmonyExperimentProfile HarmonyProfile => harmonyProfile;
 
         public void Configure(
             B9OutdoorSceneContext outdoor,
@@ -83,6 +90,20 @@ namespace ARNavB9V2.Experiment
                 SubscribeReliability();
         }
 
+        public void SetExperimentProfile(
+            B9HarmonyExperimentProfile profile,
+            bool restartActiveTrial = true)
+        {
+            bool changed = harmonyProfile.Version != profile.Version;
+            harmonyProfile = profile;
+            harmonyVersion = profile.Version;
+            if (!changed || !restartActiveTrial || !IsRecording)
+                return;
+
+            EndCurrentTrial("harmony_version_changed_to_" + profile.VersionCode);
+            BeginNewTrial();
+        }
+
         private void OnEnable()
         {
             Subscribe();
@@ -104,6 +125,7 @@ namespace ARNavB9V2.Experiment
                 return;
 
             DetectDestinationChange();
+            DetectSourceChange();
             DetectWrongWayAndRecovery();
             if (Time.unscaledTime >= nextSampleAt)
             {
@@ -139,7 +161,10 @@ namespace ARNavB9V2.Experiment
             SessionId = trialStartedUtc.ToString(
                             "yyyyMMdd_HHmmss_fff",
                             CultureInfo.InvariantCulture)
-                        + "_Current_GPS_TO_VPS_DEV_"
+                        + "_"
+                        + harmonyProfile.VersionCode
+                        + "_GPS_TO_VPS_NORMAL_DEV"
+                        + "_"
                         + suffix;
             EventsFilePath = Path.Combine(directory, "events_" + SessionId + ".csv");
             SamplesFilePath = Path.Combine(directory, "samples_" + SessionId + ".csv");
@@ -148,15 +173,22 @@ namespace ARNavB9V2.Experiment
             eventsWriter = NewWriter(EventsFilePath);
             samplesWriter = NewWriter(SamplesFilePath);
             eventsWriter.WriteLine(
-                "utc_iso,session_id,elapsed_s,event,from_state,to_state,source,destination,"
+                "utc_iso,session_id,harmony_version,harmony_profile,quality_gate,temporal_dwell,"
+                + "map_id_check,recovery_fsm,adaptive_guidance,elapsed_s,event,from_state,to_state,source,destination,"
                 + "latitude,longitude,gps_accuracy_m,campus_x,campus_y,campus_z,"
                 + "map_x,map_y,map_z,vps_attempt,note");
             samplesWriter.WriteLine(
-                "utc_iso,session_id,elapsed_s,state,source,destination,latitude,longitude,"
+                "utc_iso,session_id,harmony_version,harmony_profile,quality_gate,temporal_dwell,"
+                + "map_id_check,recovery_fsm,adaptive_guidance,elapsed_s,state,source,destination,latitude,longitude,"
                 + "gps_accuracy_m,gps_valid,pdr_steps,pdr_confidence,campus_x,campus_y,campus_z,"
                 + "map_x,map_y,map_z,outdoor_remaining_m,vps_attempt,vps_state,vps_scan_s,"
                 + "indoor_state,indoor_pose_source,indoor_confidence,indoor_steps,heading_deg,"
-                + "indoor_remaining_m,route_revision,wrong_way_count,recovery_count");
+                + "indoor_remaining_m,route_revision,wrong_way_count,recovery_count,"
+                + "active_source,gps_age_s,gps_reliability,gps_stable_s,vps_valid,"
+                + "vps_reliability,vps_stable_s,vps_confidence,vps_confidence_available,"
+                + "vps_map_id,vps_map_id_available,vps_map_matches,source_toggle_count,"
+                + "position_jump_m,heading_jump_deg,candidate_source,gps_threshold_passed,"
+                + "vps_threshold_passed,gps_dwell_gate_passed,vps_dwell_gate_passed,decision_reason");
 
             sessionStartedAt = Time.unscaledTime;
             nextSampleAt = Time.unscaledTime;
@@ -165,12 +197,16 @@ namespace ARNavB9V2.Experiment
             EventCount = 0;
             WrongWayCount = 0;
             RecoveryCount = 0;
+            SourceToggleCount = 0;
             HandoverSucceeded = false;
             DestinationArrived = false;
             wrongWayActive = false;
             lastIndoorRemaining = float.NaN;
             lastObservedStepCount = indoorPose != null ? indoorPose.StepCount : 0;
             lastDestination = GetDestination();
+            lastLoggedSource = reliabilityController != null
+                ? reliabilityController.ActiveSource
+                : B9PoseSource.Gps;
             finalReason = string.Empty;
             WriteEventRow("trial_started", string.Empty, string.Empty, "auto=" + autoStartSession);
             WriteSummary(completed: false);
@@ -218,6 +254,8 @@ namespace ARNavB9V2.Experiment
                 indoorRoute.StateChanged += HandleIndoorStateChanged;
             if (indoorPose != null)
                 indoorPose.StepDetected += HandleIndoorStepDetected;
+            if (vpsTransition != null)
+                vpsTransition.ExperimentDecision += HandleExperimentDecision;
             SubscribeReliability();
         }
 
@@ -231,6 +269,8 @@ namespace ARNavB9V2.Experiment
                 indoorRoute.StateChanged -= HandleIndoorStateChanged;
             if (indoorPose != null)
                 indoorPose.StepDetected -= HandleIndoorStepDetected;
+            if (vpsTransition != null)
+                vpsTransition.ExperimentDecision -= HandleExperimentDecision;
             UnsubscribeReliability();
         }
 
@@ -238,6 +278,8 @@ namespace ARNavB9V2.Experiment
         {
             if (reliabilityController != null)
                 reliabilityController.StateChanged += HandleReliabilityStateChanged;
+            if (reliabilityController != null)
+                reliabilityController.ExperimentDecision += HandleExperimentDecision;
             if (transitionPdr != null)
                 transitionPdr.StepDetected += HandleTransitionStepDetected;
         }
@@ -246,6 +288,8 @@ namespace ARNavB9V2.Experiment
         {
             if (reliabilityController != null)
                 reliabilityController.StateChanged -= HandleReliabilityStateChanged;
+            if (reliabilityController != null)
+                reliabilityController.ExperimentDecision -= HandleExperimentDecision;
             if (transitionPdr != null)
                 transitionPdr.StepDetected -= HandleTransitionStepDetected;
         }
@@ -253,12 +297,24 @@ namespace ARNavB9V2.Experiment
         private void HandleReliabilityStateChanged(B9ReliabilityTransition transition)
         {
             if (transition.Current == B9NavigationState.IndoorVps)
+            {
                 HandoverSucceeded = true;
+                WriteEventRow(
+                    "handover_completed",
+                    transition.Previous.ToString(),
+                    transition.Current.ToString(),
+                    "GPS_TO_VPS success");
+            }
             WriteEventRow(
                 "reliability_state",
                 transition.Previous.ToString(),
                 transition.Current.ToString(),
                 transition.Reason);
+        }
+
+        private void HandleExperimentDecision(string eventType, string detail)
+        {
+            WriteEventRow(eventType, string.Empty, string.Empty, detail);
         }
 
         private void HandleOutdoorStateChanged(B9OutdoorRouteController.RouteState state)
@@ -309,6 +365,21 @@ namespace ARNavB9V2.Experiment
             WriteEventRow("destination_changed", string.Empty, string.Empty, current);
         }
 
+        private void DetectSourceChange()
+        {
+            if (reliabilityController == null
+                || reliabilityController.ActiveSource == lastLoggedSource)
+                return;
+            B9PoseSource previous = lastLoggedSource;
+            lastLoggedSource = reliabilityController.ActiveSource;
+            SourceToggleCount++;
+            WriteEventRow(
+                "source_switched",
+                previous.ToString(),
+                lastLoggedSource.ToString(),
+                previous + "->" + lastLoggedSource);
+        }
+
         private void DetectWrongWayAndRecovery()
         {
             if (indoorRoute == null || indoorPose == null
@@ -351,7 +422,12 @@ namespace ARNavB9V2.Experiment
             GetPositions(out Vector3 campus, out Vector3 map);
             string[] columns =
             {
-                UtcNow(), SessionId, Elapsed(), eventName, fromState, toState,
+                UtcNow(), SessionId,
+                harmonyProfile.VersionCode, harmonyProfile.DisplayName,
+                Flag(harmonyProfile.QualityThreshold), Flag(harmonyProfile.TemporalDwell),
+                Flag(harmonyProfile.MapIdCheck), Flag(harmonyProfile.RecoveryFsm),
+                Flag(harmonyProfile.AdaptiveGuidance),
+                Elapsed(), eventName, fromState, toState,
                 GetSource(), GetDestination(), Latitude(), Longitude(), GpsAccuracy(),
                 Format(campus.x), Format(campus.y), Format(campus.z),
                 Format(map.x), Format(map.y), Format(map.z),
@@ -369,7 +445,12 @@ namespace ARNavB9V2.Experiment
             GetPositions(out Vector3 campus, out Vector3 map);
             string[] columns =
             {
-                UtcNow(), SessionId, Elapsed(), GetState(), GetSource(), GetDestination(),
+                UtcNow(), SessionId,
+                harmonyProfile.VersionCode, harmonyProfile.DisplayName,
+                Flag(harmonyProfile.QualityThreshold), Flag(harmonyProfile.TemporalDwell),
+                Flag(harmonyProfile.MapIdCheck), Flag(harmonyProfile.RecoveryFsm),
+                Flag(harmonyProfile.AdaptiveGuidance),
+                Elapsed(), GetState(), GetSource(), GetDestination(),
                 Latitude(), Longitude(), GpsAccuracy(),
                 locationProvider != null && locationProvider.HasReliableFix ? "1" : "0",
                 transitionPdr != null ? transitionPdr.StepCount.ToString(CultureInfo.InvariantCulture) : "0",
@@ -389,6 +470,27 @@ namespace ARNavB9V2.Experiment
                 indoorRoute != null ? indoorRoute.RouteRevision.ToString(CultureInfo.InvariantCulture) : "0",
                 WrongWayCount.ToString(CultureInfo.InvariantCulture),
                 RecoveryCount.ToString(CultureInfo.InvariantCulture),
+                GetSource(),
+                locationProvider != null ? Format(locationProvider.SampleAgeSeconds) : string.Empty,
+                reliabilityController != null ? Format(reliabilityController.GpsReliability) : string.Empty,
+                reliabilityController != null ? Format(reliabilityController.GpsStableSeconds) : string.Empty,
+                Flag(vpsTransition != null && vpsTransition.VpsValid),
+                vpsTransition != null ? Format(vpsTransition.LastLocalizationQuality) : string.Empty,
+                vpsTransition != null ? Format(vpsTransition.VpsStableSeconds) : string.Empty,
+                vpsTransition != null ? Format(vpsTransition.LastVpsConfidence) : string.Empty,
+                Flag(vpsTransition != null && vpsTransition.LastVpsConfidenceAvailable),
+                vpsTransition != null ? vpsTransition.LastLocalizedMapId : string.Empty,
+                Flag(vpsTransition != null && vpsTransition.LastMapIdAvailable),
+                Flag(vpsTransition != null && vpsTransition.LastMapMatchesBuilding),
+                SourceToggleCount.ToString(CultureInfo.InvariantCulture),
+                vpsTransition != null ? Format(vpsTransition.LastPositionDeltaMeters) : string.Empty,
+                vpsTransition != null ? Format(vpsTransition.LastHeadingDeltaDegrees) : string.Empty,
+                GetCandidateSource(),
+                Flag(reliabilityController != null && reliabilityController.GpsThresholdPassed),
+                Flag(vpsTransition != null && vpsTransition.VpsThresholdPassed),
+                Flag(reliabilityController != null && reliabilityController.GpsDwellGatePassed),
+                Flag(vpsTransition != null && vpsTransition.VpsDwellGatePassed),
+                GetDecisionReason(),
             };
             WriteCsv(samplesWriter, columns);
         }
@@ -399,12 +501,32 @@ namespace ARNavB9V2.Experiment
                 return;
             float duration = Mathf.Max(0f, Time.unscaledTime - sessionStartedAt);
             string header =
-                "session_id,start_utc,end_utc,duration_s,direction,completed,handover_success,"
+                "session_id,harmony_version,harmony_profile,quality_gate,temporal_dwell,map_id_check,"
+                + "recovery_fsm,adaptive_guidance,start_utc,end_utc,duration_s,direction,completed,handover_success,"
                 + "destination_arrived,destination,sample_count,event_count,vps_attempts,"
-                + "pdr_steps,indoor_steps,wrong_way_count,recovery_count,final_state,end_reason\n";
+                + "pdr_steps,indoor_steps,wrong_way_count,recovery_count,final_state,end_reason,"
+                + "reliability_gate_enabled,vps_dwell_enabled,map_id_check_enabled,"
+                + "uncertainty_guidance_enabled,continuity_gate_enabled,minimum_mode_duration_enabled,"
+                + "handover_attempts_total,handover_attempts_evaluable,successful_handovers,"
+                + "false_handovers,incomplete_handovers,hsr_percent,fhr_percent,source_toggle_count,"
+                + "vpsEnterReliability,gpsExitReliability,minimumVpsConfidence,vpsDwellSeconds,"
+                + "gpsDwellSeconds,gps_weight_accuracy,gps_weight_freshness,gps_weight_motion,"
+                + "gps_weight_transition,gps_weight_dwell,vps_weight_confidence,vps_weight_freshness,"
+                + "vps_weight_motion,vps_weight_map_match,vps_weight_dwell\n";
+            int attempts = vpsTransition != null ? vpsTransition.LocalizationAttemptCount : 0;
+            int successes = HandoverSucceeded ? 1 : 0;
+            int incomplete = completed ? Mathf.Max(0, attempts - successes) : 0;
+            string hsr = attempts > 0 ? Format(100f * successes / attempts) : string.Empty;
             string[] row =
             {
                 SessionId,
+                harmonyProfile.VersionCode,
+                harmonyProfile.DisplayName,
+                Flag(harmonyProfile.QualityThreshold),
+                Flag(harmonyProfile.TemporalDwell),
+                Flag(harmonyProfile.MapIdCheck),
+                Flag(harmonyProfile.RecoveryFsm),
+                Flag(harmonyProfile.AdaptiveGuidance),
                 trialStartedUtc.ToString("O", CultureInfo.InvariantCulture),
                 completed ? DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture) : string.Empty,
                 Format(duration), "GPS_TO_VPS", completed ? "1" : "0",
@@ -416,6 +538,32 @@ namespace ARNavB9V2.Experiment
                 indoorPose != null ? indoorPose.StepCount.ToString(CultureInfo.InvariantCulture) : "0",
                 WrongWayCount.ToString(CultureInfo.InvariantCulture),
                 RecoveryCount.ToString(CultureInfo.InvariantCulture), GetState(), finalReason,
+                Bool(harmonyProfile.QualityThreshold),
+                Bool(harmonyProfile.TemporalDwell),
+                Bool(harmonyProfile.MapIdCheck),
+                Bool(harmonyProfile.AdaptiveGuidance),
+                Bool(harmonyProfile.ContinuityGate),
+                Bool(harmonyProfile.MinimumModeDuration),
+                attempts.ToString(CultureInfo.InvariantCulture),
+                attempts.ToString(CultureInfo.InvariantCulture),
+                successes.ToString(CultureInfo.InvariantCulture),
+                "0", incomplete.ToString(CultureInfo.InvariantCulture), hsr, "0",
+                SourceToggleCount.ToString(CultureInfo.InvariantCulture),
+                Format(harmonyProfile.VpsEnterReliability),
+                Format(harmonyProfile.GpsExitReliability),
+                Format(harmonyProfile.MinimumVpsConfidence),
+                Format(harmonyProfile.VpsDwellSeconds),
+                Format(harmonyProfile.GpsDwellSeconds),
+                Format(harmonyProfile.GpsWeightAccuracy),
+                Format(harmonyProfile.GpsWeightFreshness),
+                Format(harmonyProfile.GpsWeightMotion),
+                Format(harmonyProfile.GpsWeightTransition),
+                Format(harmonyProfile.GpsWeightDwell),
+                Format(harmonyProfile.VpsWeightConfidence),
+                Format(harmonyProfile.VpsWeightFreshness),
+                Format(harmonyProfile.VpsWeightMotion),
+                Format(harmonyProfile.VpsWeightMapMatch),
+                Format(harmonyProfile.VpsWeightDwell),
             };
             for (int i = 0; i < row.Length; i++)
                 row[i] = Escape(row[i]);
@@ -455,6 +603,10 @@ namespace ARNavB9V2.Experiment
         {
             if (indoorRoute != null && indoorRoute.NavigatingToExit)
                 return "B9-EXIT";
+            if (outdoorRoute != null
+                && outdoorRoute.HasDestination
+                && !outdoorRoute.IsIndoorB9Destination)
+                return outdoorRoute.SelectedDestinationId;
             if (indoorRoute != null && !string.IsNullOrWhiteSpace(indoorRoute.DestinationRoomId))
                 return indoorRoute.DestinationRoomId;
             return outdoorRoute != null ? outdoorRoute.SelectedRoomId : string.Empty;
@@ -467,6 +619,29 @@ namespace ARNavB9V2.Experiment
             if (transitionPdr != null && transitionPdr.IsTracking)
                 return Format(transitionPdr.HeadingDegrees);
             return locationProvider != null ? Format(locationProvider.HeadingDegrees) : string.Empty;
+        }
+
+        private string GetCandidateSource()
+        {
+            if (vpsTransition != null
+                && (vpsTransition.State == B9VpsTransitionController.TransitionState.StartingVps
+                    || vpsTransition.State == B9VpsTransitionController.TransitionState.Scanning))
+                return vpsTransition.CandidateSource;
+            return reliabilityController != null
+                ? reliabilityController.CandidateSource
+                : GetSource();
+        }
+
+        private string GetDecisionReason()
+        {
+            if (vpsTransition != null
+                && (vpsTransition.State == B9VpsTransitionController.TransitionState.StartingVps
+                    || vpsTransition.State == B9VpsTransitionController.TransitionState.Scanning
+                    || vpsTransition.State == B9VpsTransitionController.TransitionState.Failed))
+                return vpsTransition.LastGateReason;
+            return reliabilityController != null
+                ? reliabilityController.DecisionReason
+                : string.Empty;
         }
 
         private string Latitude() => locationProvider != null
@@ -524,6 +699,9 @@ namespace ARNavB9V2.Experiment
                 ? value.ToString("0.###", CultureInfo.InvariantCulture)
                 : string.Empty;
         }
+
+        private static string Flag(bool value) => value ? "1" : "0";
+        private static string Bool(bool value) => value ? "True" : "False";
 
         private static string Escape(string value)
         {

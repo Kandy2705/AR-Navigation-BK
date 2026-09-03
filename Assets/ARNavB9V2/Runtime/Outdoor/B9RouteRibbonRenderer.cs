@@ -37,6 +37,9 @@ namespace ARNavB9V2.Outdoor
         private Mesh minimapMesh;
         private bool hasEstimatedGroundHeight;
         private float estimatedGroundHeight;
+        private MaterialPropertyBlock reliabilityPropertyBlock;
+        private bool adaptiveReliabilityPresentation;
+        private float presentedReliability = 1f;
 
         public bool HasVisiblePath { get; private set; }
         public Mesh RouteMesh => ribbonMesh;
@@ -90,6 +93,14 @@ namespace ARNavB9V2.Outdoor
             ApplyMaterials();
         }
 
+        public void SetReliabilityPresentation(bool adaptive, float reliability)
+        {
+            adaptiveReliabilityPresentation = adaptive;
+            presentedReliability = Mathf.Clamp01(reliability);
+            ApplyReliabilityPresentation(ribbonRenderer);
+            ApplyReliabilityPresentation(minimapRenderer);
+        }
+
         public void SetPath(IReadOnlyList<Vector3> points)
         {
             ResolveGroundReferenceCamera();
@@ -129,6 +140,7 @@ namespace ARNavB9V2.Outdoor
             ribbonRenderer.enabled = true;
             minimapRenderer.enabled = true;
             HasVisiblePath = true;
+            SetReliabilityPresentation(adaptiveReliabilityPresentation, presentedReliability);
         }
 
         public void ClearPath()
@@ -316,6 +328,26 @@ namespace ARNavB9V2.Outdoor
             estimatedGroundHeight = groundReferenceCamera.transform.position.y
                                     - Mathf.Max(0.5f, assumedPhoneHeightMeters);
             hasEstimatedGroundHeight = true;
+        }
+
+        private void ApplyReliabilityPresentation(MeshRenderer target)
+        {
+            if (target == null)
+                return;
+            reliabilityPropertyBlock ??= new MaterialPropertyBlock();
+            target.GetPropertyBlock(reliabilityPropertyBlock);
+            Color tint = Color.white;
+            if (adaptiveReliabilityPresentation)
+            {
+                tint = presentedReliability >= 0.72f
+                    ? Color.white
+                    : presentedReliability >= 0.4f
+                        ? new Color(1f, 0.78f, 0.2f, 0.78f)
+                        : new Color(1f, 0.28f, 0.2f, 0.48f);
+            }
+            reliabilityPropertyBlock.SetColor("_BaseColor", tint);
+            reliabilityPropertyBlock.SetColor("_Color", tint);
+            target.SetPropertyBlock(reliabilityPropertyBlock);
         }
 
         private static Vector3 GetJoinedForward(IReadOnlyList<Vector3> points, int index)

@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea77e749871c94b3eb4de718b8e81bfe, type: 3}
+  m_Name: B9CampusDestinationCatalog
+  m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.Data.B9CampusDestinationCatalog
+  destinations:
+  - id: B9
+    displayName: "T\xF2a B9"
+    latitude: 10.773456557544643
+    longitude: 106.66042980794792
+    indoorNavigationAvailable: 1
+    arrivalRadiusMeters: 15
+  - id: A2
+    displayName: "T\xF2a A2"
+    latitude: 10.7730139
+    longitude: 106.659975
+    indoorNavigationAvailable: 0
+    arrivalRadiusMeters: 12
+  - id: A3
+    displayName: "T\xF2a A3"
+    latitude: 10.7733139
+    longitude: 106.6605583
+    indoorNavigationAvailable: 0
+    arrivalRadiusMeters: 12
+  - id: A4
+    displayName: "T\xF2a A4"
+    latitude: 10.7732556
+    longitude: 106.6600972
+    indoorNavigationAvailable: 0
+    arrivalRadiusMeters: 12
+  - id: A5
+    displayName: "T\xF2a A5"
+    latitude: 10.7734333
+    longitude: 106.6590556
+    indoorNavigationAvailable: 0
+    arrivalRadiusMeters: 12
+  - id: B6
+    displayName: "T\xF2a B6"
+    latitude: 10.7737806
+    longitude: 106.6593139
+    indoorNavigationAvailable: 0
+    arrivalRadiusMeters: 12
+  - id: B8
+    displayName: "T\xF2a B8"
+    latitude: 10.7737861
+    longitude: 106.6601667
+    indoorNavigationAvailable: 0
+    arrivalRadiusMeters: 12
+  - id: B10
+    displayName: "T\xF2a B10"
+    latitude: 10.773675
+    longitude: 106.6608861
+    indoorNavigationAvailable: 0
+    arrivalRadiusMeters: 12
