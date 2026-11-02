@@ -5,6 +5,7 @@ using ARNavB9V2.Data;
 using ARNavB9V2.Experiment;
 using ARNavB9V2.Indoor;
 using ARNavB9V2.Outdoor;
+using ARNavB9V2.Reliability;
 using ARNavB9V2.Scene;
 using Unity.AI.Navigation;
 using UnityEngine;
@@ -35,6 +36,7 @@ namespace ARNavB9V2.Vps
 
         [Header("B9 + MultiSet")]
         [SerializeField] private B9BuildingDefinition building;
+        [SerializeField] private B10BuildingAuthoring b10Building;
         [SerializeField] private GameObject sdkManagerRoot;
         [SerializeField] private MonoBehaviour mapLocalizationManager;
 
@@ -74,10 +76,15 @@ namespace ARNavB9V2.Vps
         private float vpsStableSince = -1f;
         private bool previousVpsThresholdPassed;
         private bool previousVpsDwellPassed;
+        private string activeBuildingId = "B9";
+        private IB9HandoverGateParameterSource gateParameterSource;
 
         public TransitionState State { get; private set; } = TransitionState.WaitingForEntrance;
         public string FailureReason { get; private set; } = string.Empty;
-        public string ActiveMapCode => building != null ? building.PrimaryMapCode : string.Empty;
+        public string ActiveBuildingId => activeBuildingId;
+        public string ActiveMapCode => IsB10Active
+            ? b10Building != null ? b10Building.MapCode : string.Empty
+            : building != null ? building.PrimaryMapCode : string.Empty;
         public bool IsApproximatePdrLocalization { get; private set; }
         public bool RetryAvailable => useRecoveryFsm && State == TransitionState.Failed;
         public int LocalizationAttemptCount => localizationAttemptCount;
@@ -123,9 +130,42 @@ namespace ARNavB9V2.Vps
             ResetResearchGateState();
         }
 
+        public void SetGateParameterSource(IB9HandoverGateParameterSource source)
+        {
+            gateParameterSource = source;
+        }
+
+        public B9HandoverGateParameters CurrentGateParameters => gateParameterSource != null
+            ? gateParameterSource.GetGateParameters(experimentProfile)
+            : B9HandoverGateParameters.FromProfile(experimentProfile);
+
         public void SetExternalHandoverControl(bool enabled)
         {
             externalHandoverControl = enabled;
+        }
+
+        public bool SelectBuildingForRoom(string roomId)
+        {
+            bool wantsB10 = !string.IsNullOrWhiteSpace(roomId)
+                            && roomId.Trim().StartsWith(
+                                "B10-",
+                                StringComparison.OrdinalIgnoreCase);
+            if (wantsB10)
+            {
+                if (b10Building == null)
+                    b10Building = FindFirstObjectByType<B10BuildingAuthoring>(
+                        FindObjectsInactive.Include);
+                if (b10Building == null
+                    || !b10Building.ValidateRuntimeConfiguration(out _))
+                    return false;
+                activeBuildingId = "B10";
+            }
+            else
+            {
+                activeBuildingId = "B9";
+            }
+
+            return true;
         }
 
         public void Configure(
@@ -158,10 +198,15 @@ namespace ARNavB9V2.Vps
 
         private void Awake()
         {
+            if (b10Building == null)
+                b10Building = FindFirstObjectByType<B10BuildingAuthoring>(
+                    FindObjectsInactive.Include);
             if (sdkManagerRoot != null)
                 sdkManagerRoot.SetActive(true);
             if (foundation != null && foundation.ModelRoot != null)
                 foundation.ModelRoot.gameObject.SetActive(false);
+            if (b10Building != null && b10Building.IndoorModel != null)
+                b10Building.IndoorModel.gameObject.SetActive(false);
             indoorContext?.PrepareForLocalization();
             TrySubscribeSdkEvents();
             // Keep the official MultiSet component dormant outdoors. Its own
@@ -227,6 +272,8 @@ namespace ARNavB9V2.Vps
             indoorContext?.PrepareForLocalization();
             if (foundation != null && foundation.ModelRoot != null)
                 foundation.ModelRoot.gameObject.SetActive(false);
+            if (b10Building != null && b10Building.IndoorModel != null)
+                b10Building.IndoorModel.gameObject.SetActive(false);
         }
 
         private void StartLocalizationAttempt()
@@ -248,7 +295,7 @@ namespace ARNavB9V2.Vps
                 return;
             }
 
-            if (!ConfigureMultiSetForB9(out reason))
+            if (!ConfigureMultiSetForActiveBuilding(out reason))
             {
                 Fail(reason);
                 return;
@@ -330,12 +377,25 @@ namespace ARNavB9V2.Vps
             sdkStartCoroutine = null;
         }
 
-        private bool ConfigureMultiSetForB9(out string reason)
+        private bool ConfigureMultiSetForActiveBuilding(out string reason)
         {
             Type type = mapLocalizationManager.GetType();
-            if (!TrySetFieldOrProperty(type, "mapOrMapsetCode", building.PrimaryMapCode))
+            if (!TrySetFieldOrProperty(type, "mapOrMapsetCode", ActiveMapCode))
             {
-                reason = "Không gán được mã map B9 cho MultiSet.";
+                reason = $"Không gán được mã map {activeBuildingId} cho MultiSet.";
+                return false;
+            }
+
+            Transform activeMapSpace = ActiveMapSpace;
+            bool mapSpaceAssigned = TrySetFieldOrProperty(
+                type,
+                "mapSpace",
+                activeMapSpace != null ? activeMapSpace.gameObject : null);
+            if (!mapSpaceAssigned)
+                mapSpaceAssigned = TrySetFieldOrProperty(type, "mapSpace", activeMapSpace);
+            if (!mapSpaceAssigned)
+            {
+                reason = $"Không gán được Map Space {activeBuildingId} cho MultiSet.";
                 return false;
             }
 
@@ -353,7 +413,8 @@ namespace ARNavB9V2.Vps
             }
             catch (Exception exception)
             {
-                reason = "Không chọn được chế độ Single Map B9: " + exception.Message;
+                reason = $"Không chọn được chế độ Single Map {activeBuildingId}: "
+                         + exception.Message;
                 return false;
             }
 
@@ -371,9 +432,9 @@ namespace ARNavB9V2.Vps
                 reason = "Thiếu cấu hình tòa B9.";
                 return false;
             }
-            if (building.PrimaryMapCode != "MAP_9LME2PB7Y3EN")
+            if (!IsB10Active && building.PrimaryMapCode != B9BuildingDefinition.CurrentMapCode)
             {
-                reason = "Mã VPS B9 không đúng MAP_9LME2PB7Y3EN.";
+                reason = $"Mã VPS B9 không đúng {B9BuildingDefinition.CurrentMapCode}.";
                 return false;
             }
             if (sdkManagerRoot == null || mapLocalizationManager == null)
@@ -381,9 +442,21 @@ namespace ARNavB9V2.Vps
                 reason = "Thiếu runtime MultiSet SDK.";
                 return false;
             }
-            if (foundation == null || foundation.MapSpace == null || foundation.ModelRoot == null)
+            if (IsB10Active)
             {
-                reason = "Thiếu Map Space/model indoor B9.";
+                if (b10Building == null)
+                {
+                    reason = "Thiếu cấu hình runtime tòa B10.";
+                    return false;
+                }
+                if (!b10Building.ValidateRuntimeConfiguration(out reason))
+                    return false;
+            }
+            if (foundation == null || foundation.ArCamera == null
+                || ActiveMapSpace == null || ActiveModelRoot == null
+                || ActiveNavMesh == null || ActiveNavMesh.navMeshData == null)
+            {
+                reason = $"Thiếu Map Space/model/NavMesh indoor {activeBuildingId}.";
                 return false;
             }
             reason = string.Empty;
@@ -458,7 +531,7 @@ namespace ARNavB9V2.Vps
         private IEnumerator CompleteIndoorHandoverAfterSdkPose()
         {
             yield return null;
-            Transform mapSpace = foundation != null ? foundation.MapSpace : null;
+            Transform mapSpace = ActiveMapSpace;
             Camera camera = foundation != null ? foundation.ArCamera : null;
             Vector3 previousPosition = mapSpace != null && camera != null
                 ? mapSpace.InverseTransformPoint(camera.transform.position)
@@ -549,11 +622,22 @@ namespace ARNavB9V2.Vps
 
         private bool ActivateIndoorNavigation()
         {
-            if (foundation == null || foundation.ModelRoot == null)
+            Transform activeModel = ActiveModelRoot;
+            NavMeshSurface activeSurface = ActiveNavMesh;
+            if (foundation == null || activeModel == null || activeSurface == null)
                 return false;
 
-            foundation.ModelRoot.gameObject.SetActive(true);
+            if (foundation.ModelRoot != null)
+                foundation.ModelRoot.gameObject.SetActive(!IsB10Active);
+            if (b10Building != null && b10Building.IndoorModel != null)
+                b10Building.IndoorModel.gameObject.SetActive(IsB10Active);
+            activeModel.gameObject.SetActive(true);
+            mapVisibility?.Configure(
+                activeModel,
+                foundation.ArCamera,
+                foundation.MinimapCamera);
             mapVisibility?.ApplyVisibilityPolicy();
+            RemoveInactiveIndoorNavMeshData();
             ReanchorIndoorNavMesh();
 
             if (outdoorContext != null)
@@ -575,11 +659,20 @@ namespace ARNavB9V2.Vps
                     outdoorContext.EntranceMarker.gameObject.SetActive(false);
             }
 
+            if (IsB10Active)
+                indoorContext?.RouteController?.UseB10Building(b10Building);
+            else
+                indoorContext?.RouteController?.UseB9Building();
+            indoorContext?.PoseTracker?.Configure(
+                foundation.ArCamera,
+                activeSurface,
+                this);
+            indoorContext?.MinimapController?.SetModelRoot(activeModel);
             ConfigureIndoorMinimap();
             string selectedRoom = outdoorContext != null
                                   && outdoorContext.RouteController != null
                 ? outdoorContext.RouteController.SelectedRoomId
-                : "B9-104";
+                : IsB10Active ? "B10-101" : "B9-104";
             indoorContext?.BeginNavigation(selectedRoom);
             SetState(TransitionState.IndoorLocalized);
             return true;
@@ -589,7 +682,7 @@ namespace ARNavB9V2.Vps
             Vector3 estimatedMapWorldPosition,
             Quaternion estimatedMapWorldRotation)
         {
-            Transform mapSpace = foundation != null ? foundation.MapSpace : null;
+            Transform mapSpace = ActiveMapSpace;
             Camera camera = foundation != null ? foundation.ArCamera : null;
             if (mapSpace == null || camera == null)
                 return false;
@@ -664,27 +757,31 @@ namespace ARNavB9V2.Vps
                 "currentMapId");
             LastLocalizedMapId = LastMapIdAvailable ? mapId : string.Empty;
             LastMapMatchesBuilding = LastMapIdAvailable
-                                     && building != null
-                                     && building.IsAcceptedMapId(mapId);
+                                     && (IsB10Active
+                                         ? string.Equals(
+                                             mapId,
+                                             ActiveMapCode,
+                                             StringComparison.OrdinalIgnoreCase)
+                                         : building != null
+                                           && building.IsAcceptedMapId(mapId));
             if (useMapIdCheck)
             {
-                if (!LastMapIdAvailable)
+                // MultiSet 1.9.2 can report a valid pose while keeping
+                // localizedMapId unavailable on some device builds. Missing
+                // optional metadata must not reject a successful SDK pose;
+                // an explicitly reported wrong ID still vetoes the handover.
+                if (LastMapIdAvailable && !LastMapMatchesBuilding)
                 {
-                    failure = "Không đọc được Map-ID từ kết quả MultiSet.";
-                    LastGateReason = failure;
-                    return false;
-                }
-                if (!LastMapMatchesBuilding)
-                {
-                    failure = "Map-ID không khớp B9: " + mapId;
+                    failure = $"Map-ID không khớp {activeBuildingId}: {mapId}";
                     LastGateReason = failure;
                     return false;
                 }
             }
 
-            float dwellScore = experimentProfile.VpsDwellSeconds <= 0f
+            B9HandoverGateParameters gate = CurrentGateParameters;
+            float dwellScore = experimentProfile.VpsDwellScoreSeconds <= 0f
                 ? 1f
-                : Mathf.Clamp01(VpsStableSeconds / experimentProfile.VpsDwellSeconds);
+                : Mathf.Clamp01(VpsStableSeconds / experimentProfile.VpsDwellScoreSeconds);
             LastLocalizationQuality = Mathf.Clamp01((
                 confidenceScore * experimentProfile.VpsWeightConfidence
                 + 1f * experimentProfile.VpsWeightFreshness
@@ -694,7 +791,7 @@ namespace ARNavB9V2.Vps
                 / experimentProfile.VpsWeightSum);
             VpsThresholdPassed = VpsValid
                                  && LastLocalizationQuality
-                                 >= experimentProfile.VpsEnterReliability;
+                                 >= gate.VpsThreshold;
             if (VpsThresholdPassed)
             {
                 if (vpsStableSince < 0f)
@@ -711,18 +808,18 @@ namespace ARNavB9V2.Vps
                     ExperimentDecision?.Invoke(
                         "dwell_reset",
                         $"VPS dwell reset because qVPS={LastLocalizationQuality:0.00} "
-                        + $"dropped below tauVPS={experimentProfile.VpsEnterReliability:0.00}");
+                        + $"dropped below tauVPS={gate.VpsThreshold:0.00}");
                 }
                 vpsStableSince = -1f;
             }
             VpsDwellGatePassed = !useTemporalDwell
-                                 || VpsStableSeconds >= experimentProfile.VpsDwellSeconds;
-            PublishVpsGateChanges();
+                                 || VpsStableSeconds >= gate.VpsDwellSeconds;
+            PublishVpsGateChanges(gate);
 
             if (useQualityThreshold && !VpsThresholdPassed)
             {
                 failure = $"Chất lượng VPS {LastLocalizationQuality:0.00} dưới ngưỡng "
-                          + experimentProfile.VpsEnterReliability.ToString("0.00");
+                          + gate.VpsThreshold.ToString("0.00");
                 LastGateReason = failure;
                 return false;
             }
@@ -730,7 +827,7 @@ namespace ARNavB9V2.Vps
             if (useTemporalDwell && !VpsDwellGatePassed)
             {
                 failure = $"VPS dwell {VpsStableSeconds:0.00}s/"
-                          + $"{experimentProfile.VpsDwellSeconds:0.00}s";
+                          + $"{gate.VpsDwellSeconds:0.00}s";
                 LastGateReason = failure;
                 return false;
             }
@@ -742,10 +839,10 @@ namespace ARNavB9V2.Vps
 
         private bool LastMapGatePassed()
         {
-            return !useMapIdCheck || LastMapIdAvailable && LastMapMatchesBuilding;
+            return !useMapIdCheck || !LastMapIdAvailable || LastMapMatchesBuilding;
         }
 
-        private void PublishVpsGateChanges()
+        private void PublishVpsGateChanges(B9HandoverGateParameters gate)
         {
             if (VpsThresholdPassed != previousVpsThresholdPassed)
             {
@@ -753,7 +850,7 @@ namespace ARNavB9V2.Vps
                     VpsThresholdPassed ? "quality_threshold_passed" : "quality_threshold_failed",
                     $"qVPS={LastLocalizationQuality:0.00} "
                     + (VpsThresholdPassed ? ">=" : "<")
-                    + $" tauVPS={experimentProfile.VpsEnterReliability:0.00}");
+                    + $" tauVPS={gate.VpsThreshold:0.00}");
                 previousVpsThresholdPassed = VpsThresholdPassed;
             }
             if (VpsDwellGatePassed && !previousVpsDwellPassed && useTemporalDwell)
@@ -761,7 +858,7 @@ namespace ARNavB9V2.Vps
                 ExperimentDecision?.Invoke(
                     "dwell_passed",
                     $"VPS dwell passed: {VpsStableSeconds:0.00}s >= "
-                    + $"{experimentProfile.VpsDwellSeconds:0.00}s");
+                    + $"{gate.VpsDwellSeconds:0.00}s");
             }
             previousVpsDwellPassed = VpsDwellGatePassed;
         }
@@ -871,7 +968,7 @@ namespace ARNavB9V2.Vps
 
         private void ReanchorIndoorNavMesh()
         {
-            NavMeshSurface surface = foundation != null ? foundation.NavMeshSurface : null;
+            NavMeshSurface surface = ActiveNavMesh;
             if (surface == null || surface.navMeshData == null || !surface.isActiveAndEnabled)
                 return;
 
@@ -879,12 +976,26 @@ namespace ARNavB9V2.Vps
             surface.AddData();
         }
 
+        private void RemoveInactiveIndoorNavMeshData()
+        {
+            NavMeshSurface b9Surface = foundation != null
+                ? foundation.NavMeshSurface
+                : null;
+            NavMeshSurface b10Surface = b10Building != null
+                ? b10Building.IndoorNavMesh
+                : null;
+            NavMeshSurface inactiveSurface = IsB10Active ? b9Surface : b10Surface;
+            if (inactiveSurface != null && inactiveSurface != ActiveNavMesh)
+                inactiveSurface.RemoveData();
+        }
+
         private void ConfigureIndoorMinimap()
         {
-            if (foundation == null || foundation.MinimapCamera == null || foundation.ModelRoot == null)
+            Transform activeModel = ActiveModelRoot;
+            if (foundation == null || foundation.MinimapCamera == null || activeModel == null)
                 return;
 
-            Renderer[] renderers = foundation.ModelRoot.GetComponentsInChildren<Renderer>(true);
+            Renderer[] renderers = activeModel.GetComponentsInChildren<Renderer>(true);
             if (renderers.Length == 0)
                 return;
 
@@ -979,6 +1090,23 @@ namespace ARNavB9V2.Vps
             }
             return false;
         }
+
+        private bool IsB10Active => string.Equals(
+            activeBuildingId,
+            "B10",
+            StringComparison.OrdinalIgnoreCase);
+
+        private Transform ActiveMapSpace => IsB10Active
+            ? b10Building != null ? b10Building.IndoorMapSpace : null
+            : foundation != null ? foundation.MapSpace : null;
+
+        private Transform ActiveModelRoot => IsB10Active
+            ? b10Building != null ? b10Building.IndoorModel : null
+            : foundation != null ? foundation.ModelRoot : null;
+
+        private NavMeshSurface ActiveNavMesh => IsB10Active
+            ? b10Building != null ? b10Building.IndoorNavMesh : null
+            : foundation != null ? foundation.NavMeshSurface : null;
 
 #if UNITY_EDITOR
         [ContextMenu("Debug/Simulate Arrival And Start VPS")]

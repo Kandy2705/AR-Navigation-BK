@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using ARNavB9V2.Adaptive;
 using ARNavB9V2.Indoor;
 using ARNavB9V2.Outdoor;
 using ARNavB9V2.Reliability;
@@ -44,6 +45,7 @@ namespace ARNavB9V2.Experiment
         private B9PoseSource lastLoggedSource = B9PoseSource.Gps;
         private B9HarmonyExperimentProfile harmonyProfile =
             B9HarmonyExperimentProfile.For(B9HarmonyVersion.V5_FullHarmony);
+        private B9AdaptiveHandoverPolicy adaptivePolicy;
 
         public bool IsRecording => eventsWriter != null && samplesWriter != null;
         public string SessionId { get; private set; } = string.Empty;
@@ -88,6 +90,11 @@ namespace ARNavB9V2.Experiment
             transitionPdr = pdrTracker;
             if (resubscribe)
                 SubscribeReliability();
+        }
+
+        public void SetAdaptivePolicy(B9AdaptiveHandoverPolicy policy)
+        {
+            adaptivePolicy = policy;
         }
 
         public void SetExperimentProfile(
@@ -188,7 +195,9 @@ namespace ARNavB9V2.Experiment
                 + "vps_reliability,vps_stable_s,vps_confidence,vps_confidence_available,"
                 + "vps_map_id,vps_map_id_available,vps_map_matches,source_toggle_count,"
                 + "position_jump_m,heading_jump_deg,candidate_source,gps_threshold_passed,"
-                + "vps_threshold_passed,gps_dwell_gate_passed,vps_dwell_gate_passed,decision_reason");
+                + "vps_threshold_passed,gps_dwell_gate_passed,vps_dwell_gate_passed,decision_reason,"
+                + "gate_gps_threshold,gate_vps_threshold,gate_gps_dwell_s,gate_vps_dwell_s,"
+                + "policy_version,policy_status,policy_inference_ms");
 
             sessionStartedAt = Time.unscaledTime;
             nextSampleAt = Time.unscaledTime;
@@ -502,6 +511,21 @@ namespace ARNavB9V2.Experiment
                 Flag(reliabilityController != null && reliabilityController.GpsDwellGatePassed),
                 Flag(vpsTransition != null && vpsTransition.VpsDwellGatePassed),
                 GetDecisionReason(),
+                reliabilityController != null
+                    ? Format(reliabilityController.CurrentGateParameters.GpsThreshold)
+                    : string.Empty,
+                vpsTransition != null
+                    ? Format(vpsTransition.CurrentGateParameters.VpsThreshold)
+                    : string.Empty,
+                reliabilityController != null
+                    ? Format(reliabilityController.CurrentGateParameters.GpsDwellSeconds)
+                    : string.Empty,
+                vpsTransition != null
+                    ? Format(vpsTransition.CurrentGateParameters.VpsDwellSeconds)
+                    : string.Empty,
+                PolicyActive() ? adaptivePolicy.PolicyVersion : string.Empty,
+                PolicyActive() ? adaptivePolicy.Status : string.Empty,
+                PolicyActive() ? Format(adaptivePolicy.LastInferenceMilliseconds) : string.Empty,
             };
             WriteCsv(samplesWriter, columns);
         }
@@ -595,6 +619,8 @@ namespace ARNavB9V2.Experiment
             campus = locationProvider != null ? locationProvider.CampusPosition : Vector3.zero;
             map = indoorPose != null ? indoorPose.CurrentPosition : Vector3.zero;
         }
+
+        private bool PolicyActive() => adaptivePolicy != null && adaptivePolicy.IsActive;
 
         private string GetState()
         {

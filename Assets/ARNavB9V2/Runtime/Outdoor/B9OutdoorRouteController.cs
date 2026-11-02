@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ARNavB9V2.Data;
+using ARNavB9V2.Scene;
 using Unity.AI.Navigation;
 using UnityEngine;
 using UnityEngine.AI;
@@ -28,6 +29,8 @@ namespace ARNavB9V2.Outdoor
         [SerializeField] private B9CampusDestinationCatalog campusDestinations;
         [SerializeField] private List<B9OutdoorDestinationAnchor> destinationAnchors =
             new List<B9OutdoorDestinationAnchor>();
+        [SerializeField] private B10EntranceGroup b10Entrances;
+        [SerializeField] private B10BuildingAuthoring b10Building;
         [SerializeField] private NavMeshSurface schoolGroundNavMesh;
         [SerializeField] private B9RouteRibbonRenderer ribbonRenderer;
         [SerializeField] private string selectedRoomId = "B9-104";
@@ -42,12 +45,19 @@ namespace ARNavB9V2.Outdoor
         private Vector3 lastRoutedPosition = Vector3.positiveInfinity;
         private float nextRefreshTime;
         private B9OutdoorDestinationAnchor activeDestinationAnchor;
+        private Transform activeB10Entrance;
+        private double activeB10EntranceLatitude;
+        private double activeB10EntranceLongitude;
 
         public RouteState State { get; private set; } = RouteState.NoDestination;
         public string SelectedRoomId => selectedRoomId;
         public string SelectedDestinationId => selectedDestinationId;
         public string SelectedDestinationName => activeDestinationAnchor != null
             ? activeDestinationAnchor.DisplayName
+            : activeB10Entrance != null
+                ? IsIndoorB10Destination
+                    ? $"Tòa B10 · {selectedRoomId}"
+                    : activeB10Entrance.name
             : IsIndoorB9Destination ? "Tòa B9" : selectedDestinationId;
         public bool HasDestination => !string.IsNullOrWhiteSpace(selectedDestinationId);
         public bool IsIndoorB9Destination => string.Equals(
@@ -55,6 +65,13 @@ namespace ARNavB9V2.Outdoor
                                                  "B9",
                                                  StringComparison.OrdinalIgnoreCase)
                                              && !string.IsNullOrWhiteSpace(selectedRoomId);
+        public bool IsB10Destination => string.Equals(
+            selectedDestinationId,
+            "B10",
+            StringComparison.OrdinalIgnoreCase);
+        public bool IsIndoorB10Destination => IsB10Destination
+                                              && !string.IsNullOrWhiteSpace(selectedRoomId);
+        public Transform ActiveB10Entrance => activeB10Entrance;
         public Vector3 ActiveDestinationPosition => DestinationTransform != null
             ? DestinationTransform.position
             : Vector3.zero;
@@ -99,9 +116,20 @@ namespace ARNavB9V2.Outdoor
             ResolveActiveDestination();
         }
 
+        public void ConfigureB10Entrances(B10EntranceGroup entrances)
+        {
+            b10Entrances = entrances;
+            if (IsB10Destination)
+                ResolveActiveDestination();
+        }
+
         private void Awake()
         {
             navMeshPath = new NavMeshPath();
+            if (b10Entrances == null)
+                b10Entrances = FindFirstObjectByType<B10EntranceGroup>();
+            if (b10Building == null)
+                b10Building = FindFirstObjectByType<B10BuildingAuthoring>(FindObjectsInactive.Include);
         }
 
         private void Start()
@@ -170,11 +198,25 @@ namespace ARNavB9V2.Outdoor
 
         public bool SetDestinationRoom(string roomId)
         {
-            if (building == null || !building.TryGetRoom(roomId, out _))
+            if (string.IsNullOrWhiteSpace(roomId))
                 return false;
 
-            selectedRoomId = roomId.Trim().ToUpperInvariant();
-            selectedDestinationId = "B9";
+            string normalizedRoomId = roomId.Trim().ToUpperInvariant();
+            bool isB10Room = normalizedRoomId.StartsWith("B10-", StringComparison.Ordinal);
+            if (isB10Room)
+            {
+                if (b10Building == null)
+                    b10Building = FindFirstObjectByType<B10BuildingAuthoring>(FindObjectsInactive.Include);
+                if (b10Building == null || !b10Building.TryGetRoom(normalizedRoomId, out _))
+                    return false;
+            }
+            else if (building == null || !building.TryGetRoom(normalizedRoomId, out _))
+            {
+                return false;
+            }
+
+            selectedRoomId = normalizedRoomId;
+            selectedDestinationId = isB10Room ? "B10" : "B9";
             ResolveActiveDestination();
             BeginSelectedDestination();
             return true;
@@ -211,6 +253,7 @@ namespace ARNavB9V2.Outdoor
             selectedRoomId = string.Empty;
             selectedDestinationId = string.Empty;
             activeDestinationAnchor = null;
+            activeB10Entrance = null;
             RemainingDistanceMeters = 0f;
             lastRoutedPosition = Vector3.positiveInfinity;
             nextRefreshTime = 0f;
@@ -225,8 +268,11 @@ namespace ARNavB9V2.Outdoor
             navMeshPath ??= new NavMeshPath();
             Transform destination = DestinationTransform;
             if (schoolGroundNavMesh == null || schoolGroundNavMesh.navMeshData == null
+                || !schoolGroundNavMesh.isActiveAndEnabled
                 || destination == null || ribbonRenderer == null)
             {
+                if (IsB10Destination && destination != null && ribbonRenderer != null)
+                    return SetDirectB10Guide(successState, destination);
                 if (!preserveGuidanceOnFailure)
                 {
                     ribbonRenderer?.ClearPath();
@@ -251,25 +297,29 @@ namespace ARNavB9V2.Outdoor
                     maximumStartSampleRadiusMeters)
                 : maximumStartSampleRadiusMeters;
 
+            NavMeshQueryFilter schoolGroundFilter = GetSchoolGroundFilter();
             if (!NavMesh.SamplePosition(
                     userPosition,
                     out NavMeshHit startHit,
                     startSampleRadius,
-                    NavMesh.AllAreas)
+                    schoolGroundFilter)
                 || !NavMesh.SamplePosition(
                     destination.position,
                     out NavMeshHit endHit,
                     Mathf.Max(entranceSampleRadiusMeters, DestinationArrivalRadius + 3f),
-                    NavMesh.AllAreas)
+                    schoolGroundFilter)
                 || !NavMesh.CalculatePath(
                     startHit.position,
                     endHit.position,
-                    NavMesh.AllAreas,
+                    schoolGroundFilter,
                     navMeshPath)
                 || navMeshPath.status != NavMeshPathStatus.PathComplete
                 || navMeshPath.corners == null
                 || navMeshPath.corners.Length < 2)
             {
+                if (IsB10Destination)
+                    return SetDirectB10Guide(successState, destination);
+
                 if (preserveGuidanceOnFailure
                     && Vector3.Distance(userPosition, destination.position) > 0.25f)
                 {
@@ -316,6 +366,21 @@ namespace ARNavB9V2.Outdoor
         private bool ResolveActiveDestination()
         {
             activeDestinationAnchor = null;
+            activeB10Entrance = null;
+
+            if (IsB10Destination && TryChooseB10Entrance(out Transform entrance))
+            {
+                activeB10Entrance = entrance;
+                if (outdoorMap != null)
+                {
+                    outdoorMap.CampusToGps(
+                        entrance.position,
+                        out activeB10EntranceLatitude,
+                        out activeB10EntranceLongitude);
+                }
+                return true;
+            }
+
             if (destinationAnchors != null)
             {
                 for (int i = 0; i < destinationAnchors.Count; i++)
@@ -337,19 +402,99 @@ namespace ARNavB9V2.Outdoor
 
         private Transform DestinationTransform => activeDestinationAnchor != null
             ? activeDestinationAnchor.transform
+            : activeB10Entrance != null ? activeB10Entrance
             : IsIndoorB9Destination ? b9EntranceAnchor : null;
 
         private double DestinationLatitude => activeDestinationAnchor != null
             ? activeDestinationAnchor.Latitude
+            : activeB10Entrance != null ? activeB10EntranceLatitude
             : outdoorMap.EntranceLatitude;
 
         private double DestinationLongitude => activeDestinationAnchor != null
             ? activeDestinationAnchor.Longitude
+            : activeB10Entrance != null ? activeB10EntranceLongitude
             : outdoorMap.EntranceLongitude;
 
         private float DestinationArrivalRadius => activeDestinationAnchor != null
             ? activeDestinationAnchor.ArrivalRadiusMeters
+            : activeB10Entrance != null && b10Entrances != null
+                ? b10Entrances.ArrivalRadiusMeters
             : outdoorMap.ArrivalRadiusMeters;
+
+        private bool TryChooseB10Entrance(out Transform entrance)
+        {
+            entrance = null;
+            if (b10Entrances == null
+                || !b10Entrances.ValidateConfiguration(out _))
+                return false;
+
+            Vector3 start = locationProvider != null
+                ? locationProvider.CampusPosition
+                : b10Entrances.Entrances[0].position;
+            float bestDistance = float.PositiveInfinity;
+            var candidatePath = new NavMeshPath();
+            NavMeshQueryFilter schoolGroundFilter = GetSchoolGroundFilter();
+            bool hasSampledStart = NavMesh.SamplePosition(
+                start,
+                out NavMeshHit startHit,
+                maximumStartSampleRadiusMeters,
+                schoolGroundFilter);
+
+            for (int i = 0; i < b10Entrances.Entrances.Count; i++)
+            {
+                Transform candidate = b10Entrances.Entrances[i];
+                float distance = Vector3.Distance(start, candidate.position);
+                if (hasSampledStart
+                    && NavMesh.SamplePosition(
+                        candidate.position,
+                        out NavMeshHit endHit,
+                        entranceSampleRadiusMeters,
+                        schoolGroundFilter)
+                    && NavMesh.CalculatePath(
+                        startHit.position,
+                        endHit.position,
+                        schoolGroundFilter,
+                        candidatePath)
+                    && candidatePath.status == NavMeshPathStatus.PathComplete
+                    && candidatePath.corners != null
+                    && candidatePath.corners.Length >= 2)
+                {
+                    distance = CalculateDistance(candidatePath.corners);
+                }
+
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    entrance = candidate;
+                }
+            }
+
+            return entrance != null;
+        }
+
+        private bool SetDirectB10Guide(RouteState successState, Transform destination)
+        {
+            var directGuide = new List<Vector3>(2)
+            {
+                locationProvider.CampusPosition,
+                destination.position,
+            };
+            RemainingDistanceMeters = CalculateDistance(directGuide);
+            ribbonRenderer.SetPath(directGuide);
+            SetState(successState);
+            return true;
+        }
+
+        private NavMeshQueryFilter GetSchoolGroundFilter()
+        {
+            return new NavMeshQueryFilter
+            {
+                agentTypeID = schoolGroundNavMesh != null
+                    ? schoolGroundNavMesh.agentTypeID
+                    : 0,
+                areaMask = NavMesh.AllAreas,
+            };
+        }
 
         private static float CalculateDistance(IReadOnlyList<Vector3> points)
         {

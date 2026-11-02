@@ -22,7 +22,7 @@ namespace ARNavB9V2.Editor
         private const string ReferenceScenePath = "Assets/Scenes/HybridGPSMap.unity";
         private const string OutputScenePath = "Assets/ARNavB9V2/Scenes/B9NavigationV2.unity";
         private const string DefinitionPath = "Assets/ARNavB9V2/Data/Buildings/B9BuildingDefinition.asset";
-        private const string MapPrefabPath = "Assets/MultiSet/MapData/MAP_9LME2PB7Y3EN.prefab";
+        private const string MapPrefabPath = B9CurrentMapUpgradeBuilder.PrefabPath;
         private const string NavMeshPath = "Assets/Scenes/HybridGPSMap/NavMesh-MapB9.asset";
         private const double B9EntranceLatitude = 10.773456557544643d;
         private const double B9EntranceLongitude = 106.66042980794792d;
@@ -48,7 +48,7 @@ namespace ARNavB9V2.Editor
             CreateFoundationScene(definition, inventory);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log($"[B9V2 Step1] COMPLETE scene={OutputScenePath} rooms={inventory.rooms.Count} map=MAP_9LME2PB7Y3EN");
+            Debug.Log($"[B9V2 Step1] COMPLETE scene={OutputScenePath} rooms={inventory.rooms.Count} map={B9BuildingDefinition.CurrentMapCode}");
         }
 
         [MenuItem("Tools/AR Navigation V2/Sync MapB9 + POIs From HybridGPSMap")]

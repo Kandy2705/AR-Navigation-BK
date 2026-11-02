@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using ARNavB9V2.Data;
 using ARNavB9V2.Handover;
+using ARNavB9V2.Reliability;
 using ARNavB9V2.Scene;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -14,7 +15,7 @@ namespace ARNavB9V2.Editor
     public static class B9V2HandoverGeometryBuilder
     {
         private const string ScenePath = "Assets/ARNavB9V2/Scenes/B9NavigationV2.unity";
-        private const string MapPrefabPath = "Assets/MultiSet/MapData/MAP_9LME2PB7Y3EN.prefab";
+        private const string MapPrefabPath = B9CurrentMapUpgradeBuilder.PrefabPath;
         private const string RootName = "[B9 V2] Handover Geometry Step 1";
         private const string CampusProxyName = "B9 Campus Georeferenced Proxy";
         private const string CampusModelName = "B9 Scan Campus Proxy (Minimap Only)";
@@ -117,6 +118,14 @@ namespace ARNavB9V2.Editor
                 inner,
                 portals);
             context.AttachHandoverGeometry(geometry);
+            B9ReliableNavigationController reliabilityController =
+                UnityEngine.Object.FindFirstObjectByType<B9ReliableNavigationController>(
+                    FindObjectsInactive.Include);
+            if (reliabilityController != null)
+            {
+                reliabilityController.AttachTransitionGeometry(geometry);
+                EditorUtility.SetDirty(reliabilityController);
+            }
             EditorUtility.SetDirty(geometry);
             EditorUtility.SetDirty(context);
 

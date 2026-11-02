@@ -1,4 +1,5 @@
 using System;
+using ARNavB9V2.Adaptive;
 using ARNavB9V2.Indoor;
 using ARNavB9V2.Outdoor;
 using ARNavB9V2.Reliability;
@@ -24,10 +25,12 @@ namespace ARNavB9V2.Experiment
         [SerializeField] private B9RouteRibbonRenderer indoorRibbon;
         [SerializeField] private B9ExperimentLogger experimentLogger;
         [SerializeField] private bool rememberSelection = true;
+        [SerializeField] private B9AdaptiveHandoverPolicy adaptivePolicy;
 
         public B9HarmonyVersion SelectedVersion => selectedVersion;
         public B9HarmonyExperimentProfile ActiveProfile { get; private set; }
         public float CurrentGuidanceReliability { get; private set; } = 1f;
+        public B9AdaptiveHandoverPolicy AdaptivePolicy => adaptivePolicy;
         public event Action<B9HarmonyExperimentProfile> VersionChanged;
 
         public void Configure(
@@ -92,6 +95,7 @@ namespace ARNavB9V2.Experiment
             ActiveProfile = B9HarmonyExperimentProfile.For(selectedVersion);
             reliabilityController?.ApplyExperimentProfile(ActiveProfile);
             vpsTransition?.ApplyExperimentProfile(ActiveProfile);
+            ApplyAdaptivePolicy();
             outdoorRibbon?.SetReliabilityPresentation(
                 ActiveProfile.AdaptiveGuidance,
                 1f);
@@ -100,6 +104,30 @@ namespace ARNavB9V2.Experiment
                 1f);
             experimentLogger?.SetExperimentProfile(ActiveProfile, restartLog);
             VersionChanged?.Invoke(ActiveProfile);
+        }
+
+        private void ApplyAdaptivePolicy()
+        {
+            if (!ActiveProfile.UsesAdaptivePolicy)
+            {
+                adaptivePolicy?.Deactivate();
+                reliabilityController?.SetGateParameterSource(null);
+                vpsTransition?.SetGateParameterSource(null);
+                return;
+            }
+
+            if (adaptivePolicy == null)
+                adaptivePolicy = gameObject.AddComponent<B9AdaptiveHandoverPolicy>();
+            adaptivePolicy.Configure(
+                reliabilityController,
+                vpsTransition,
+                locationProvider,
+                transitionPdr,
+                experimentLogger);
+            experimentLogger?.SetAdaptivePolicy(adaptivePolicy);
+            reliabilityController?.SetGateParameterSource(adaptivePolicy);
+            vpsTransition?.SetGateParameterSource(adaptivePolicy);
+            adaptivePolicy.Activate();
         }
 
         private float CalculateGuidanceReliability()

@@ -5,6 +5,7 @@ using ARNavB9V2.Experiment;
 using ARNavB9V2.Indoor;
 using ARNavB9V2.Outdoor;
 using ARNavB9V2.Reliability;
+using ARNavB9V2.Scene;
 using ARNavB9V2.Vps;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -28,6 +29,7 @@ namespace ARNavB9V2.UI
         [SerializeField] private B9ExperimentLogExporter logExporter;
         [SerializeField] private B9ReliableNavigationController reliabilityController;
         [SerializeField] private B9HarmonyExperimentController harmonyExperiment;
+        [SerializeField] private B10BuildingAuthoring b10Building;
 
         private Label statusLabel;
         private Label gpsLabel;
@@ -116,6 +118,8 @@ namespace ARNavB9V2.UI
 
         private void OnEnable()
         {
+            if (b10Building == null)
+                b10Building = FindFirstObjectByType<B10BuildingAuthoring>(FindObjectsInactive.Include);
             BuildInterface();
         }
 
@@ -193,6 +197,8 @@ namespace ARNavB9V2.UI
                 B9HarmonyVersion.V5_FullHarmony,
                 B9HarmonyVersion.BQ_QualityThreshold,
                 B9HarmonyVersion.BT_QualityDwell,
+                B9HarmonyVersion.TF_TunedFixed,
+                B9HarmonyVersion.V6_AdaptivePolicy,
             };
             for (int i = 0; i < versions.Length; i++)
             {
@@ -582,7 +588,8 @@ namespace ARNavB9V2.UI
                 return;
             }
 
-            statusLabel.text = "Đang đi vào vùng quét B9";
+            string activeBuilding = GetActiveBuildingLabel();
+            statusLabel.text = $"Đang đi vào vùng quét {activeBuilding}";
             gpsLabel.text = $"PDR · {reliabilityController.TransitionRemainingDistanceMeters:0.0} m tới {roomId}";
             destinationSummary.text = "Đi theo đường liền mạch · VPS chỉ bật khi vào đúng vùng scan";
         }
@@ -609,11 +616,12 @@ namespace ARNavB9V2.UI
                 retryVpsButton.style.display = DisplayStyle.None;
             if (outdoorStartButton != null)
                 outdoorStartButton.style.display = DisplayStyle.Flex;
+            string activeBuilding = GetActiveBuildingLabel();
             statusLabel.text = "Đi theo mũi tên tới cửa ra gần nhất";
             gpsLabel.text = indoorRouteController != null
-                ? $"Trong B9 · còn {indoorRouteController.RemainingDistanceMeters:0.0} m"
+                ? $"Trong {activeBuilding} · còn {indoorRouteController.RemainingDistanceMeters:0.0} m"
                   + GetIndoorTrackingSuffix()
-                : "Trong B9 · đang tính đường tới cửa ra";
+                : $"Trong {activeBuilding} · đang tính đường tới cửa ra";
             destinationSummary.text = string.IsNullOrWhiteSpace(reliabilityController.ActiveExitName)
                 ? "Đích: cửa ra gần nhất"
                 : "Đích: " + reliabilityController.ActiveExitName;
@@ -625,7 +633,7 @@ namespace ARNavB9V2.UI
                 retryVpsButton.style.display = DisplayStyle.None;
             if (outdoorStartButton != null)
                 outdoorStartButton.style.display = DisplayStyle.None;
-            statusLabel.text = "Đã ra khỏi B9 · đang bắt lại GPS";
+            statusLabel.text = $"Đã ra khỏi {GetActiveBuildingLabel()} · đang bắt lại GPS";
             gpsLabel.text = $"PDR đang giữ vị trí · GPS ổn định "
                             + $"{reliabilityController.StableExitGpsSamples}/"
                             + reliabilityController.RequiredStableExitGpsSamples;
@@ -649,16 +657,17 @@ namespace ARNavB9V2.UI
                 : routeController != null && !string.IsNullOrWhiteSpace(routeController.SelectedRoomId)
                     ? routeController.SelectedRoomId
                     : "phòng đã chọn";
+            string activeBuilding = GetActiveBuildingLabel();
 
             switch (vpsTransition.State)
             {
                 case B9VpsTransitionController.TransitionState.StartingVps:
-                    statusLabel.text = "Đã tới B9 · đang bật VPS…";
-                    gpsLabel.text = "B9 · chuẩn bị camera";
+                    statusLabel.text = $"Đã tới {activeBuilding} · đang bật VPS…";
+                    gpsLabel.text = $"{activeBuilding} · chuẩn bị camera";
                     destinationSummary.text = $"VPS tự động → sau đó dẫn tới {roomId}";
                     break;
                 case B9VpsTransitionController.TransitionState.Scanning:
-                    statusLabel.text = "Đang quét VPS B9…";
+                    statusLabel.text = $"Đang quét VPS {activeBuilding}…";
                     gpsLabel.text = "Lia chậm điện thoại quanh sảnh và giữ camera ổn định";
                     destinationSummary.text = $"Đang xác định cửa vào · đích cuối: {roomId}";
                     break;
@@ -683,11 +692,12 @@ namespace ARNavB9V2.UI
             string trackingLabel = approximate
                 ? "PDR gần đúng · VPS quá 30 giây"
                 : "VPS đã căn chỉnh";
+            string activeBuilding = GetActiveBuildingLabel();
             if (indoorRouteController == null)
             {
-                statusLabel.text = "Đã định vị bên trong tòa B9";
-                gpsLabel.text = "B9 · " + trackingLabel;
-                destinationSummary.text = $"Đã vào B9 · đang chuẩn bị đường tới {roomId}";
+                statusLabel.text = $"Đã định vị bên trong tòa {activeBuilding}";
+                gpsLabel.text = $"{activeBuilding} · {trackingLabel}";
+                destinationSummary.text = $"Đã vào {activeBuilding} · đang chuẩn bị đường tới {roomId}";
                 return;
             }
 
@@ -698,30 +708,30 @@ namespace ARNavB9V2.UI
             {
                 case B9IndoorRouteController.IndoorRouteState.Calculating:
                     statusLabel.text = $"Đang tính đường tới {roomId}…";
-                    gpsLabel.text = $"Trong B9{floor} · {trackingLabel}";
+                    gpsLabel.text = $"Trong {activeBuilding}{floor} · {trackingLabel}";
                     destinationSummary.text = $"Đích trong tòa: {roomId}";
                     break;
                 case B9IndoorRouteController.IndoorRouteState.Navigating:
                     statusLabel.text = $"Đi theo mũi tên tới {roomId}";
-                    gpsLabel.text = $"Trong B9{floor} · còn {indoorRouteController.RemainingDistanceMeters:0.0} m"
+                    gpsLabel.text = $"Trong {activeBuilding}{floor} · còn {indoorRouteController.RemainingDistanceMeters:0.0} m"
                                     + $" · {trackingLabel}"
                                     + GetIndoorTrackingSuffix();
                     destinationSummary.text = $"Đang dẫn đường bên trong tới {roomId}";
                     break;
                 case B9IndoorRouteController.IndoorRouteState.Arrived:
                     statusLabel.text = $"Đã đến {roomId}";
-                    gpsLabel.text = $"Trong B9{floor} · đã tới điểm đích · {trackingLabel}";
+                    gpsLabel.text = $"Trong {activeBuilding}{floor} · đã tới điểm đích · {trackingLabel}";
                     destinationSummary.text = $"Hoàn thành tuyến tới {roomId}";
                     break;
                 case B9IndoorRouteController.IndoorRouteState.RouteUnavailable:
                     statusLabel.text = $"Chưa tìm được đường tới {roomId}";
-                    gpsLabel.text = $"Trong B9{floor} · đang bắt lại lối đi"
+                    gpsLabel.text = $"Trong {activeBuilding}{floor} · đang bắt lại lối đi"
                                     + GetIndoorTrackingSuffix();
                     destinationSummary.text = "NavMesh chưa bắt được vị trí hiện tại";
                     break;
                 default:
-                    statusLabel.text = "Đã định vị bên trong tòa B9";
-                    gpsLabel.text = $"Trong B9{floor} · đang chuẩn bị tuyến · {trackingLabel}";
+                    statusLabel.text = $"Đã định vị bên trong tòa {activeBuilding}";
+                    gpsLabel.text = $"Trong {activeBuilding}{floor} · đang chuẩn bị tuyến · {trackingLabel}";
                     destinationSummary.text = $"Đích trong tòa: {roomId}";
                     break;
             }
@@ -732,6 +742,20 @@ namespace ARNavB9V2.UI
             if (indoorPoseTracker == null || !indoorPoseTracker.IsTracking)
                 return string.Empty;
             return $" · {indoorPoseTracker.StepCount} bước · {indoorPoseTracker.SourceLabel}";
+        }
+
+        private string GetActiveBuildingLabel()
+        {
+            if (reliabilityController != null
+                && !string.IsNullOrWhiteSpace(reliabilityController.ActiveBuildingId))
+                return reliabilityController.ActiveBuildingId;
+            if (vpsTransition != null
+                && !string.IsNullOrWhiteSpace(vpsTransition.ActiveBuildingId))
+                return vpsTransition.ActiveBuildingId;
+            if (indoorRouteController != null
+                && !string.IsNullOrWhiteSpace(indoorRouteController.ActiveBuildingId))
+                return indoorRouteController.ActiveBuildingId;
+            return "B9";
         }
 
         private void RefreshExperimentStatus()
@@ -843,6 +867,31 @@ namespace ARNavB9V2.UI
                 destinationChoiceValues[label] = "room:" + room.RoomId;
                 if (room.RoomId == "B9-104")
                     initialChoice = label;
+            }
+
+            if (b10Building == null)
+                b10Building = FindFirstObjectByType<B10BuildingAuthoring>(FindObjectsInactive.Include);
+            if (b10Building != null)
+            {
+                var b10Rooms = new List<B9RoomAnchor>(b10Building.RoomAnchors);
+                b10Rooms.Sort((left, right) => string.Compare(
+                    left != null ? left.RoomId : string.Empty,
+                    right != null ? right.RoomId : string.Empty,
+                    System.StringComparison.OrdinalIgnoreCase));
+                var usedIds = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < b10Rooms.Count; i++)
+                {
+                    B9RoomAnchor room = b10Rooms[i];
+                    if (room == null
+                        || string.IsNullOrWhiteSpace(room.RoomId)
+                        || !room.RoomId.StartsWith("B10-", System.StringComparison.OrdinalIgnoreCase)
+                        || !usedIds.Add(room.RoomId))
+                        continue;
+
+                    string label = "[Trong] B10 · " + room.RoomId;
+                    choices.Add(label);
+                    destinationChoiceValues[label] = "room:" + room.RoomId;
+                }
             }
 
             if (campusDestinations != null)

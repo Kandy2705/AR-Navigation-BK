@@ -28,6 +28,7 @@ namespace ARNavB9V2.Indoor
         private float zoomVelocity;
         private Bounds modelBounds;
         private float markerWorldHeight;
+        private Transform modelRootOverride;
 
         public RenderTexture RenderedTexture => renderTexture;
         public bool IsOverviewMode => overviewMode;
@@ -78,6 +79,13 @@ namespace ARNavB9V2.Indoor
         {
             overviewMode = enabledOverview;
             zoomVelocity = 0f;
+        }
+
+        public void SetModelRoot(Transform modelRoot)
+        {
+            modelRootOverride = modelRoot;
+            RecalculateMapBounds();
+            ApplyCameraSettings();
         }
 
         private void LateUpdate()
@@ -144,7 +152,9 @@ namespace ARNavB9V2.Indoor
 
         private void RecalculateMapBounds()
         {
-            Transform modelRoot = foundation != null ? foundation.ModelRoot : null;
+            Transform modelRoot = modelRootOverride != null
+                ? modelRootOverride
+                : foundation != null ? foundation.ModelRoot : null;
             Renderer[] renderers = modelRoot != null
                 ? modelRoot.GetComponentsInChildren<Renderer>(true)
                 : null;

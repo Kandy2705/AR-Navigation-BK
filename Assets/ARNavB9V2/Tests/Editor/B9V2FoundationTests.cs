@@ -24,8 +24,8 @@ namespace ARNavB9V2.Tests
 
             Assert.NotNull(definition);
             Assert.AreEqual("B9", definition.BuildingId);
-            Assert.AreEqual("MAP_9LME2PB7Y3EN", definition.PrimaryMapCode);
-            Assert.IsTrue(definition.IsAcceptedMapId("MAP_9LME2PB7Y3EN"));
+            Assert.AreEqual("MAP_FYN7L0XV6XBY", definition.PrimaryMapCode);
+            Assert.IsTrue(definition.IsAcceptedMapId("MAP_FYN7L0XV6XBY"));
             Assert.IsTrue(definition.TryGetRoom("B9-104", out _));
             Assert.AreEqual(
                 definition.Rooms.Count,

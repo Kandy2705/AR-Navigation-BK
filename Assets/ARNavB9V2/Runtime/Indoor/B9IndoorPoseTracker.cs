@@ -34,6 +34,7 @@ namespace ARNavB9V2.Indoor
         private B9StepDetector stepDetector;
         private Vector3 gravityEstimate;
         private Vector3 rawPosition;
+        private Vector3 unconstrainedPosition;
         private Vector3 smoothedPosition;
         private Vector3 smoothVelocity;
         private Vector3 lastCameraPosition;
@@ -48,6 +49,9 @@ namespace ARNavB9V2.Indoor
             ? smoothedPosition
             : arCamera != null ? arCamera.transform.position : Vector3.zero;
         public Vector3 RawPosition => hasPose ? rawPosition : CurrentPosition;
+        // Ground-level AR/step estimate for boundary detection and handover.
+        // Horizontal NavMesh projection must never feed back into this accumulator.
+        public Vector3 UnconstrainedPosition => hasPose ? unconstrainedPosition : CurrentPosition;
         public float HeadingDegrees { get; private set; }
         public int StepCount { get; private set; }
         public float TravelledDistanceMeters { get; private set; }
@@ -104,6 +108,9 @@ namespace ARNavB9V2.Indoor
             gravityEstimate = Input.acceleration;
             lastCameraPosition = arCamera.transform.position;
             rawPosition = ConstrainToNavMesh(lastCameraPosition, out bool constrained);
+            // Use the sampled floor height, but preserve the observed horizontal pose.
+            unconstrainedPosition = new Vector3(
+                lastCameraPosition.x, rawPosition.y, lastCameraPosition.z);
             smoothedPosition = rawPosition;
             smoothVelocity = Vector3.zero;
             visualDistanceSinceStep = 0f;
@@ -140,7 +147,9 @@ namespace ARNavB9V2.Indoor
             UpdateHeading();
             ApplyVisualInertialMotion();
             DetectAndApplyStep();
-            rawPosition = ConstrainToNavMesh(rawPosition, out bool constrained);
+            rawPosition = ConstrainToNavMesh(unconstrainedPosition, out bool constrained);
+            // Retain floor/stair height following without discarding outward motion.
+            unconstrainedPosition.y = rawPosition.y;
             IsNavMeshConstrained = constrained;
             smoothedPosition = Vector3.SmoothDamp(
                 smoothedPosition,
@@ -174,15 +183,16 @@ namespace ARNavB9V2.Indoor
             if (distance <= 0.001f || distance > maximumVisualDeltaPerFrameMeters)
                 return;
 
-            rawPosition += delta;
+            unconstrainedPosition += delta;
             visualDistanceSinceStep += distance;
             lastVisualMotionTime = Time.unscaledTime;
 
             // If PDR carried the estimate while visual tracking was weak, gently pull
             // it back when AR movement becomes available again.
-            Vector3 cameraGround = new Vector3(cameraPosition.x, rawPosition.y, cameraPosition.z);
-            rawPosition = Vector3.Lerp(
-                rawPosition,
+            Vector3 cameraGround = new Vector3(
+                cameraPosition.x, unconstrainedPosition.y, cameraPosition.z);
+            unconstrainedPosition = Vector3.Lerp(
+                unconstrainedPosition,
                 cameraGround,
                 visualRecoveryBlendPerSecond * Time.unscaledDeltaTime);
         }
@@ -216,11 +226,11 @@ namespace ARNavB9V2.Indoor
                 && missingDistance > 0.02f)
             {
                 Vector3 heading = Quaternion.Euler(0f, HeadingDegrees, 0f) * Vector3.forward;
-                rawPosition += heading * missingDistance;
+                unconstrainedPosition += heading * missingDistance;
             }
 
             visualDistanceSinceStep = 0f;
-            StepDetected?.Invoke(StepCount, Time.unscaledTime, rawPosition);
+            StepDetected?.Invoke(StepCount, Time.unscaledTime, unconstrainedPosition);
         }
 
         private Vector3 ConstrainToNavMesh(Vector3 position, out bool constrained)

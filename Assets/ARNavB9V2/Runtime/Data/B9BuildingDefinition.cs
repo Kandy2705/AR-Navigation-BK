@@ -11,6 +11,8 @@ namespace ARNavB9V2.Data
     [CreateAssetMenu(fileName = "B9BuildingDefinition", menuName = "AR Navigation V2/B9 Building Definition")]
     public sealed class B9BuildingDefinition : ScriptableObject
     {
+        public const string CurrentMapCode = "MAP_FYN7L0XV6XBY";
+
         [Serializable]
         public sealed class RoomDefinition
         {
@@ -116,7 +118,7 @@ namespace ARNavB9V2.Data
         [Header("Identity")]
         [SerializeField] private string buildingId = "B9";
         [SerializeField] private string displayName = "Tòa B9";
-        [SerializeField] private string primaryMapCode = "MAP_9LME2PB7Y3EN";
+        [SerializeField] private string primaryMapCode = CurrentMapCode;
         [SerializeField] private List<string> acceptedMapIds = new List<string>();
 
         [Header("Outdoor entrance")]
@@ -198,7 +200,7 @@ namespace ARNavB9V2.Data
         {
             buildingId = "B9";
             displayName = "Tòa B9";
-            primaryMapCode = "MAP_9LME2PB7Y3EN";
+            primaryMapCode = CurrentMapCode;
             acceptedMapIds = new List<string> { primaryMapCode };
             entranceLatitude = latitude;
             entranceLongitude = longitude;
@@ -223,6 +225,54 @@ namespace ARNavB9V2.Data
             portals = portalDefinitions != null
                 ? new List<PortalDefinition>(portalDefinitions)
                 : new List<PortalDefinition>();
+        }
+
+        public void RemapIndoorCoordinates(Vector3 translation, Quaternion rotation)
+        {
+            indoorEntranceMapLocalPosition = rotation * indoorEntranceMapLocalPosition + translation;
+            indoorEntranceMapLocalRotation = rotation * indoorEntranceMapLocalRotation;
+
+            var remappedRooms = new List<RoomDefinition>(rooms.Count);
+            for (int i = 0; i < rooms.Count; i++)
+            {
+                RoomDefinition room = rooms[i];
+                remappedRooms.Add(new RoomDefinition(
+                    room.RoomId,
+                    room.DisplayName,
+                    room.FloorId,
+                    rotation * room.MapLocalPosition + translation,
+                    rotation * room.MapLocalRotation));
+            }
+            rooms = remappedRooms;
+
+            var remappedSegments = new List<HandoverSegmentDefinition>(handoverSegments.Count);
+            for (int i = 0; i < handoverSegments.Count; i++)
+            {
+                HandoverSegmentDefinition segment = handoverSegments[i];
+                remappedSegments.Add(new HandoverSegmentDefinition(
+                    rotation * segment.StartMapLocalPosition + translation,
+                    rotation * segment.EndMapLocalPosition + translation,
+                    segment.InnerWidthMeters,
+                    segment.HeightMeters,
+                    segment.VerticalCenterMeters));
+            }
+            handoverSegments = remappedSegments;
+
+            var remappedPortals = new List<PortalDefinition>(portals.Count);
+            for (int i = 0; i < portals.Count; i++)
+            {
+                PortalDefinition portal = portals[i];
+                remappedPortals.Add(new PortalDefinition(
+                    portal.PortalId,
+                    portal.DisplayName,
+                    portal.FloorId,
+                    portal.Primary,
+                    portal.OutdoorCampusPosition,
+                    portal.OutdoorCampusRotation,
+                    rotation * portal.IndoorMapLocalPosition + translation,
+                    rotation * portal.IndoorMapLocalRotation));
+            }
+            portals = remappedPortals;
         }
 
         private void OnValidate()

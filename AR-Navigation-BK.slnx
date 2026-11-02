@@ -10,6 +10,7 @@
   <Project Path="Unity.RenderPipelines.Core.Editor.csproj" />
   <Project Path="Assembly-CSharp-firstpass.csproj" />
   <Project Path="Unity.Collections.csproj" />
+  <Project Path="ARNav.B9V2.EditorTests.csproj" />
   <Project Path="UnityEngine.UI.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.2D.Runtime.csproj" />
   <Project Path="Unity.ProBuilder.Poly2Tri.csproj" />
@@ -70,7 +71,6 @@
   <Project Path="McpUnity.Editor.csproj" />
   <Project Path="MultiSet-SDK.Core.csproj" />
   <Project Path="Unity.Recorder.csproj" />
-  <Project Path="ARNav.B9V2.EditorTests.csproj" />
   <Project Path="Unity.Multiplayer.Center.Common.csproj" />
   <Project Path="glTFast.Documentation.Examples.csproj" />
   <Project Path="Unity.ProBuilder.KdTree.csproj" />

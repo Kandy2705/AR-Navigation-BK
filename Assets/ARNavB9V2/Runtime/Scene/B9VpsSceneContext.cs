@@ -1,3 +1,4 @@
+using ARNavB9V2.Data;
 using ARNavB9V2.Vps;
 using UnityEngine;
 
@@ -33,7 +34,7 @@ namespace ARNavB9V2.Scene
                 return Fail("MultiSet MapLocalizationManager missing", out reason);
             if (transitionController == null)
                 return Fail("B9 VPS transition controller missing", out reason);
-            if (transitionController.ActiveMapCode != "MAP_9LME2PB7Y3EN")
+            if (transitionController.ActiveMapCode != B9BuildingDefinition.CurrentMapCode)
                 return Fail("B9 VPS map code is invalid", out reason);
 
             reason = string.Empty;

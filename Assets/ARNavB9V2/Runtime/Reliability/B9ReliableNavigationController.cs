@@ -25,6 +25,7 @@ namespace ARNavB9V2.Reliability
         [SerializeField] private B9VpsTransitionController vpsTransition;
         [SerializeField] private B9IndoorSceneContext indoor;
         [SerializeField] private B9BuildingTransitionGeometry geometry;
+        [SerializeField] private B10BuildingAuthoring b10Building;
         [SerializeField] private B9TransitionPdrTracker transitionPdr;
         [SerializeField, Min(0.05f)] private float guidanceRefreshSeconds = 0.2f;
         [SerializeField, Min(0.2f)] private float innerNavMeshSampleRadiusMeters = 3f;
@@ -46,6 +47,8 @@ namespace ARNavB9V2.Reliability
         private float enteredPdrAt;
         private float nextGuidanceAt;
         private B9PortalAnchor activeExitPortal;
+        private Transform activeExitIndoorAnchor;
+        private Transform activeExitCampusAnchor;
         private bool exitRouteRequested;
         private int lastExitGpsSampleVersion = -1;
         private int stableExitGpsSamples;
@@ -65,12 +68,14 @@ namespace ARNavB9V2.Reliability
         private float previousQualityGpsAt;
         private float gpsMotionScore = 1f;
         private float gpsQualityStableSince = -1f;
+        private IB9HandoverGateParameterSource gateParameterSource;
         private bool previousGpsThresholdPassed;
         private bool previousGpsDwellPassed;
         private float stateChangedAt;
         private bool pdrFallbackDestinationArrived;
         private Vector3 pdrFallbackArrivalCampusPosition;
         private bool forcedApproximateLocalizationUsed;
+        private string activeBuildingId = "B9";
 
         public B9NavigationState State => stateMachine.Current;
         public B9PoseSource ActiveSource { get; private set; } = B9PoseSource.Gps;
@@ -83,11 +88,9 @@ namespace ARNavB9V2.Reliability
                 if (transitionPdr != null && transitionPdr.IsTracking)
                     return transitionPdr.CampusPosition;
                 if (State == B9NavigationState.IndoorVps
-                    && indoor?.PoseTracker != null
-                    && geometry?.PrimaryPortal != null)
+                    && indoor?.PoseTracker != null)
                 {
-                    return geometry.PrimaryPortal.MapWorldToCampusPoint(
-                        indoor.PoseTracker.CurrentPosition);
+                    return MapWorldToCampusPoint(indoor.PoseTracker.CurrentPosition);
                 }
                 return outdoor != null && outdoor.LocationProvider != null
                     ? outdoor.LocationProvider.CampusPosition
@@ -100,10 +103,7 @@ namespace ARNavB9V2.Reliability
             {
                 if (State == B9NavigationState.IndoorVps && indoor?.PoseTracker != null)
                     return indoor.PoseTracker.CurrentPosition;
-                B9PortalAnchor portal = geometry != null ? geometry.PrimaryPortal : null;
-                return portal != null
-                    ? portal.CampusToMapWorldPoint(CurrentCampusPosition)
-                    : CurrentCampusPosition;
+                return CampusToMapWorldPoint(CurrentCampusPosition);
             }
         }
         public float TransitionRemainingDistanceMeters { get; private set; }
@@ -111,7 +111,8 @@ namespace ARNavB9V2.Reliability
         public bool ExitRouteRequested => exitRouteRequested;
         public string ActiveExitName => activeExitPortal != null
             ? activeExitPortal.DisplayName
-            : string.Empty;
+            : activeExitCampusAnchor != null ? activeExitCampusAnchor.name : string.Empty;
+        public string ActiveBuildingId => activeBuildingId;
         public int StableExitGpsSamples => stableExitGpsSamples;
         public int RequiredStableExitGpsSamples => minimumStableGpsSamples;
         public float GpsReliability { get; private set; }
@@ -136,6 +137,15 @@ namespace ARNavB9V2.Reliability
             ResetExitGpsStability();
         }
 
+        public void SetGateParameterSource(IB9HandoverGateParameterSource source)
+        {
+            gateParameterSource = source;
+        }
+
+        public B9HandoverGateParameters CurrentGateParameters => gateParameterSource != null
+            ? gateParameterSource.GetGateParameters(experimentProfile)
+            : B9HandoverGateParameters.FromProfile(experimentProfile);
+
         public void Configure(
             B9SceneContext sceneFoundation,
             B9OutdoorSceneContext outdoorContext,
@@ -153,8 +163,18 @@ namespace ARNavB9V2.Reliability
             vpsTransition?.SetExternalHandoverControl(true);
         }
 
+        public void AttachTransitionGeometry(B9BuildingTransitionGeometry transitionGeometry)
+        {
+            geometry = transitionGeometry;
+        }
+
         private void Awake()
         {
+            if (geometry == null && foundation != null)
+                geometry = foundation.HandoverGeometry;
+            if (b10Building == null)
+                b10Building = FindFirstObjectByType<B10BuildingAuthoring>(
+                    FindObjectsInactive.Include);
             indoorPreviewPath = new NavMeshPath();
             vpsTransition?.SetExternalHandoverControl(true);
             stateChangedAt = Time.unscaledTime;
@@ -199,6 +219,9 @@ namespace ARNavB9V2.Reliability
                             TryForceApproximateLocalization();
                     }
                     break;
+                case B9NavigationState.IndoorVps:
+                    EvaluateObservedExit();
+                    break;
                 case B9NavigationState.ExitingWithPdr:
                     UpdateExitPdrPresentation();
                     EvaluateStableOutdoorGps();
@@ -217,6 +240,26 @@ namespace ARNavB9V2.Reliability
         {
             if (outdoor?.RouteController == null || string.IsNullOrWhiteSpace(roomId))
                 return false;
+
+            string normalizedRoomId = roomId.Trim().ToUpperInvariant();
+            if (normalizedRoomId.StartsWith("B10-", StringComparison.Ordinal))
+                return NavigateToB10Room(normalizedRoomId);
+
+            if (State == B9NavigationState.IndoorVps
+                && string.Equals(activeBuildingId, "B10", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!outdoor.RouteController.SetDestinationRoom(normalizedRoomId))
+                    return false;
+                pendingOutdoorDestinationId = string.Empty;
+                pendingIndoorRoomId = normalizedRoomId;
+                return RequestNearestExit();
+            }
+
+            if (State == B9NavigationState.OutdoorGps)
+            {
+                activeBuildingId = "B9";
+                vpsTransition?.SelectBuildingForRoom(normalizedRoomId);
+            }
 
             if (pdrFallbackDestinationArrived)
             {
@@ -250,6 +293,59 @@ namespace ARNavB9V2.Reliability
             }
 
             return outdoor.RouteController.SetDestinationRoom(roomId);
+        }
+
+        private bool NavigateToB10Room(string roomId)
+        {
+            if (pdrFallbackDestinationArrived)
+            {
+                if (!outdoor.RouteController.SetDestinationRoom(roomId))
+                    return false;
+                pdrFallbackDestinationArrived = false;
+                indoor?.StopNavigation();
+                RestoreOutdoorGps("destination changed from B9 to B10 room");
+                activeBuildingId = "B10";
+                vpsTransition?.SelectBuildingForRoom(roomId);
+                return true;
+            }
+
+            switch (State)
+            {
+                case B9NavigationState.OutdoorGps:
+                    activeBuildingId = "B10";
+                    if (vpsTransition != null && !vpsTransition.SelectBuildingForRoom(roomId))
+                        return false;
+                    return outdoor.RouteController.SetDestinationRoom(roomId);
+                case B9NavigationState.EnteringWithPdr:
+                case B9NavigationState.VpsScanning:
+                case B9NavigationState.VpsFailed:
+                    vpsTransition?.CancelLocalization();
+                    if (!outdoor.RouteController.SetDestinationRoom(roomId))
+                        return false;
+                    RestoreOutdoorGps("destination changed from B9 handover to B10 room");
+                    return true;
+                case B9NavigationState.IndoorVps:
+                    if (IsB10Active)
+                    {
+                        CancelExitRequest();
+                        if (!outdoor.RouteController.SetDestinationRoom(roomId))
+                            return false;
+                        return indoor != null && indoor.BeginNavigation(roomId);
+                    }
+                    if (!outdoor.RouteController.SetDestinationRoom(roomId))
+                        return false;
+                    pendingOutdoorDestinationId = string.Empty;
+                    pendingIndoorRoomId = roomId;
+                    return RequestNearestExit();
+                case B9NavigationState.ExitingWithPdr:
+                    if (!outdoor.RouteController.SetDestinationRoom(roomId))
+                        return false;
+                    pendingOutdoorDestinationId = string.Empty;
+                    pendingIndoorRoomId = roomId;
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         public bool NavigateToOutdoorDestination(string destinationId)
@@ -294,7 +390,7 @@ namespace ARNavB9V2.Reliability
 
         private bool RequestNearestExit()
         {
-            if (State != B9NavigationState.IndoorVps || geometry == null || indoor == null)
+            if (State != B9NavigationState.IndoorVps || indoor == null)
                 return false;
 
             Vector3 mapPosition = indoor.PoseTracker != null
@@ -302,18 +398,62 @@ namespace ARNavB9V2.Reliability
                 : foundation != null && foundation.ArCamera != null
                     ? foundation.ArCamera.transform.position
                     : Vector3.zero;
-            if (!geometry.TryGetNearestMapPortal(mapPosition, out activeExitPortal))
-                return false;
+            activeExitPortal = null;
+            activeExitIndoorAnchor = null;
+            activeExitCampusAnchor = null;
+            if (IsB10Active)
+            {
+                if (b10Building == null
+                    || !b10Building.TryGetNearestMapEntrance(
+                        mapPosition,
+                        out activeExitCampusAnchor,
+                        out Vector3 indoorPoint))
+                    return false;
+                GameObject anchorObject = new GameObject("B10 Runtime Exit Anchor");
+                activeExitIndoorAnchor = anchorObject.transform;
+                activeExitIndoorAnchor.SetParent(b10Building.IndoorMapSpace, true);
+                activeExitIndoorAnchor.position = indoorPoint;
+                activeExitIndoorAnchor.rotation = b10Building.CampusToMapWorldRotation(
+                    activeExitCampusAnchor.rotation);
+            }
+            else
+            {
+                if (geometry == null
+                    || !geometry.TryGetNearestMapPortal(mapPosition, out activeExitPortal))
+                    return false;
+                activeExitCampusAnchor = activeExitPortal.OutdoorCampusAnchor;
+                activeExitIndoorAnchor = activeExitPortal.IndoorMapAnchor;
+            }
 
             exitRouteRequested = true;
-            if (indoor.BeginExitNavigation(activeExitPortal.IndoorMapAnchor))
+            if (indoor.BeginExitNavigation(activeExitIndoorAnchor))
                 return true;
 
             exitRouteRequested = false;
             activeExitPortal = null;
+            DestroyRuntimeExitAnchor();
             pendingOutdoorDestinationId = string.Empty;
             pendingIndoorRoomId = string.Empty;
             return false;
+        }
+
+        private void EvaluateObservedExit()
+        {
+            if (!exitRouteRequested
+                || activeExitIndoorAnchor == null
+                || indoor?.PoseTracker == null
+                || !indoor.PoseTracker.IsTracking)
+                return;
+
+            Vector3 mapPosition = indoor.PoseTracker.UnconstrainedPosition;
+            // The route's red marker is guidance only. Once the tracked pose is
+            // outside the real indoor B9 volume, begin the outdoor handover from
+            // the observed position instead of requiring arrival at that marker.
+            // The route pose is snapped to NavMesh and can remain stuck inside.
+            if (ContainsInnerMapWorldPoint(mapPosition))
+                return;
+
+            BeginExitPdrHandover();
         }
 
         public void CancelExitRequest()
@@ -323,6 +463,7 @@ namespace ARNavB9V2.Reliability
 
             exitRouteRequested = false;
             activeExitPortal = null;
+            DestroyRuntimeExitAnchor();
             pendingOutdoorDestinationId = string.Empty;
             pendingIndoorRoomId = string.Empty;
             string roomId = indoor?.RouteController?.DestinationRoomId;
@@ -360,6 +501,7 @@ namespace ARNavB9V2.Reliability
                 case B9NavigationState.IndoorVps:
                     exitRouteRequested = false;
                     activeExitPortal = null;
+                    DestroyRuntimeExitAnchor();
                     pendingOutdoorDestinationId = string.Empty;
                     pendingIndoorRoomId = string.Empty;
                     outdoor?.RouteController?.CancelNavigation();
@@ -374,14 +516,41 @@ namespace ARNavB9V2.Reliability
 
         private void EvaluateOutdoorEntry()
         {
-            if (geometry == null || outdoor == null || outdoor.LocationProvider == null
+            if (outdoor == null || outdoor.LocationProvider == null
                 || !outdoor.LocationProvider.HasReliableFix
                 || outdoor.RouteController == null
-                || !outdoor.RouteController.IsIndoorB9Destination)
+                || !outdoor.RouteController.IsIndoorB9Destination
+                   && !outdoor.RouteController.IsIndoorB10Destination)
                 return;
 
+            bool enteringB10 = outdoor.RouteController.IsIndoorB10Destination;
+            activeBuildingId = enteringB10 ? "B10" : "B9";
+            if (enteringB10)
+            {
+                if (b10Building == null
+                    || !b10Building.ValidateRuntimeConfiguration(out _))
+                    return;
+            }
+            else if (geometry == null)
+            {
+                geometry = foundation != null ? foundation.HandoverGeometry : null;
+                if (geometry == null)
+                    return;
+            }
+
             Vector3 campusPoint = outdoor.LocationProvider.CampusPosition;
-            if (!geometry.ContainsOuterCampusPoint(campusPoint))
+            if (!ContainsOuterCampusPoint(campusPoint))
+                return;
+            if (enteringB10
+                && outdoor.RouteController.ActiveB10Entrance != null
+                && Vector3.Distance(
+                    campusPoint,
+                    outdoor.RouteController.ActiveB10Entrance.position) > 10f)
+                return;
+
+            if (vpsTransition != null
+                && !vpsTransition.SelectBuildingForRoom(
+                    outdoor.RouteController.SelectedRoomId))
                 return;
 
             forcedApproximateLocalizationUsed = false;
@@ -392,24 +561,24 @@ namespace ARNavB9V2.Reliability
             ActiveSource = B9PoseSource.Pdr;
             ChangeState(
                 B9NavigationState.EnteringWithPdr,
-                "entered outer B9 volume; GPS correction frozen");
+                $"entered outer {activeBuildingId} volume; GPS correction frozen");
             UpdatePdrPresentation(force: true);
         }
 
         private void EvaluateInnerEntryOrRetreat()
         {
             Vector3 campusPoint = transitionPdr.CampusPosition;
-            if (geometry.ContainsInnerCampusPoint(campusPoint))
+            if (ContainsInnerCampusPoint(campusPoint))
             {
                 ChangeState(
                     B9NavigationState.VpsScanning,
-                    "entered true B9 volume; start MultiSet localization");
+                    $"entered true {activeBuildingId} volume; start MultiSet localization");
                 vpsTransition.BeginAutomaticLocalization();
                 return;
             }
 
-            if (!geometry.ContainsOuterCampusPoint(campusPoint))
-                RestoreOutdoorGps("left B9 handover volume before scanning");
+            if (!ContainsOuterCampusPoint(campusPoint))
+                RestoreOutdoorGps($"left {activeBuildingId} handover volume before scanning");
         }
 
         private void UpdatePdrPresentation(bool force = false)
@@ -428,16 +597,14 @@ namespace ARNavB9V2.Reliability
 
         private void EvaluatePdrFallbackArrival()
         {
-            if (transitionPdr == null || !transitionPdr.IsTracking || geometry == null)
+            if (transitionPdr == null || !transitionPdr.IsTracking)
                 return;
 
             B9RoomAnchor destination = FindSelectedRoomAnchor();
-            B9PortalAnchor portal = geometry.PrimaryPortal;
-            if (destination == null || portal == null)
+            if (destination == null)
                 return;
 
-            Vector3 destinationCampus = portal.MapWorldToCampusPoint(
-                destination.transform.position);
+            Vector3 destinationCampus = MapWorldToCampusPoint(destination.transform.position);
             Vector3 currentCampus = transitionPdr.CampusPosition;
             destinationCampus.y = currentCampus.y;
             float distance = Vector3.Distance(currentCampus, destinationCampus);
@@ -469,13 +636,12 @@ namespace ARNavB9V2.Reliability
                    < forcedApproximateLocalizationSeconds)
                 return;
 
-            B9PortalAnchor portal = geometry != null ? geometry.PrimaryPortal : null;
-            if (portal == null)
+            if (!HasActiveMapBridge)
                 return;
 
             Vector3 campusPosition = transitionPdr.CampusPosition;
-            Vector3 estimatedMapPosition = portal.CampusToMapWorldPoint(campusPosition);
-            Quaternion estimatedMapRotation = portal.CampusToMapWorldRotation(
+            Vector3 estimatedMapPosition = CampusToMapWorldPoint(campusPosition);
+            Quaternion estimatedMapRotation = CampusToMapWorldRotation(
                 Quaternion.Euler(0f, transitionPdr.HeadingDegrees, 0f));
             bool navMeshSampled = NavMesh.SamplePosition(
                 estimatedMapPosition,
@@ -484,12 +650,12 @@ namespace ARNavB9V2.Reliability
                 NavMesh.AllAreas);
             if (navMeshSampled)
                 estimatedMapPosition = nearestHit.position;
-            else if (portal.IndoorMapAnchor != null)
-                estimatedMapPosition = portal.IndoorMapAnchor.position;
+            else
+                estimatedMapPosition = GetActiveIndoorEntrancePoint();
 
             string detail = navMeshSampled
-                ? $"30s VPS timeout; PDR pose projected to nearest B9 NavMesh point ({nearestHit.distance:0.00}m)"
-                : "30s VPS timeout; PDR pose projected to B9 entrance fallback point";
+                ? $"30s VPS timeout; PDR pose projected to nearest {activeBuildingId} NavMesh point ({nearestHit.distance:0.00}m)"
+                : $"30s VPS timeout; PDR pose projected to {activeBuildingId} entrance fallback point";
             if (!vpsTransition.CompleteApproximatePdrLocalization(
                     estimatedMapPosition,
                     estimatedMapRotation,
@@ -514,21 +680,19 @@ namespace ARNavB9V2.Reliability
 
         private void BuildContinuousTransitionGuidance()
         {
-            if (geometry == null || outdoor.RibbonRenderer == null || foundation == null)
-                return;
-
-            B9PortalAnchor portal = geometry.PrimaryPortal;
-            if (portal == null)
+            if (outdoor.RibbonRenderer == null || foundation == null || !HasActiveMapBridge)
                 return;
 
             transitionGuidance.Clear();
             AddDistinct(transitionGuidance, transitionPdr.CampusPosition);
-            AddDistinct(transitionGuidance, portal.OutdoorCampusAnchor.position);
+            Vector3 outdoorEntrance = GetActiveOutdoorEntrancePoint();
+            Vector3 indoorEntrance = GetActiveIndoorEntrancePoint();
+            AddDistinct(transitionGuidance, outdoorEntrance);
 
             B9RoomAnchor destination = FindSelectedRoomAnchor();
             bool hasIndoorPath = destination != null
                                  && NavMesh.SamplePosition(
-                                     portal.IndoorMapAnchor.position,
+                                     indoorEntrance,
                                      out NavMeshHit startHit,
                                      innerNavMeshSampleRadiusMeters,
                                      NavMesh.AllAreas)
@@ -552,14 +716,14 @@ namespace ARNavB9V2.Reliability
                 {
                     AddDistinct(
                         transitionGuidance,
-                        portal.MapWorldToCampusPoint(indoorPreviewPath.corners[i]));
+                        MapWorldToCampusPoint(indoorPreviewPath.corners[i]));
                 }
             }
             else if (destination != null)
             {
                 AddDistinct(
                     transitionGuidance,
-                    portal.MapWorldToCampusPoint(destination.transform.position));
+                    MapWorldToCampusPoint(destination.transform.position));
             }
 
             TransitionRemainingDistanceMeters = CalculateDistance(transitionGuidance);
@@ -570,7 +734,17 @@ namespace ARNavB9V2.Reliability
         private B9RoomAnchor FindSelectedRoomAnchor()
         {
             string roomId = outdoor?.RouteController?.SelectedRoomId;
-            if (string.IsNullOrWhiteSpace(roomId) || foundation?.RoomAnchors == null)
+            if (string.IsNullOrWhiteSpace(roomId))
+                return null;
+
+            if (roomId.StartsWith("B10-", StringComparison.OrdinalIgnoreCase))
+            {
+                return b10Building != null
+                       && b10Building.TryGetRoom(roomId, out B9RoomAnchor b10Room)
+                    ? b10Room
+                    : null;
+            }
+            if (foundation?.RoomAnchors == null)
                 return null;
 
             for (int i = 0; i < foundation.RoomAnchors.Count; i++)
@@ -627,21 +801,25 @@ namespace ARNavB9V2.Reliability
 
         private void BeginExitPdrHandover()
         {
-            if (activeExitPortal == null || transitionPdr == null)
+            if (activeExitIndoorAnchor == null || transitionPdr == null)
                 return;
 
             Vector3 mapPosition = indoor?.PoseTracker != null
-                ? indoor.PoseTracker.CurrentPosition
-                : activeExitPortal.IndoorMapAnchor.position;
-            Vector3 campusSeed = activeExitPortal.MapWorldToCampusPoint(mapPosition);
+                ? indoor.PoseTracker.UnconstrainedPosition
+                : activeExitIndoorAnchor.position;
+            Vector3 campusSeed = MapWorldToCampusPoint(mapPosition);
 
             indoor?.StopNavigation();
             indoor?.PoseTracker?.StopTracking();
             indoor?.MinimapController?.Deactivate();
             if (foundation?.ModelRoot != null)
                 foundation.ModelRoot.gameObject.SetActive(false);
-            if (geometry?.CampusModelProxy != null)
+            if (b10Building?.IndoorModel != null)
+                b10Building.IndoorModel.gameObject.SetActive(false);
+            if (!IsB10Active && geometry?.CampusModelProxy != null)
                 geometry.CampusModelProxy.gameObject.SetActive(true);
+            if (IsB10Active && b10Building?.CampusModel != null)
+                b10Building.CampusModel.gameObject.SetActive(true);
 
             if (outdoor != null)
             {
@@ -665,7 +843,9 @@ namespace ARNavB9V2.Reliability
             transitionPdr.BeginTracking(campusSeed);
             ResetExitGpsStability();
             ActiveSource = B9PoseSource.Pdr;
-            ChangeState(B9NavigationState.ExitingWithPdr, "arrived at nearest exit; waiting for stable GPS");
+            ChangeState(
+                B9NavigationState.ExitingWithPdr,
+                $"leaving {activeBuildingId} from observed pose; waiting for stable GPS");
             UpdateExitPdrPresentation();
         }
 
@@ -719,7 +899,7 @@ namespace ARNavB9V2.Reliability
                 ExperimentDecision?.Invoke(
                     "dwell_passed",
                     $"GPS dwell passed: {GpsStableSeconds:0.00}s >= "
-                    + $"{experimentProfile.GpsDwellSeconds:0.00}s");
+                    + $"{CurrentGateParameters.GpsDwellSeconds:0.00}s");
                 CompleteExitToGps();
             }
         }
@@ -755,10 +935,13 @@ namespace ARNavB9V2.Reliability
             }
             exitRouteRequested = false;
             activeExitPortal = null;
+            DestroyRuntimeExitAnchor();
             pendingOutdoorDestinationId = string.Empty;
             pendingIndoorRoomId = string.Empty;
             ActiveSource = B9PoseSource.Gps;
-            ChangeState(B9NavigationState.OutdoorGps, "stable GPS reacquired after leaving B9");
+            ChangeState(
+                B9NavigationState.OutdoorGps,
+                $"stable GPS reacquired after leaving {activeBuildingId}");
         }
 
         private void ResetExitGpsStability()
@@ -782,6 +965,8 @@ namespace ARNavB9V2.Reliability
             outdoor?.MinimapController?.ClearPoseOverride();
             if (geometry?.CampusModelProxy != null)
                 geometry.CampusModelProxy.gameObject.SetActive(false);
+            if (b10Building?.CampusModel != null)
+                b10Building.CampusModel.gameObject.SetActive(false);
             bool approximate = vpsTransition != null
                                && vpsTransition.IsApproximatePdrLocalization;
             ActiveSource = approximate ? B9PoseSource.Pdr : B9PoseSource.Vps;
@@ -856,10 +1041,10 @@ namespace ARNavB9V2.Reliability
                 : 0f;
             float motion = valid ? gpsMotionScore : 0f;
             bool nearTransition = State != B9NavigationState.OutdoorGps
-                                  || geometry != null
-                                  && geometry.ContainsOuterCampusPoint(gps.CampusPosition);
+                                  || ContainsOuterCampusPoint(gps.CampusPosition);
             float transition = nearTransition ? 0.75f : 1f;
 
+            B9HandoverGateParameters gate = CurrentGateParameters;
             float withoutDwellWeight = experimentProfile.GpsWeightSum
                                        - experimentProfile.GpsWeightDwell;
             float withoutDwell = (
@@ -869,7 +1054,7 @@ namespace ARNavB9V2.Reliability
                 + transition * experimentProfile.GpsWeightTransition)
                 / Mathf.Max(0.0001f, withoutDwellWeight);
             bool stableQuality = valid
-                                 && withoutDwell >= experimentProfile.GpsExitReliability;
+                                 && withoutDwell >= gate.GpsThreshold;
             if (stableQuality)
             {
                 if (gpsQualityStableSince < 0f)
@@ -886,14 +1071,14 @@ namespace ARNavB9V2.Reliability
                     ExperimentDecision?.Invoke(
                         "dwell_reset",
                         $"GPS dwell reset because qGPS={withoutDwell:0.00} dropped below "
-                        + $"tauGPS={experimentProfile.GpsExitReliability:0.00}");
+                        + $"tauGPS={gate.GpsThreshold:0.00}");
                 }
                 gpsQualityStableSince = -1f;
             }
 
-            float dwell = experimentProfile.GpsDwellSeconds <= 0f
+            float dwell = experimentProfile.GpsDwellScoreSeconds <= 0f
                 ? 1f
-                : Mathf.Clamp01(GpsStableSeconds / experimentProfile.GpsDwellSeconds);
+                : Mathf.Clamp01(GpsStableSeconds / experimentProfile.GpsDwellScoreSeconds);
             GpsReliability = Mathf.Clamp01((
                 accuracy * experimentProfile.GpsWeightAccuracy
                 + freshness * experimentProfile.GpsWeightFreshness
@@ -902,9 +1087,9 @@ namespace ARNavB9V2.Reliability
                 + dwell * experimentProfile.GpsWeightDwell)
                 / experimentProfile.GpsWeightSum);
             GpsThresholdPassed = valid
-                                 && GpsReliability >= experimentProfile.GpsExitReliability;
+                                 && GpsReliability >= gate.GpsThreshold;
             GpsDwellGatePassed = !useTemporalDwell
-                                 || GpsStableSeconds >= experimentProfile.GpsDwellSeconds;
+                                 || GpsStableSeconds >= gate.GpsDwellSeconds;
             CandidateSource = State == B9NavigationState.ExitingWithPdr
                               && GpsThresholdPassed && GpsDwellGatePassed
                 ? "GPS"
@@ -912,9 +1097,9 @@ namespace ARNavB9V2.Reliability
             DecisionReason = !valid
                 ? "GPS provider invalid or stale"
                 : !GpsThresholdPassed
-                    ? $"qGPS={GpsReliability:0.00} < tauGPS={experimentProfile.GpsExitReliability:0.00}"
+                    ? $"qGPS={GpsReliability:0.00} < tauGPS={gate.GpsThreshold:0.00}"
                     : !GpsDwellGatePassed
-                        ? $"GPS dwell {GpsStableSeconds:0.00}s/{experimentProfile.GpsDwellSeconds:0.00}s"
+                        ? $"GPS dwell {GpsStableSeconds:0.00}s/{gate.GpsDwellSeconds:0.00}s"
                         : $"qGPS={GpsReliability:0.00} and GPS dwell gate passed";
 
             if (GpsThresholdPassed != previousGpsThresholdPassed)
@@ -923,7 +1108,7 @@ namespace ARNavB9V2.Reliability
                     GpsThresholdPassed ? "quality_threshold_passed" : "quality_threshold_failed",
                     $"qGPS={GpsReliability:0.00} "
                     + (GpsThresholdPassed ? ">=" : "<")
-                    + $" tauGPS={experimentProfile.GpsExitReliability:0.00}");
+                    + $" tauGPS={gate.GpsThreshold:0.00}");
                 previousGpsThresholdPassed = GpsThresholdPassed;
             }
             if (GpsDwellGatePassed && !previousGpsDwellPassed && useTemporalDwell)
@@ -931,7 +1116,7 @@ namespace ARNavB9V2.Reliability
                 ExperimentDecision?.Invoke(
                     "dwell_passed",
                     $"GPS dwell passed: {GpsStableSeconds:0.00}s >= "
-                    + $"{experimentProfile.GpsDwellSeconds:0.00}s");
+                    + $"{gate.GpsDwellSeconds:0.00}s");
             }
             previousGpsDwellPassed = GpsDwellGatePassed;
         }
@@ -955,6 +1140,105 @@ namespace ARNavB9V2.Reliability
                 return Fail("Transition PDR tracker is missing", out reason);
             reason = string.Empty;
             return true;
+        }
+
+        private bool IsB10Active => string.Equals(
+            activeBuildingId,
+            "B10",
+            StringComparison.OrdinalIgnoreCase);
+
+        private bool HasActiveMapBridge => IsB10Active
+            ? b10Building != null
+              && b10Building.CampusPlacement != null
+              && b10Building.IndoorMapSpace != null
+            : geometry != null && geometry.PrimaryPortal != null;
+
+        private bool ContainsOuterCampusPoint(Vector3 campusPoint)
+        {
+            if (IsB10Active)
+                return b10Building != null
+                       && b10Building.ContainsOuterCampusPoint(campusPoint);
+            return geometry != null && geometry.ContainsOuterCampusPoint(campusPoint);
+        }
+
+        private bool ContainsInnerCampusPoint(Vector3 campusPoint)
+        {
+            if (IsB10Active)
+                return b10Building != null
+                       && b10Building.ContainsInnerCampusPoint(campusPoint);
+            return geometry != null && geometry.ContainsInnerCampusPoint(campusPoint);
+        }
+
+        private bool ContainsInnerMapWorldPoint(Vector3 mapPoint)
+        {
+            if (IsB10Active)
+                return b10Building != null
+                       && b10Building.ContainsInnerMapWorldPoint(mapPoint);
+            return geometry != null && geometry.ContainsInnerMapWorldPoint(mapPoint);
+        }
+
+        private Vector3 CampusToMapWorldPoint(Vector3 campusPoint)
+        {
+            if (IsB10Active && b10Building != null)
+                return b10Building.CampusToMapWorldPoint(campusPoint);
+            B9PortalAnchor portal = geometry != null ? geometry.PrimaryPortal : null;
+            return portal != null ? portal.CampusToMapWorldPoint(campusPoint) : campusPoint;
+        }
+
+        private Vector3 MapWorldToCampusPoint(Vector3 mapPoint)
+        {
+            if (IsB10Active && b10Building != null)
+                return b10Building.MapWorldToCampusPoint(mapPoint);
+            B9PortalAnchor portal = geometry != null ? geometry.PrimaryPortal : null;
+            return portal != null ? portal.MapWorldToCampusPoint(mapPoint) : mapPoint;
+        }
+
+        private Quaternion CampusToMapWorldRotation(Quaternion campusRotation)
+        {
+            if (IsB10Active && b10Building != null)
+                return b10Building.CampusToMapWorldRotation(campusRotation);
+            B9PortalAnchor portal = geometry != null ? geometry.PrimaryPortal : null;
+            return portal != null
+                ? portal.CampusToMapWorldRotation(campusRotation)
+                : campusRotation;
+        }
+
+        private Vector3 GetActiveOutdoorEntrancePoint()
+        {
+            if (IsB10Active)
+            {
+                Transform selected = outdoor?.RouteController?.ActiveB10Entrance;
+                if (selected != null)
+                    return selected.position;
+                if (b10Building != null
+                    && b10Building.TryGetNearestCampusEntrance(
+                        CurrentCampusPosition,
+                        out Transform nearest))
+                    return nearest.position;
+            }
+
+            return geometry?.PrimaryPortal?.OutdoorCampusAnchor != null
+                ? geometry.PrimaryPortal.OutdoorCampusAnchor.position
+                : CurrentCampusPosition;
+        }
+
+        private Vector3 GetActiveIndoorEntrancePoint()
+        {
+            if (IsB10Active)
+                return CampusToMapWorldPoint(GetActiveOutdoorEntrancePoint());
+            return geometry?.PrimaryPortal?.IndoorMapAnchor != null
+                ? geometry.PrimaryPortal.IndoorMapAnchor.position
+                : CurrentMapWorldPosition;
+        }
+
+        private void DestroyRuntimeExitAnchor()
+        {
+            if (activeExitIndoorAnchor != null
+                && activeExitPortal == null
+                && activeExitIndoorAnchor.name == "B10 Runtime Exit Anchor")
+                Destroy(activeExitIndoorAnchor.gameObject);
+            activeExitIndoorAnchor = null;
+            activeExitCampusAnchor = null;
         }
 
         private static void AddDistinct(List<Vector3> points, Vector3 point)

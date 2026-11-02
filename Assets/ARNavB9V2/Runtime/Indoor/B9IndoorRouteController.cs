@@ -23,6 +23,7 @@ namespace ARNavB9V2.Indoor
         }
 
         [SerializeField] private B9BuildingDefinition building;
+        [SerializeField] private B10BuildingAuthoring b10Building;
         [SerializeField] private B9SceneContext foundation;
         [SerializeField] private Camera arCamera;
         [SerializeField] private B9IndoorPoseTracker poseTracker;
@@ -42,6 +43,7 @@ namespace ARNavB9V2.Indoor
         private float nextRefreshTime;
         private bool navigationActive;
         private bool navigatingToExit;
+        private bool usingB10;
 
         public IndoorRouteState State { get; private set; } = IndoorRouteState.WaitingForLocalization;
         public string DestinationRoomId => destinationRoomId;
@@ -63,6 +65,7 @@ namespace ARNavB9V2.Indoor
         public bool NavigationActive => navigationActive;
         public bool NavigatingToExit => navigatingToExit;
         public bool LastArrivalWasExit { get; private set; }
+        public string ActiveBuildingId => usingB10 ? "B10" : "B9";
         public int RouteRevision { get; private set; }
         public event Action<IndoorRouteState> StateChanged;
 
@@ -81,6 +84,26 @@ namespace ARNavB9V2.Indoor
             ribbonRenderer = renderer;
             destinationRoomId = defaultRoomId;
             ResolveDestinationAnchor();
+        }
+
+        public void UseB9Building()
+        {
+            usingB10 = false;
+            indoorNavMesh = foundation != null ? foundation.NavMeshSurface : indoorNavMesh;
+            destinationAnchor = null;
+            lastRoutedPosition = Vector3.positiveInfinity;
+        }
+
+        public bool UseB10Building(B10BuildingAuthoring authoring)
+        {
+            if (authoring == null || !authoring.ValidateRuntimeConfiguration(out _))
+                return false;
+            b10Building = authoring;
+            usingB10 = true;
+            indoorNavMesh = authoring.IndoorNavMesh;
+            destinationAnchor = null;
+            lastRoutedPosition = Vector3.positiveInfinity;
+            return true;
         }
 
         public void AttachPoseTracker(B9IndoorPoseTracker tracker)
@@ -182,7 +205,10 @@ namespace ARNavB9V2.Indoor
 
         public bool SetDestinationRoom(string roomId)
         {
-            if (building == null || !building.TryGetRoom(roomId, out _))
+            bool roomExists = usingB10
+                ? b10Building != null && b10Building.TryGetRoom(roomId, out _)
+                : building != null && building.TryGetRoom(roomId, out _);
+            if (!roomExists)
                 return false;
 
             destinationRoomId = roomId.Trim().ToUpperInvariant();
@@ -275,6 +301,11 @@ namespace ARNavB9V2.Indoor
         private bool ResolveDestinationAnchor()
         {
             destinationAnchor = null;
+            if (usingB10)
+            {
+                return b10Building != null
+                       && b10Building.TryGetRoom(destinationRoomId, out destinationAnchor);
+            }
             if (foundation == null || foundation.RoomAnchors == null)
                 return false;
 

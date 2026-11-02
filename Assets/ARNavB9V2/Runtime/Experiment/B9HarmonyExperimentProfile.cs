@@ -11,6 +11,8 @@ namespace ARNavB9V2.Experiment
         V5_FullHarmony = 5,
         BQ_QualityThreshold = 6,
         BT_QualityDwell = 7,
+        V6_AdaptivePolicy = 8,
+        TF_TunedFixed = 9,
     }
 
     public readonly struct B9HarmonyExperimentProfile
@@ -44,6 +46,8 @@ namespace ARNavB9V2.Experiment
         {
             B9HarmonyVersion.BQ_QualityThreshold => "BQ",
             B9HarmonyVersion.BT_QualityDwell => "BT",
+            B9HarmonyVersion.V6_AdaptivePolicy => "V6",
+            B9HarmonyVersion.TF_TunedFixed => "TF",
             _ => "V" + (int)Version,
         };
         public string DisplayName { get; }
@@ -55,12 +59,23 @@ namespace ARNavB9V2.Experiment
         public bool ContinuityGate { get; }
         public bool MinimumModeDuration { get; }
         public bool IsBaseline { get; }
+        // V6: an on-device PPO policy adapts the gate thresholds and dwell times
+        // (B9AdaptiveHandoverPolicy); the values below remain its fallback.
+        public bool UsesAdaptivePolicy => Version == B9HarmonyVersion.V6_AdaptivePolicy;
+        private bool IsTunedFixed => Version == B9HarmonyVersion.TF_TunedFixed;
 
-        public float VpsEnterReliability => 0.72f;
-        public float GpsExitReliability => 0.70f;
+        // Gate thresholds and dwell times. TF uses the constants tuned on the
+        // replay VAL split (RL paper, "Tuned Fixed": VPS 0.82 / 3.5 s, GPS 0.75 / 5.0 s).
+        public float VpsEnterReliability => IsTunedFixed ? 0.82f : 0.72f;
+        public float GpsExitReliability => IsTunedFixed ? 0.75f : 0.70f;
         public float MinimumVpsConfidence => 0.50f;
-        public float VpsDwellSeconds => TemporalDwell ? 2f : 0f;
-        public float GpsDwellSeconds => TemporalDwell ? 3f : 0f;
+        public float VpsDwellSeconds => TemporalDwell ? (IsTunedFixed ? 3.5f : 2f) : 0f;
+        public float GpsDwellSeconds => TemporalDwell ? (IsTunedFixed ? 5f : 3f) : 0f;
+        // Normalizer of the dwell term inside the reliability score. Kept at the
+        // nominal dwell for every version so only the gates change, matching the
+        // replay environment the policy was trained in.
+        public float VpsDwellScoreSeconds => TemporalDwell ? 2f : 0f;
+        public float GpsDwellScoreSeconds => TemporalDwell ? 3f : 0f;
 
         public float GpsWeightAccuracy => 0.30f;
         public float GpsWeightFreshness => 0.20f;
@@ -108,6 +123,12 @@ namespace ARNavB9V2.Experiment
                 B9HarmonyVersion.BT_QualityDwell => new B9HarmonyExperimentProfile(
                     version, "Quality + Dwell Baseline", true, true, false, false,
                     false, false, false, true),
+                B9HarmonyVersion.V6_AdaptivePolicy => new B9HarmonyExperimentProfile(
+                    version, "Adaptive PPO", true, true, true, true, true,
+                    true, true, false),
+                B9HarmonyVersion.TF_TunedFixed => new B9HarmonyExperimentProfile(
+                    version, "Tuned Fixed", true, true, true, true, true,
+                    true, true, false),
                 _ => new B9HarmonyExperimentProfile(
                     B9HarmonyVersion.V5_FullHarmony, "Full HARMONY", true, true,
                     true, true, true, true, true, false),
@@ -117,7 +138,7 @@ namespace ARNavB9V2.Experiment
         public static bool IsSelectable(B9HarmonyVersion version)
         {
             int raw = (int)version;
-            return raw >= 1 && raw <= 7;
+            return raw >= 1 && raw <= 9;
         }
 
         private static int Flag(bool value) => value ? 1 : 0;
