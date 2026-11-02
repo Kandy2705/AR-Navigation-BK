@@ -8,7 +8,7 @@ using UnityEngine;
 /// </summary>
 public static class NavPathChevronBaker
 {
-    private const string DefaultPath = "Assets/Textures/NavPathChevron.png";
+    private const string DefaultPath = "Assets/Art/Textures/NavPathChevron.png";
 
     [MenuItem("Tools/TestAR/Generate NavPath Chevron Texture")]
     public static void Bake()

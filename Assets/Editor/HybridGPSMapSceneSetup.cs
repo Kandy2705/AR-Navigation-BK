@@ -22,7 +22,7 @@ using UnityEngine.XR.ARFoundation;
 public static class HybridGPSMapSceneSetup
 {
     private const string HybridScenePath = "Assets/Scenes/HybridGPSMap.unity";
-    private const string KhanhUiTemplatePath = "Assets/Scene/Khanh-UI.unity";
+    private const string KhanhUiTemplatePath = "Assets/Scenes/Khanh-UI.unity";
 
     [MenuItem("Tools/TestAR/HybridGPSMap/Setup App Shell + Outdoor Navigation Hierarchy")]
     public static void SetupAppShellAndOutdoorHierarchy()

@@ -21,8 +21,8 @@ using UnityEngine.UI;
 public static class SetupMinimapTopDown
 {
     private const string ScenePath    = "Assets/Scenes/GPSMapPlane.unity";
-    private const string RT_PATH      = "Assets/Materials/MinimapRT.renderTexture";
-    private const string SPRITE_PATH  = "Assets/Materials/MinimapCircle.png";
+    private const string RT_PATH      = "Assets/Art/Materials/MinimapRT.renderTexture";
+    private const string SPRITE_PATH  = "Assets/Art/Materials/MinimapCircle.png";
     private const int    RT_SIZE      = 640;
     /// <summary>Đường kính vòng minimap (pixel tham chiếu 1080×1920). Tăng số = vòng tròn to hơn trên màn hình.</summary>
     private const float  MINIMAP_PX           = 420f;

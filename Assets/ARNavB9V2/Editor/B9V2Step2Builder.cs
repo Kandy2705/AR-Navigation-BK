@@ -28,7 +28,7 @@ namespace ARNavB9V2.Editor
         private const string SchoolGroundNavMeshPath = "Assets/Scenes/HybridGPSMap/NavMesh-SchoolGround.asset";
         private const string PanelSettingsPath = "Assets/ARNavB9V2/UI/B9NavigationPanelSettings.asset";
         private const string MinimapTexturePath = "Assets/ARNavB9V2/Art/Outdoor/B9OutdoorMinimap.renderTexture";
-        private const string LegacyChevronTexturePath = "Assets/Sprites/Line 1.png";
+        private const string LegacyChevronTexturePath = "Assets/Art/Sprites/Line 1.png";
         private const string Step2RootName = "[B9 V2] Outdoor Step 2";
 
         private sealed class OutdoorInventory
