@@ -34,7 +34,6 @@ public class NavigationManager : MonoBehaviour
     private readonly Dictionary<PageID, UiPage> canvasPageInstances = new Dictionary<PageID, UiPage>();
     private UiPage currentCanvasPage;
 
-    [SerializeField] private HybridModeController hybridModeController;
     [SerializeField] private bool keepARPageDisabledOnStart = true;
     private VisualElement rootContainer;
     private SharedNavBar _navBar;
@@ -105,9 +104,9 @@ public class NavigationManager : MonoBehaviour
         _navBar.Reset();
         _navBar.Bind(mainDocument.rootVisualElement);
 
-        // Auto-bypass auth UI khi skipToARForTest hoặc forceIndoorTestMode=true.
+        // Auto-bypass auth UI khi skipToARForTest.
         // Tránh load WelcomePage/Login/Register hoàn toàn, vào thẳng AR để test indoor.
-        bool shouldBypassAuth = !_bypassedAuthOnStart && (skipToARForTest || IsForceIndoorTestMode());
+        bool shouldBypassAuth = !_bypassedAuthOnStart && skipToARForTest;
         if (shouldBypassAuth)
         {
             _bypassedAuthOnStart = true;
@@ -287,23 +286,9 @@ public class NavigationManager : MonoBehaviour
         }
 
         ARPageObject.SetActive(true);
-        ApplyHybridInitialMode();
         OnAREntered?.Invoke();   // Thông báo để outdoor nav có thể hiện ra
         if (canvasRoot != null) canvasRoot.SetActive(false);
         gameObject.SetActive(false);
-    }
-
-    private void ApplyHybridInitialMode()
-    {
-        if (hybridModeController == null)
-        {
-            hybridModeController = FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
-        }
-
-        if (hybridModeController != null)
-        {
-            hybridModeController.ApplyInitialMode();
-        }
     }
 
     public void EnterARPage()
@@ -444,18 +429,5 @@ public class NavigationManager : MonoBehaviour
             uiRouter.gameObject.SetActive(false);
             Debug.Log("[NavigationManager] [INDOOR_TEST] Disabled UIRouter (legacy UI).");
         }
-    }
-
-    private bool IsForceIndoorTestMode()
-    {
-        if (hybridModeController != null)
-            return hybridModeController.ForceIndoorTestModeEnabled;
-        var hybrid = FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
-        if (hybrid != null)
-        {
-            hybridModeController = hybrid;
-            return hybrid.ForceIndoorTestModeEnabled;
-        }
-        return false;
     }
 }

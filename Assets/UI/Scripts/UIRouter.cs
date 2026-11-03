@@ -4,7 +4,6 @@ public class UIRouter : MonoBehaviour
 {
     /// <summary>
     /// Fired once when the user reaches the home page (onboarding complete).
-    /// HybridOutdoorNavigationRoot listens to this to defer outdoor nav activation.
     /// </summary>
     public static event System.Action OnHomePageShown;
 
@@ -17,20 +16,7 @@ public class UIRouter : MonoBehaviour
 
     private void Awake()
     {
-        // Nếu đang ở indoor test mode, không mở bất kỳ UI legacy nào.
-        if (IsForceIndoorTestMode())
-        {
-            Debug.Log("[UIRouter] [INDOOR_TEST] forceIndoorTestMode=true → bỏ qua ShowOnboarding().");
-            return;
-        }
-
         ShowOnboarding();
-    }
-
-    private static bool IsForceIndoorTestMode()
-    {
-        var hybrid = FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
-        return hybrid != null && hybrid.ForceIndoorTestModeEnabled;
     }
 
     public void ShowOnboarding()

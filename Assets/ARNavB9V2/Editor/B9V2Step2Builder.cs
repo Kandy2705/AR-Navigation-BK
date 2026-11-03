@@ -25,10 +25,10 @@ namespace ARNavB9V2.Editor
         private const string BuildingDefinitionPath = "Assets/ARNavB9V2/Data/Buildings/B9BuildingDefinition.asset";
         private const string OutdoorDefinitionPath = "Assets/ARNavB9V2/Data/Buildings/B9OutdoorMapDefinition.asset";
         private const string SchoolGroundPrefabPath = "Assets/ARNavB9V2/Art/Outdoor/SchoolGroundV2.prefab";
-        private const string SchoolGroundNavMeshPath = "Assets/Scenes/HybridGPSMap/NavMesh-SchoolGround.asset";
+        private const string SchoolGroundNavMeshPath = "Assets/ARNavB9V2/Data/Outdoor/NavMesh-SchoolGround.asset";
         private const string PanelSettingsPath = "Assets/ARNavB9V2/UI/B9NavigationPanelSettings.asset";
         private const string MinimapTexturePath = "Assets/ARNavB9V2/Art/Outdoor/B9OutdoorMinimap.renderTexture";
-        private const string LegacyChevronTexturePath = "Assets/Art/Sprites/Line 1.png";
+        private const string LegacyChevronTexturePath = "Assets/ARNavB9V2/Art/Outdoor/Line 1.png";
         private const string Step2RootName = "[B9 V2] Outdoor Step 2";
 
         private sealed class OutdoorInventory

@@ -4,142 +4,68 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Unity 6000.0.44f1 AR navigation app for Android. Implements a **hybrid indoor/outdoor navigation system** using ARFoundation 6.0 + ARCore 6.0 with Multiset VPS for indoor visual localization. The main scene is `Assets/Scenes/Hybrid Navigation.unity`.
+Unity 6000.3.11f1 AR campus-navigation app (Android, with an iOS runtime guard). The navigation core is **`Assets/ARNavB9V2`**: outdoor GPS guidance that hands over to MultiSet VPS visual localization inside buildings B9 and B10. The single scene in the build is `Assets/ARNavB9V2/Scenes/B9NavigationV2.unity`.
+
+The earlier hybrid indoor/outdoor system (`Assets/Code`, `Hybrid Navigation.unity`, the `HybridModeController` flow, many test scenes) was removed from this branch. It is preserved at the git tag `paper-b9-snapshot` (and branch `paper/merge-indoor-and-outdoor`) if anything has to be recovered.
 
 ## Build & Test Commands
 
-Run from the repo root. `Unity.exe` must be on the system PATH.
+Run from the repo root with the editor version in `ProjectSettings/ProjectVersion.txt`. On macOS the binary is `/Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app/Contents/MacOS/Unity`. Close the Unity editor first: a project can only be open once.
 
-```powershell
+```bash
 # EditMode tests
-Unity.exe -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults Logs/editmode-results.xml -quit
+Unity -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults Logs/editmode-results.xml -logFile -
 
 # PlayMode tests
-Unity.exe -batchmode -nographics -projectPath . -runTests -testPlatform PlayMode -testResults Logs/playmode-results.xml -quit
+Unity -batchmode -nographics -projectPath . -runTests -testPlatform PlayMode -testResults Logs/playmode-results.xml -logFile -
 ```
 
-Open interactively via Unity Hub with editor version `6000.0.44f1`.
+`-nographics` has no GPU, so tests that create a `RenderTexture` fail there (`ApiTransportTests`). Run those from the Test Runner window.
 
-Test files live in `Assets/Tests/EditMode/` and `Assets/Tests/PlayMode/`. Test method naming: `Method_WhenCondition_ExpectedResult`. New feature tests should prioritize navigation logic, API service parsing, and UI routing.
+Tests: `Assets/ARNavB9V2/Tests` (assembly `ARNav.B9V2.EditorTests`: adaptive policy, completion, foundation, handover geometry, outdoor) and `Assets/Tests/Editor/EditMode` (API transport, page factory, UI Toolkit layout). Test method naming: `Method_WhenCondition_ExpectedResult`.
 
 ## Architecture
 
-### Hybrid Mode System
+### Navigation core (`Assets/ARNavB9V2`)
 
-The app has three operational states — **Outdoor**, **Indoor**, and **Off** — orchestrated by `Assets/Code/HybridModeController.cs`.
+Three assemblies, all referencing packages only (never project code): `ARNav.B9V2.Runtime`, `ARNav.B9V2.Editor`, `ARNav.B9V2.EditorTests`. Keep new navigation code inside them.
 
-- **Outdoor mode:** GPS + compass drives XR Origin positioning. ARFoundation plane detection is inactive. Navigation ribbon overlays the ground.
-- **Indoor mode:** Visual localization (SLAM via Multiset SDK) drives tracking. NavMesh pathfinding routes between waypoints.
-- **Transition:** Fade overlay hides the switch. Auto-switching uses configurable thresholds (GPS accuracy < 30 m for 3 s → switch outdoor; localization success for 2 s → switch indoor).
-
-**Critical design decision — XR rig detachment:** The outdoor XR rig is parented _outside_ `OutdoorEnvironment` at runtime so that disabling `IndoorEnvironment` / `OutdoorEnvironment` GameObjects doesn't destroy the shared camera session. `HybridModeController.detachOutdoorXrRigFromEnvironment` controls this.
-
-**Audio enforcement:** `HybridModeController` enforces a single active `AudioListener` on `LateUpdate` — it mutes/unmutes `AudioSource` lists per mode. Do not add extra `AudioListener` components.
-
-**Android permissions:** `HybridModeController` handles the Camera + Location permission flow with a timeout and UI feedback; do not request these permissions elsewhere.
-
-**Inspector tools:** `Assets/Editor/HybridModeControllerEditor.cs` adds Force Indoor / Force Outdoor / Force Off buttons visible in Play mode. `Assets/Editor/HybridModeBatchCheck.cs` runs a scripted transition test from the Unity menu.
-
-### GPS Pipeline
-
-Two GPS tracker implementations exist — prefer the modern one for new work:
-
-| Script | Use |
+| Folder | Role |
 |---|---|
-| `Assets/Code/Navigation/SimpleGPSTracker.cs` | **Current** — north-alignment via compass, NavMesh snapping (8 m radius), calibration offset in `PlayerPrefs` |
-| `Assets/Code/GPSMarker.cs` | **Legacy** — also live; referenced by outdoor HUD and navigation gating |
-| `Assets/Code/MockGPSMarker.cs` | **Optimized variant** — moves XROrigin instead of the map plane (O(1) vs O(N)); use in scenes with large tile counts |
+| `Runtime/Reliability` | `B9ReliableNavigationController` owns the state machine GPS → transition PDR → MultiSet VPS. GPS is frozen at the outer handover volume and VPS takes over after a successful pose. `B9TransitionPdrTracker` is the short-range dead reckoning used between the two. `B9HandoverGateParameters` are the only values adapted at runtime. |
+| `Runtime/Vps` | `B9VpsTransitionController` runs the automatic outdoor → B9 handover. The MultiSet SDK is accessed through reflection (internal API, no public interface); this is intentional. `B9MultisetLocalizationUx` shows the official localization loader. |
+| `Runtime/Handover` | `B9HandoverVolume`, `B9PortalAnchor`, `B9BuildingTransitionGeometry`: measured doorway pairs between campus space and the MultiSet map. |
+| `Runtime/Outdoor` | GPS pose, route (`B9OutdoorRouteController`, `B9RouteRibbonRenderer`), destination anchors, minimap, `B10EntranceGroup`. World X is East and Z is North. |
+| `Runtime/Indoor` | `B9IndoorPoseTracker` fuses AR visual-inertial motion with a step estimate and never moves the XR camera. Also route, minimap, step detector. |
+| `Runtime/Adaptive` | On-device PPO policy ("HARMONY V6") that tunes the gate parameters once per second. Weights: `Resources/ARNavB9V2Policy/b9_handover_policy.json`. |
+| `Runtime/Experiment` | Research logger, exporter and experiment profile for the paper (three-file CSV bundle). |
+| `Runtime/Data`, `Data/Buildings` | ScriptableObject definitions: B9/B10 buildings, outdoor map calibration, destination catalog, indoor NavMesh data. |
+| `Runtime/Scene` | Scene context components, `B9MapVisibility`, `B9IosRuntimeGuard`. |
+| `Runtime/UI`, `UI` | `B9NavigationHud` (UI Toolkit) with `B9NavigationPanelSettings.asset` and its stylesheet `UI Login.uss`. |
 
-`GPSMarker` three-phase processing: quality filter (rejects below `maxAcceptableAccuracy` = 30 m or stale timestamps) → EMA smoothing + jump rejection (discards fixes > 50 m from last accepted position, flagged as `LastFixRejectedAsJump`) → dead reckoning (projects forward at 1.4 m/s via compass when GPS lost > 3 s).
+MultiSet map data (`MAP_*`, `B10_MAP_*` prefabs) lives in `Assets/MultiSet/MapData`. The builders under `Tools/AR Navigation V2/Maps` create and validate the B9/B10 map prefabs, so prefer re-running them over hand edits.
 
-Coordinate conversion: Lat/Lon/Alt → ECEF → ENU (East-North-Up, relative to a fixed reference origin). Both `GPSMarker` and `Assets/Code/Navigation/MapOrigin.cs` implement this — prefer `MapOrigin` for static destination pins and `GPSMarker` for the live user position.
+A duplicate AR Session breaks tracking; `Tools/Fix AR` removes the duplicate one in `OutdoorEnvironment`.
 
-Navigation systems gate on `GPSMarker.HasRecentGoodFix` and `GPSMarker.LastFixRejectedAsJump`. Do not render paths when either condition fails.
+### App shell (`Assets/UI`, `Assets/RestClient`)
 
-### Navigation Rendering
+Login, register, profile, settings, history and chat screens built with Unity UI Toolkit (`.uxml` / `.uss`), one controller per screen. `NavigationManager` is the router, `PageFactory` creates controllers by `PageID`, and `Service/*` plus `APIModel/APIHelper.cs` wrap the REST API through `Assets/RestClient`. No scene in this branch hosts the shell yet; the AR page will be the B9 navigation scene.
 
-Two parallel path-rendering paths exist:
+The shell is being migrated to Unity Canvas (uGUI) on the `ui/canvas-migration` branch: one prefab per screen under `Assets/Game/Bundles/UI/<Name>UI`, shared widgets in `Assets/Game/Scripts/Foundation/UI/Common` (namespace `Game.Foundation.UI`). Follow that layout for new UI.
 
-| Script | Purpose |
-|---|---|
-| `Assets/Code/SetNavigation.cs` | Original NavMesh ribbon mesh (used in `ManScene`) |
-| `Assets/Code/Navigation/ARPathFinder.cs` | AR-aware path finder used in hybrid scene |
+### Editor tooling
 
-`ARPathFinder` samples the NavMesh from the AR camera position, falls back to straight-line geometry when sampling fails, and delegates mesh construction to `Assets/Code/Navigation/NavMeshPathRibbon.cs`. It throttles path updates (0.5 s interval, 0.15 m delta) and uses two-pass sampling (3 m → 24 m radii).
-
-`NavMeshPathRibbon` builds either a single-strip or three-strip ribbon (white borders + colored center) with optional arrow-head geometry and chevron texture tiling. Y is clamped to camera foot level (1.6 m eye-to-foot default).
-
-`HybridOutdoorNavigationRoot.cs` keeps `ARPathFinder` running in both modes but toggles HUD canvases only when mode is Outdoor.
-
-### Indoor Subsystem (`Assets/Code/Indoor/`)
-
-Indoor mode uses Multiset SDK for visual localization. Key components:
-
-- **`IndoorMapSwitcher.cs`** — switches between buildings (B9, B10) via reflection on the Multiset SDK (internal API, no public interface). This is intentional.
-- **`BuildingRegistry.cs` / `BuildingSceneBindings.cs`** — maps `BuildingId` enum values to scene GameObjects.
-- **`IndoorAutoEnterB9.cs`** — detects proximity to B9 and triggers indoor mode automatically.
-- **`IndoorEntryConfirmController.cs`** — confirmation dialog before entering indoor mode.
-- **`MultisetIndoorBootstrap.cs`** — fixes a `NullReferenceException` in the Multiset SDK at runtime; must remain active.
-- **`NavigationControllerSetup.cs`** — adds `SphereCollider` and warps `NavMeshAgent` to satisfy Multiset SDK preconditions.
-
-Do not remove `MultisetIndoorBootstrap` or `NavigationControllerSetup` — they paper over SDK bugs.
-
-### GpsAR Subsystem (`Assets/Code/GpsAR/`)
-
-VPS-integrated GPS anchoring for real-world POI placement:
-
-- **`GpsArBootstrap.cs`** — initializes VPS + GPS anchoring session.
-- **`AnchoredPOI.cs`** — a POI pinned to a real-world GPS coordinate via an AR anchor.
-- **`POIAnchorService.cs`** — lifecycle manager for GPS-anchored POIs.
-
-### POI System
-
-- **`POI.cs`** — data container (id, name, description, type, collider ref, sign ref).
-- **`POICollider.cs`** — trigger that fires when the user arrives at a POI.
-- **`POISign.cs`** — 3D billboard label + clickable sign rendered in AR space.
-- **`DestinationUI/BuildingDestinationListController.cs`** — hierarchical destination picker (buildings → POIs list) rendered with UI Toolkit.
-
-### UI Architecture (`Assets/UI/Scripts/`)
-
-Uses **Unity UI Toolkit** (`.uxml` / `.uss`). One controller class per screen.
-
-- **`NavigationManager.cs`** — central router; fires `OnAREntered` / `OnARExited` events consumed by outdoor HUD controllers.
-- **`PageFactory.cs`** — creates controller instances by screen ID.
-- **`ControllerRouting.cs`** — wires controllers to routes at startup.
-- Controllers: `Assets/UI/Scripts/Controller/` — one file per screen (login, register, profile, settings, history, chat, email/password change flows, onboarding).
-- Services: `Assets/UI/Scripts/Service/` — stateless HTTP wrappers using `APIModel/APIHelper.cs`.
-- `UIRouter.cs` is the legacy router — prefer `NavigationManager` for new screens.
-
-### Key Scenes
-
-| Scene | Focus |
-|---|---|
-| `Hybrid Navigation.unity` | Primary hybrid indoor/outdoor scene |
-| `HybridGPSMap.unity` | Outdoor-only GPS map testing |
-| `ManScene.unity` | Indoor AR / visual localization testing |
-
-## Editor Tooling (`Assets/Editor/`)
-
-31 editor scripts. Key ones to know:
-
-| Script | Purpose |
-|---|---|
-| `HybridModeControllerEditor.cs` | Force Indoor/Outdoor/Off buttons in Play mode Inspector |
-| `HybridModeBatchCheck.cs` | Scripted mode-transition test via Unity menu |
-| `BuildReadinessCheck.cs` | Pre-build validation; run before Android builds |
-| `IndoorBakeNavMeshes.cs` | Bakes NavMesh for all indoor floors |
-| `NavMeshBatchDiagnose.cs` | Diagnoses NavMesh connectivity issues |
-| `HybridArSessionAudit.cs` | Detects duplicate AR Session components (breaks tracking) |
-| `SceneHierarchyDumper.cs` | Prints full hierarchy to console for debugging |
-| `AutoWireReferences.cs` | Auto-assigns serialized fields by type/name conventions |
+- `Tools/AR Navigation V2/*` builders create and update the B9 scene step by step (foundation, outdoor route, VPS handover, indoor navigation, MultiSet UX, reliability, maps). `Step 1`, `Step 2` and `Sync MapB9 + POIs From HybridGPSMap` read the removed reference scene `Assets/Scenes/HybridGPSMap.unity`, so they only run after restoring it from `paper-b9-snapshot`.
+- `Tools/Indoor/*` bakes the B9 NavMesh and fixes map mesh tags; `Tools/Fix AR/*` removes duplicate AR Sessions.
+- `Assets/Editor/PixelPerfectOverlay.cs` overlays a design PNG on a uGUI Canvas in the Scene view (key `1`).
 
 ## Key External Packages
 
-- **`com.multiset.sdk`** — Multiset VPS (visual localization); internal APIs accessed via reflection in `IndoorMapSwitcher`.
-- **`com.unity.xr.arfoundation@6.0.6` + `com.unity.xr.arcore@6.0.6`** — ARFoundation / ARCore.
-- **`com.unity.ai.navigation@2.0.6`** — NavMesh runtime baking.
-- **`com.unity.render-pipelines.universal@17.0.4`** — URP rendering.
-- **`com.gamelovers.mcp-unity`** — MCP-Unity bridge (editor integration).
+- `com.multiset.sdk`: MultiSet VPS visual localization.
+- `com.unity.xr.arfoundation` / `com.unity.xr.arcore` 6.3.3: ARFoundation / ARCore.
+- `com.unity.ai.navigation` 2.0.11: NavMesh runtime and baking.
+- `com.unity.inputsystem` 1.19.0, `com.unity.render-pipelines.universal` 17.3.0 (URP), `com.unity.ugui` 2.0.0.
+- `com.gamelovers.mcp-unity`: MCP bridge for editor integration.
 
 ## Coding Conventions
 
@@ -149,10 +75,10 @@ Uses **Unity UI Toolkit** (`.uxml` / `.uss`). One controller class per screen.
 
 ## Commit Format
 
-`<area>: <action>` — e.g., `gps-marker: fix jump rejection threshold`, `hybrid-mode: add fade transition`.
+`<area>: <action>`, e.g. `b9-reliability: fix handover gate smoothing`, `ui-canvas: add login screen prefab`.
 
-Keep commits atomic: code changes together with related scene/prefab/meta file updates. PRs require summary, changed scenes/prefabs, and test evidence (logs or screenshots). For UI changes include before/after screenshots.
+Keep commits atomic: code changes together with related scene/prefab/meta file updates. PRs require a summary, changed scenes/prefabs and test evidence (logs or screenshots). For UI changes include before/after screenshots.
 
 ## What Not To Edit
 
-Do not commit or modify `Library/`, `Temp/`, or `Logs/` — these are generated by Unity and are gitignored.
+Do not commit or modify `Library/`, `Temp/`, or `Logs/`; they are generated by Unity and are gitignored. Always move assets together with their `.meta` file so GUID references survive.
