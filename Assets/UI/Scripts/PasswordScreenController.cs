@@ -3,17 +3,8 @@ using UnityEngine.UIElements;
 
 public class PasswordScreenController : MonoBehaviour
 {
-    private static bool IsForceIndoorTestMode()
-    {
-        var hybrid = FindFirstObjectByType<HybridModeController>(FindObjectsInactive.Include);
-        return hybrid != null && hybrid.ForceIndoorTestModeEnabled;
-    }
-
     private void OnEnable()
     {
-        // Trong indoor test mode, không cần bind password toggle.
-        if (IsForceIndoorTestMode()) return;
-
         var root = GetComponent<UIDocument>().rootVisualElement;
 
         // --- Cặp 1: Mật khẩu cũ ---
