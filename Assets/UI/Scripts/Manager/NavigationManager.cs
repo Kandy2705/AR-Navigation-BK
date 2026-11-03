@@ -83,7 +83,13 @@ public class NavigationManager : MonoBehaviour
         HideAllCanvasPagesImmediate();
         currentCanvasPage = null;
 
-        if(mainDocument == null) return;
+        if (mainDocument == null)
+        {
+            // Canvas-only shell (no UI Toolkit document): nothing to prepare, just open the first page.
+            if (canvasPageSources.Count > 0 && firstPage != PageID.None) Navigate(firstPage);
+            OnARExited?.Invoke();
+            return;
+        }
         rootContainer = mainDocument.rootVisualElement.Q<VisualElement>("RootContainer");
 
         // Reset state khi GameObject được kích hoạt lại (ví dụ quay về từ AR scene).
@@ -129,6 +135,12 @@ public class NavigationManager : MonoBehaviour
         // Thông báo outdoor nav nên ẩn khi MainScreen đang active.
         // Lúc khởi động đầu tiên chưa ai subscribe nên hoàn toàn an toàn.
         OnARExited?.Invoke();
+    }
+
+    /// <summary>True when a page (Canvas or UI Toolkit) is registered for this id.</summary>
+    public bool HasRoute(PageID pageID)
+    {
+        return canvasPageSources.ContainsKey(pageID) || (pageDict != null && pageDict.ContainsKey(pageID));
     }
 
     public PageID PreviousPage()

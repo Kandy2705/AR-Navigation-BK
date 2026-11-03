@@ -17,10 +17,37 @@ namespace Game.Foundation.UI.EditorTools
         public const string CircleSprite = CommonArts + "/ui_circle.png";
         public const string AppCanvasPrefab = CommonPrefabs + "/AppCanvas.prefab";
 
+        public const string ShellScene = "Assets/Game/Bundles/Scenes/AppShell.unity";
+
+        /// <summary>Rendered page previews land here (Logs/ is git-ignored).</summary>
+        public const string PreviewFolder = "Logs/UiPreview";
+
+        public static string ScreenPrefab(string screenName)
+        {
+            return UiBundles + "/" + screenName + "/Prefabs/" + screenName + ".prefab";
+        }
+
+        public static string CommonArt(string fileName)
+        {
+            return CommonArts + "/" + fileName;
+        }
+
+        public static string ScreenArt(string screenName, string fileName)
+        {
+            return UiBundles + "/" + screenName + "/Arts/" + fileName;
+        }
+
         /// <summary>Source TTFs imported by the legacy UI Toolkit screens.</summary>
         public const string PoppinsSourceFolder = "Assets/UI/Fonts";
 
         public const string TmpFallbackFont = "Assets/Plugins/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset";
+
+        /// <summary>Our own Liberation fallback (covers the Vietnamese letters Poppins lacks), built with the standard SDF shader.</summary>
+        public const string FallbackSourceTtf = "Assets/Plugins/TextMesh Pro/Fonts/LiberationSans.ttf";
+        public const string FallbackFontAsset = Fonts + "/LiberationSans-Fallback SDF.asset";
+
+        /// <summary>Used instead of TMP's Android default (Mobile/Distance Field), which draws a smeared foot under glyphs.</summary>
+        public const string SdfShaderName = "TextMeshPro/Distance Field";
 
         public static readonly string[] PoppinsWeights = { "Regular", "Medium", "SemiBold", "Bold" };
 

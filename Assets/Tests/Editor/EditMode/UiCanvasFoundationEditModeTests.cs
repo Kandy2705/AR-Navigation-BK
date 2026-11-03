@@ -20,9 +20,15 @@ namespace TestAR.Tests.Editor.EditMode
         private const string SetupHint = " — run Tools/UI Canvas/Run Phase 0 Setup";
 
         [Test]
-        public void UiTheme_Primary_MatchesLegacyUssButtonColor()
+        public void UiTheme_Primary_MatchesFigmaButtonColor()
         {
-            Assert.AreEqual(UiTheme.Hex("#403285"), UiTheme.Primary);
+            Assert.AreEqual(UiTheme.Hex("#3B3189"), UiTheme.Primary);
+        }
+
+        [Test]
+        public void UiTheme_Background_MatchesFigmaFrameColor()
+        {
+            Assert.AreEqual(UiTheme.Hex("#191919"), UiTheme.Background);
         }
 
         [Test]
@@ -63,6 +69,22 @@ namespace TestAR.Tests.Editor.EditMode
             Assert.NotNull(font, "Poppins-" + weight + " SDF" + SetupHint);
             Assert.AreEqual(TMPro.AtlasPopulationMode.Dynamic, font.atlasPopulationMode);
             Assert.IsNotEmpty(font.fallbackFontAssetTable, "Poppins lacks most Vietnamese vowels; a fallback is required");
+        }
+
+        // TextMeshPro/Mobile/Distance Field (TMP's default for Android targets) draws a smeared foot under every glyph.
+        [TestCase("Regular")]
+        [TestCase("Medium")]
+        [TestCase("SemiBold")]
+        [TestCase("Bold")]
+        public void PoppinsFont_WhenGenerated_UsesStandardSdfShaderAlsoForItsFallback(string weight)
+        {
+            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(UiCanvasPaths.PoppinsFontAsset(weight));
+            Assert.NotNull(font, "Poppins-" + weight + " SDF" + SetupHint);
+            Assert.AreEqual(UiCanvasPaths.SdfShaderName, font.material.shader.name, "Poppins " + weight);
+
+            TMP_FontAsset fallback = font.fallbackFontAssetTable[0];
+            Assert.AreEqual(UiCanvasPaths.SdfShaderName, fallback.material.shader.name,
+                "fallback glyphs (Vietnamese vowels) are drawn with the fallback's own material");
         }
 
         [Test]

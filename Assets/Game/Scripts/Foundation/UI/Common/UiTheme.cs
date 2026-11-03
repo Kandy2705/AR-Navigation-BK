@@ -14,13 +14,17 @@ namespace Game.Foundation.UI
         public const float PillHeight = 48f;
         public const float CornerRadius = 24f;
 
-        public static readonly Color Background = Hex("#1A1A1A");
+        // Phase 1 values are read straight from the Figma exports (raw sRGB pixels of the Splash and
+        // Welcome frames); the rest still comes from the legacy USS until its screen is migrated.
+        public static readonly Color Background = Hex("#191919");
         public static readonly Color BackgroundDeep = Hex("#121212");
-        public static readonly Color Surface = Hex("#2C2C2E");
+        public static readonly Color Surface = Hex("#2B2B2B");
         public static readonly Color SurfaceAlt = Hex("#1C1C1E");
-        public static readonly Color Primary = Hex("#403285");
+        public static readonly Color Primary = Hex("#3B3189");
         public static readonly Color Accent = Hex("#5E5CE6");
         public static readonly Color TextPrimary = Color.white;
+        public static readonly Color TextTitle = Hex("#F3F3F3");
+        public static readonly Color TextBody = Hex("#C4C4C4");
         public static readonly Color TextSecondary = Hex("#8E8E93");
 
         /// <summary>Approximate, read off the "Xóa chỉ đường" / delete swipe in the mockup. Refine when those screens land.</summary>

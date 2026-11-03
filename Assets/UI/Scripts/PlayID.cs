@@ -17,6 +17,7 @@ public enum PageID
     PasswordChangeForm,
     WelcomePage,
     OTPPage,
-    PasswordConfirm
+    PasswordConfirm,
+    SplashPage      // appended last so serialized values of the existing pages do not shift
 
 }
