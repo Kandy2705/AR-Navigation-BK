@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Foundation.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -6,6 +7,9 @@ using UnityEngine.UIElements;
 public struct PageRoute{
     public PageID id;
     public VisualTreeAsset asset;
+    /// <summary>Canvas (uGUI) version of this page. When set it takes precedence over <see cref="asset"/>.
+    /// Either a scene instance or a prefab asset (instantiated under <c>canvasPageContainer</c> on first use).</summary>
+    public UiPage canvasPage;
 }
 
 public class NavigationManager : MonoBehaviour
@@ -20,6 +24,16 @@ public class NavigationManager : MonoBehaviour
     public UIDocument mainDocument;
     public List<PageRoute> pages;
     public GameObject ARPageObject;
+
+    [Header("Canvas UI (migration from UI Toolkit)")]
+    [Tooltip("AppCanvas instance. Shown together with this manager and hidden when entering AR.")]
+    [SerializeField] private GameObject canvasRoot;
+    [Tooltip("Parent for canvas page prefabs that are not scene instances (AppCanvas/Pages).")]
+    [SerializeField] private RectTransform canvasPageContainer;
+    private readonly Dictionary<PageID, UiPage> canvasPageSources = new Dictionary<PageID, UiPage>();
+    private readonly Dictionary<PageID, UiPage> canvasPageInstances = new Dictionary<PageID, UiPage>();
+    private UiPage currentCanvasPage;
+
     [SerializeField] private HybridModeController hybridModeController;
     [SerializeField] private bool keepARPageDisabledOnStart = true;
     private VisualElement rootContainer;
@@ -49,14 +63,27 @@ public class NavigationManager : MonoBehaviour
         }
 
         pageDict = new Dictionary<PageID, VisualTreeAsset>();
+        canvasPageSources.Clear();
         foreach(var page in pages)
         {
+            if (page.canvasPage != null)
+            {
+                if (!canvasPageSources.ContainsKey(page.id)) canvasPageSources.Add(page.id, page.canvasPage);
+                continue;
+            }
+
             if (!pageDict.ContainsKey(page.id)) pageDict.Add(page.id, page.asset);
         }
     }
 
     void OnEnable()
     {
+        // Returning from AR re-enables this manager: bring the canvas back and drop stale pages,
+        // otherwise the previous page stays on screen under the one Navigate() shows.
+        if (canvasRoot != null) canvasRoot.SetActive(true);
+        HideAllCanvasPagesImmediate();
+        currentCanvasPage = null;
+
         if(mainDocument == null) return;
         rootContainer = mainDocument.rootVisualElement.Q<VisualElement>("RootContainer");
 
@@ -121,26 +148,32 @@ public class NavigationManager : MonoBehaviour
 
     public void Navigate(PageID pageID, bool isBack = false)
     {
+        if (canvasPageSources.ContainsKey(pageID))
+        {
+            NavigateToCanvasPage(pageID, isBack);
+            return;
+        }
+
         if (!pageDict.ContainsKey(pageID))
         {
             Debug.LogError($"Missing UXML for: {pageID}");
             return;
         }
 
+        // A UI Toolkit page replaces whatever canvas page is on screen.
+        if (currentCanvasPage != null)
+        {
+            currentCanvasPage.Hide(isBack);
+            currentCanvasPage = null;
+        }
+
         // Cập nhật UI Document
         VisualTreeAsset asset = pageDict[pageID];
         VisualElement newPage = asset.Instantiate();
-        
+
         SetupPageLayout(newPage, isBack);
 
-        if(isBack){
-            if(pageID == PageID.HistoryPage) pageHistory.Push(pageID);
-            else pageHistory.Pop();
-        }
-        else
-        {
-            pageHistory.Push(pageID);
-        }
+        UpdateHistory(pageID, isBack);
 
         IPageController controller = PageFactory.GetController(pageID);
         controller.Initialize(newPage, this);
@@ -164,6 +197,77 @@ public class NavigationManager : MonoBehaviour
         HandleTransition(newPage, isBack);
     }
 
+    private static void UpdateHistory(PageID pageID, bool isBack)
+    {
+        if(isBack){
+            if(pageID == PageID.HistoryPage) pageHistory.Push(pageID);
+            else pageHistory.Pop();
+        }
+        else
+        {
+            pageHistory.Push(pageID);
+        }
+    }
+
+    private void NavigateToCanvasPage(PageID pageID, bool isBack)
+    {
+        UiPage page = ResolveCanvasPage(pageID);
+        if (page == null) return;
+
+        UpdateHistory(pageID, isBack);
+
+        // Drop the UI Toolkit page. The shared nav bar is still UI Toolkit, so keep it hidden
+        // until the canvas nav bar replaces it.
+        if (currentPageElement != null)
+        {
+            currentPageElement.RemoveFromHierarchy();
+            currentPageElement = null;
+        }
+        if (_navBar != null) _navBar.SetVisible(false);
+
+        if (currentCanvasPage != null && currentCanvasPage != page) currentCanvasPage.Hide(isBack);
+        page.Show(isBack);
+        currentCanvasPage = page;
+
+        Debug.Log($"Đang mở trang (canvas): {pageID}");
+    }
+
+    private UiPage ResolveCanvasPage(PageID pageID)
+    {
+        if (canvasPageInstances.TryGetValue(pageID, out UiPage instance) && instance != null) return instance;
+        if (!canvasPageSources.TryGetValue(pageID, out UiPage source) || source == null) return null;
+
+        instance = source;
+        if (!source.gameObject.scene.IsValid())
+        {
+            // Prefab asset: instantiate once under AppCanvas/Pages and keep it for reuse.
+            if (canvasPageContainer == null)
+            {
+                Debug.LogError($"[NavigationManager] canvasPageContainer is not assigned; cannot create canvas page {pageID}.");
+                return null;
+            }
+
+            instance = Instantiate(source, canvasPageContainer, false);
+            instance.gameObject.SetActive(false);
+        }
+
+        instance.Attach(this);
+        canvasPageInstances[pageID] = instance;
+        return instance;
+    }
+
+    private void HideAllCanvasPagesImmediate()
+    {
+        // Only touch pages that already exist; prefab pages are instantiated lazily by ResolveCanvasPage.
+        foreach (var entry in canvasPageSources)
+        {
+            UiPage page = entry.Value.gameObject.scene.IsValid()
+                ? entry.Value
+                : (canvasPageInstances.TryGetValue(entry.Key, out UiPage created) ? created : null);
+            if (page != null && page.gameObject.activeSelf) page.HideImmediate();
+        }
+    }
+
     private void SetupPageLayout(VisualElement page, bool isBack)
     {
         string initialClass = isBack ? "page-left" : "page-right";
@@ -185,6 +289,7 @@ public class NavigationManager : MonoBehaviour
         ARPageObject.SetActive(true);
         ApplyHybridInitialMode();
         OnAREntered?.Invoke();   // Thông báo để outdoor nav có thể hiện ra
+        if (canvasRoot != null) canvasRoot.SetActive(false);
         gameObject.SetActive(false);
     }
 
