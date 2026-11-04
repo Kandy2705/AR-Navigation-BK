@@ -2,7 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using Game.Features.Auth;
+using Game.Features.Chat;
+using Game.Features.Home;
+using Game.Features.Settings;
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -31,12 +35,39 @@ namespace Game.Foundation.UI.EditorTools
             }
 
             Directory.CreateDirectory(UiCanvasPaths.PreviewFolder);
+            IChatApi realChat = ChatServices.Api;
+            string realProfile = PlayerPrefs.GetString(AppConst.KEY_CACHE, string.Empty);
+            bool hadProfile = PlayerPrefs.HasKey(AppConst.KEY_CACHE);
+            ChatServices.Api = new SampleChatApi();
+            PlayerPrefs.SetString(AppConst.KEY_CACHE, "{\"email\":\"kandy@example.com\",\"name\":\"Kandy\",\"phone\":\"04384983483\",\"gender\":\"Nữ\",\"birthday\":\"2004-05-27T00:00:00.000Z\"}");
+            try
+            {
+                RenderEverything();
+            }
+            finally
+            {
+                // Previews must not leave the sample data behind: the profile cache is the signed-in user's.
+                ChatServices.Api = realChat;
+                ChatState.Clear();
+                if (hadProfile)
+                {
+                    PlayerPrefs.SetString(AppConst.KEY_CACHE, realProfile);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(AppConst.KEY_CACHE);
+                }
+            }
+        }
+
+        private static void RenderEverything()
+        {
             foreach (UiCanvasShellRoutes.Route route in UiCanvasShellRoutes.All)
             {
                 // 812 is the Figma frame; 667 is an iPhone SE / 16:9 screen (width stays 375); 900 is a tall phone.
                 foreach (float height in new[] { 667f, 812f, 900f })
                 {
-                    Render(route.Screen, height);
+                    Render(route.Screen, height, IsLive(route.Screen) ? Live() : null);
                 }
             }
 
@@ -48,7 +79,116 @@ namespace Game.Foundation.UI.EditorTools
                 Render(UiCanvasRegisterBuilder.CreatePasswordName, height, ShowOverlay(CreatePasswordUI.SuccessTitle, CreatePasswordUI.SuccessMessage), "success");
                 Render(UiCanvasRegisterBuilder.RegisterName, height, ShowGenderSheet, "gender");
                 Render(UiCanvasRegisterBuilder.RegisterName, height, ShowBirthdaySheet, "birthday");
+
+                Render(UiCanvasHomeBuilder.ArHudName, height, Live(page => page.GetComponent<ArHudUI>().SetDestination("Tòa A4")), "route");
+                Render(UiCanvasHomeBuilder.HistoryName, height, Live(page =>
+                    page.GetComponentInChildren<UiModal>(true).Show(HistoryUI.DeleteAllTitle, HistoryUI.DeleteAllMessage, "Xóa", "Hủy")), "delete-all");
+                Render(UiCanvasHomeBuilder.HistoryName, height, Live(page =>
+                    page.GetComponentsInChildren<UiSwipeRow>()[4].Open()), "swiped");
+                Render(UiCanvasHomeBuilder.SearchName, height, Live(page => TypeQuery(page, "toa")), "results");
+                Render(UiCanvasHomeBuilder.SearchName, height, Live(page => TypeQuery(page, "burger")), "empty");
+                Render(UiCanvasSettingsBuilder.SettingsName, height, Live(page =>
+                {
+                    var modal = page.GetComponentInChildren<UiModal>(true);
+                    modal.SetTitleColor(UiTheme.DangerText);
+                    modal.Show(SettingsUI.LogoutTitle, SettingsUI.LogoutMessage, SettingsUI.LogoutTitle, "Hủy");
+                }), "logout");
+                Render(UiCanvasSettingsBuilder.SupportCenterName, height, Live(page =>
+                    page.GetComponentsInChildren<UiAccordionItem>()[1].SetOpen(true)), "open");
+                Render(UiCanvasSettingsBuilder.ChangePasswordName, height, ShowOverlay(ChangePasswordUI.SuccessTitle, ChangePasswordUI.SuccessMessage), "success");
             }
+        }
+
+        private static bool IsLive(string screen)
+        {
+            return screen == UiCanvasHomeBuilder.ArHudName || screen == UiCanvasHomeBuilder.HistoryName
+                || screen == UiCanvasHomeBuilder.ChatName || screen == UiCanvasHomeBuilder.SearchName
+                || screen == UiCanvasSettingsBuilder.SettingsName || screen == UiCanvasSettingsBuilder.ProfileName
+                || screen == UiCanvasSettingsBuilder.SupportCenterName || screen == UiCanvasSettingsBuilder.ContactName;
+        }
+
+        /// <summary>
+        /// Runs Awake (edit mode does not) and shows the page, so lists and fields are filled from the sample data;
+        /// then applies <paramref name="extra"/>.
+        /// </summary>
+        private static Action<GameObject> Live(Action<GameObject> extra = null)
+        {
+            return root =>
+            {
+                foreach (MonoBehaviour behaviour in root.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    if (behaviour != null && behaviour.GetType().Namespace != null && behaviour.GetType().Namespace.StartsWith("Game."))
+                    {
+                        MethodInfo awake = behaviour.GetType().GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                        awake?.Invoke(behaviour, null);
+                    }
+                }
+
+                var page = root.GetComponent<UiPage>();
+                if (root.GetComponent<SearchUI>() != null)
+                {
+                    new SampleChatApi().GetHistories(items => ChatState.Histories = items, null);
+                }
+
+                if (root.GetComponent<ChatUI>() != null)
+                {
+                    ChatState.Current = SampleChatApi.Conversation();
+                }
+
+                page.Show();
+                extra?.Invoke(root);
+            };
+        }
+
+        private static void TypeQuery(GameObject page, string query)
+        {
+            page.GetComponentInChildren<TMP_InputField>(true).text = query;
+        }
+
+        private sealed class SampleChatApi : IChatApi
+        {
+            private static readonly string[] Titles =
+            {
+                "Tòa A4", "Thông tin về tòa OISP", "Tòa A4", "Tòa A4",
+                "Thông tin chi tiết về tòa OISP, chỗ hỏi, chỗ hỏi, chỗ hỏi, chỗ hỏi, chỗ hỏi",
+            };
+
+            public static ChatHistoryItem Conversation()
+            {
+                const string answer = "Đây là dữ liệu mà tôi biết và sau đây là câu trả lời";
+                return new ChatHistoryItem
+                {
+                    id = "sample",
+                    header = "Tòa A$",
+                    messages = new List<ChatMessage>
+                    {
+                        ChatMessages.FromUser("Lịch sử hình thành của tòa B4 đi."),
+                        new ChatMessage { contact_person = "assistant", content = answer },
+                        new ChatMessage { contact_person = "assistant", content = answer },
+                        ChatMessages.FromUser(answer),
+                        new ChatMessage { contact_person = "assistant", content = answer },
+                    },
+                };
+            }
+
+            public void GetHistories(Action<List<ChatHistoryItem>> onSuccess, Action<long, string> onError)
+            {
+                var items = new List<ChatHistoryItem>();
+                for (int i = 0; i < Titles.Length; i++)
+                {
+                    items.Add(new ChatHistoryItem { id = "s" + i, header = Titles[i], create_date = "2024-03-08T03:23:00" });
+                }
+
+                onSuccess(items);
+            }
+
+            public void CreateHistory(string header, Action<ChatHistoryItem> onSuccess, Action<long, string> onError) { }
+
+            public void DeleteHistory(string historyId, Action onSuccess, Action<long, string> onError) { }
+
+            public void GetMessages(string historyId, Action<List<ChatMessage>> onSuccess, Action<long, string> onError) { }
+
+            public void Send(string content, string historyId, Action<ChatMessage> onSuccess, Action<long, string> onError) { }
         }
 
         private static Action<GameObject> ShowOverlay(string title, string message)

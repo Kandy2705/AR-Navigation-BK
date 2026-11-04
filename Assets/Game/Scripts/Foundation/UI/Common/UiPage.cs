@@ -96,6 +96,19 @@ namespace Game.Foundation.UI
             }
         }
 
+        /// <summary>Opens another page when it is in the router; logs instead of failing while a screen is not available.</summary>
+        protected void OpenPage(PageID target)
+        {
+            if (Navigation != null && Navigation.HasRoute(target))
+            {
+                Navigation.Navigate(target);
+            }
+            else
+            {
+                Debug.Log($"[{GetType().Name}] {target} screen is not available.");
+            }
+        }
+
         protected virtual void OnShow() { }
 
         protected virtual void OnHide() { }

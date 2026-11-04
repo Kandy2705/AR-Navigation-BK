@@ -75,6 +75,22 @@ namespace TestAR.Tests.Editor.EditMode
             return page;
         }
 
+        /// <summary>
+        /// Runs Awake on scripts under <paramref name="target"/>. Edit mode does not do it for clones a screen makes
+        /// while it runs (list rows, FAQ items), so tests wake those before tapping them.
+        /// </summary>
+        public static void Wake(GameObject target)
+        {
+            foreach (MonoBehaviour behaviour in target.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (behaviour != null && behaviour.GetType().Namespace != null && behaviour.GetType().Namespace.StartsWith("Game."))
+                {
+                    MethodInfo awake = behaviour.GetType().GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                    awake?.Invoke(behaviour, null);
+                }
+            }
+        }
+
         public T Find<T>(string path) where T : Component
         {
             Transform child = Root.transform.Find(path);

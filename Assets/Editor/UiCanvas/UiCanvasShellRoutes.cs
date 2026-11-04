@@ -26,6 +26,16 @@ namespace Game.Foundation.UI.EditorTools
             new Route { Id = PageID.EmailChangeForm, Screen = UiCanvasAuthBuilder.ForgotEmailName },
             new Route { Id = PageID.OTPPage, Screen = UiCanvasAuthBuilder.OtpName },
             new Route { Id = PageID.PasswordChangeForm, Screen = UiCanvasAuthBuilder.NewPasswordName },
+            new Route { Id = PageID.ARPage, Screen = UiCanvasHomeBuilder.ArHudName },
+            new Route { Id = PageID.HistoryPage, Screen = UiCanvasHomeBuilder.HistoryName },
+            new Route { Id = PageID.Chatbox, Screen = UiCanvasHomeBuilder.ChatName },
+            new Route { Id = PageID.SearchPage, Screen = UiCanvasHomeBuilder.SearchName },
+            new Route { Id = PageID.MainSettings, Screen = UiCanvasSettingsBuilder.SettingsName },
+            new Route { Id = PageID.Profile, Screen = UiCanvasSettingsBuilder.ProfileName },
+            new Route { Id = PageID.EmailChange, Screen = UiCanvasSettingsBuilder.ChangeEmailName },
+            new Route { Id = PageID.PasswordChange, Screen = UiCanvasSettingsBuilder.ChangePasswordName },
+            new Route { Id = PageID.SupportCenter, Screen = UiCanvasSettingsBuilder.SupportCenterName },
+            new Route { Id = PageID.Contact, Screen = UiCanvasSettingsBuilder.ContactName },
         };
     }
 }

@@ -116,6 +116,13 @@ namespace Game.Features.Auth
 
         private void OpenHome()
         {
+            // The AR page is the app's home: it becomes the bottom of the history so Back never returns to Login.
+            if (Navigation != null && Navigation.HasRoute(PageID.ARPage))
+            {
+                Navigation.ResetTo(PageID.ARPage);
+                return;
+            }
+
             if (!Open(PageID.MainSettings))
             {
                 successOverlay.Hide();

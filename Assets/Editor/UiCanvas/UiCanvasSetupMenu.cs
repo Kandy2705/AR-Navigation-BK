@@ -7,6 +7,23 @@ namespace Game.Foundation.UI.EditorTools
     /// <summary>One-click regeneration of the Canvas UI assets; every step is idempotent.</summary>
     public static class UiCanvasSetupMenu
     {
+        [MenuItem("Tools/UI Canvas/Run Phase 4-7 Setup")]
+        public static void RunPhase4To7()
+        {
+            if (IsPlaying("Phase 4-7 setup"))
+            {
+                return;
+            }
+
+            // Icons come first: every new screen loads them. The earlier screens are not rebuilt (that renumbers every
+            // fileID in their prefabs); run Phase 2/3 Setup if one of them has to change.
+            UiCanvasIconGenerator.Generate();
+            UiCanvasHomeBuilder.Build();
+            UiCanvasSettingsBuilder.Build();
+            UiCanvasShellSceneBuilder.Build();
+            UiCanvasPreviewRenderer.RenderAll();
+        }
+
         [MenuItem("Tools/UI Canvas/Run Phase 3 Setup")]
         public static void RunPhase3()
         {

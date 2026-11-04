@@ -22,7 +22,7 @@ Unity -batchmode -nographics -projectPath . -runTests -testPlatform PlayMode -te
 
 `-nographics` has no GPU, so tests that create a `RenderTexture` fail there (`ApiTransportTests`). Run those from the Test Runner window.
 
-Tests: `Assets/ARNavB9V2/Tests` (assembly `ARNav.B9V2.EditorTests`: adaptive policy, completion, foundation, handover geometry, outdoor) and `Assets/Tests/Editor/EditMode` (API transport, page factory, UI Toolkit layout). Test method naming: `Method_WhenCondition_ExpectedResult`.
+Tests: `Assets/ARNavB9V2/Tests` (assembly `ARNav.B9V2.EditorTests`: adaptive policy, completion, foundation, handover geometry, outdoor) and `Assets/Tests/Editor/EditMode` (API transport, router, and one `UiCanvas*EditModeTests` class per phase, driven through `PageHarness`). Test method naming: `Method_WhenCondition_ExpectedResult`.
 
 ## Architecture
 
@@ -47,15 +47,18 @@ MultiSet map data (`MAP_*`, `B10_MAP_*` prefabs) lives in `Assets/MultiSet/MapDa
 
 A duplicate AR Session breaks tracking; `Tools/Fix AR` removes the duplicate one in `OutdoorEnvironment`.
 
-### App shell (`Assets/UI`, `Assets/RestClient`)
+### App shell (`Assets/Game`)
 
-Login, register, profile, settings, history and chat screens built with Unity UI Toolkit (`.uxml` / `.uss`), one controller per screen. `NavigationManager` is the router, `PageFactory` creates controllers by `PageID`, and `Service/*` plus `APIModel/APIHelper.cs` wrap the REST API through `Assets/RestClient`. No scene in this branch hosts the shell yet; the AR page will be the B9 navigation scene.
+The whole app shell is Unity Canvas (uGUI); the UI Toolkit shell (`Assets/UI`: UXML, USS, controllers) was removed. One prefab per screen under `Assets/Game/Bundles/UI/<Name>UI/Prefabs`, shared prefabs (`AppCanvas`, `BottomNav`, `ConfirmSheet`, `BusyOverlay`, `StatusOverlay`, `PickerSheet`) and generated sprites in `Bundles/UI/Common`, scene `Bundles/Scenes/AppShell.unity`.
 
-The shell is being migrated to Unity Canvas (uGUI) on the `ui/canvas-migration` branch: one prefab per screen under `Assets/Game/Bundles/UI/<Name>UI`, shared widgets in `Assets/Game/Scripts/Foundation/UI/Common` (namespace `Game.Foundation.UI`). Follow that layout for new UI.
+- `Scripts/Foundation/UI/NavigationManager.cs` is the router (global class): history stack, `Navigate`, `GoBack`, `NavigateFrom`, `ReturnTo`, `ResetTo`. `PageID.cs` lists the pages. `UiPage` is the base of every screen; `Common/` holds the shared widgets (namespace `Game.Foundation.UI`).
+- `Scripts/Features/<Feature>`: `Auth` (login, forgot password, OTP, register), `Onboarding`, `Home` (`ArHudUI`, the overlay for the AR page), `Chat` (history, search, chat), `Settings` (settings, profile, change email/password, support, contact). Backend access is behind interfaces held in static holders (`AuthServices`, `ChatServices`, `AccountServices`) so tests swap them. `Scripts/Foundation/Net/ApiHelper.cs` and `Assets/RestClient` are the HTTP layer.
+- The AppShell scene is not in the build yet: the AR page (`ArHudUI`) is a transparent overlay, but nothing loads `B9NavigationV2` underneath it or hides the UI Toolkit `B9NavigationHud`. That integration needs a device run.
 
 ### Editor tooling
 
 - `Tools/AR Navigation V2/*` builders create and update the B9 scene step by step (foundation, outdoor route, VPS handover, indoor navigation, MultiSet UX, reliability, maps). `Step 1`, `Step 2` and `Sync MapB9 + POIs From HybridGPSMap` read the removed reference scene `Assets/Scenes/HybridGPSMap.unity`, so they only run after restoring it from `paper-b9-snapshot`.
+- `Tools/UI Canvas/*` (`Assets/Editor/UiCanvas`) generates the sprites, icons, fonts and every screen prefab and the AppShell scene; `Run Phase N Setup` runs a stage and renders previews to `Logs/UiPreview`. Do not re-run an earlier phase unless that screen has to change: a rebuild renumbers every fileID in its prefabs. `UiCanvasBatch.BuildAll` is the batch-mode entry (no previews: they need a GPU).
 - `Tools/Indoor/*` bakes the B9 NavMesh and fixes map mesh tags; `Tools/Fix AR/*` removes duplicate AR Sessions.
 - `Assets/Editor/PixelPerfectOverlay.cs` overlays a design PNG on a uGUI Canvas in the Scene view (key `1`).
 

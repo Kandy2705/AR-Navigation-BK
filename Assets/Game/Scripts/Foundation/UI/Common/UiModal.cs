@@ -55,6 +55,17 @@ namespace Game.Foundation.UI
             gameObject.SetActive(true);
         }
 
+        /// <summary>Colors the title (red for "Đăng xuất"); reset to the theme title color by passing null.</summary>
+        public void SetTitleColor(Color? color)
+        {
+            if (titleLabel != null)
+            {
+                titleLabel.color = color ?? UiTheme.TextTitle;
+            }
+        }
+
+        public bool IsVisible => gameObject.activeSelf;
+
         public void Hide()
         {
             gameObject.SetActive(false);

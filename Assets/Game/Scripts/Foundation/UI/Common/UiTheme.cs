@@ -42,6 +42,15 @@ namespace Game.Foundation.UI
         /// <summary>Approximate, read off the "Xóa chỉ đường" / delete swipe in the mockup. Refine when those screens land.</summary>
         public static readonly Color Danger = Hex("#E5484D");
 
+        // Phase 4+ (home, history, settings), sampled from the thesis mockups (Hình 6.7 - 6.10).
+        public static readonly Color NavActive = Hex("#3B3189");
+        public static readonly Color ChipText = Hex("#8A8A8A");
+        public static readonly Color ChipBorder = Hex("#9A9A9A");
+        public static readonly Color DangerText = Hex("#F2585C");
+        public static readonly Color SwipeDelete = Hex("#FF6B6B");
+        public static readonly Color BubbleUser = Hex("#3B3189");
+        public static readonly Color BubbleBot = Hex("#2B2B2B");
+
         public static Color Hex(string hex)
         {
             return ColorUtility.TryParseHtmlString(hex, out var color) ? color : Color.magenta;

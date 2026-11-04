@@ -74,6 +74,12 @@ namespace Game.Foundation.UI
 
         public bool IsEmpty => string.IsNullOrEmpty(input.text);
 
+        /// <summary>Shows the value but does not let the user edit it (profile fields the backend cannot update yet).</summary>
+        public void SetReadOnly(bool readOnly)
+        {
+            input.readOnly = readOnly;
+        }
+
         public void Focus()
         {
             input.ActivateInputField();
