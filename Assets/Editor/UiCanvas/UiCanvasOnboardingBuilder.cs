@@ -47,8 +47,7 @@ namespace Game.Foundation.UI.EditorTools
             BuildWelcome();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            BuildShellScene();
-            Debug.Log("[UiCanvas] Onboarding prefabs and " + UiCanvasPaths.ShellScene + " built");
+            Debug.Log("[UiCanvas] Onboarding prefabs built");
         }
 
         private static void BuildSplash()
@@ -140,44 +139,6 @@ namespace Game.Foundation.UI.EditorTools
             SetReference(page, "registerButton", register);
 
             SavePrefab(page.gameObject, WelcomeName);
-        }
-
-        private static void BuildShellScene()
-        {
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-
-            var cameraGo = new GameObject("Main Camera", typeof(Camera)) { tag = "MainCamera" };
-            var camera = cameraGo.GetComponent<Camera>();
-            camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = UiTheme.Background;
-
-            var canvasPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(UiCanvasPaths.AppCanvasPrefab);
-            var canvas = (GameObject)PrefabUtility.InstantiatePrefab(canvasPrefab);
-            var pages = (RectTransform)canvas.transform.Find(UiCanvasPrefabBuilder.PagesName);
-
-            var navigationGo = new GameObject("NavigationManager");
-            var navigation = navigationGo.AddComponent<NavigationManager>();
-
-            var serialized = new SerializedObject(navigation);
-            SerializedProperty routes = serialized.FindProperty("pages");
-            routes.arraySize = 3;
-            SetRoute(routes.GetArrayElementAtIndex(0), PageID.SplashPage, SplashName);
-            SetRoute(routes.GetArrayElementAtIndex(1), PageID.Onboarding, IntroName);
-            SetRoute(routes.GetArrayElementAtIndex(2), PageID.WelcomePage, WelcomeName);
-            serialized.FindProperty("firstPage").enumValueIndex = (int)PageID.SplashPage;
-            serialized.FindProperty("canvasRoot").objectReferenceValue = canvas;
-            serialized.FindProperty("canvasPageContainer").objectReferenceValue = pages;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
-
-            Directory.CreateDirectory(Path.GetDirectoryName(UiCanvasPaths.ShellScene));
-            EditorSceneManager.SaveScene(scene, UiCanvasPaths.ShellScene);
-        }
-
-        private static void SetRoute(SerializedProperty route, PageID id, string screenName)
-        {
-            route.FindPropertyRelative("id").enumValueIndex = (int)id;
-            route.FindPropertyRelative("canvasPage").objectReferenceValue =
-                AssetDatabase.LoadAssetAtPath<UiPage>(UiCanvasPaths.ScreenPrefab(screenName));
         }
 
         private static void AddBackground(Transform page)

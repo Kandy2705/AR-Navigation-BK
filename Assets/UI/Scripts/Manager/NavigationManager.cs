@@ -226,7 +226,11 @@ public class NavigationManager : MonoBehaviour
         if (page == null) return;
 
         UpdateHistory(pageID, isBack);
+        ShowCanvasPage(pageID, page, isBack);
+    }
 
+    private void ShowCanvasPage(PageID pageID, UiPage page, bool isBack)
+    {
         // Drop the UI Toolkit page. The shared nav bar is still UI Toolkit, so keep it hidden
         // until the canvas nav bar replaces it.
         if (currentPageElement != null)
@@ -241,6 +245,45 @@ public class NavigationManager : MonoBehaviour
         currentCanvasPage = page;
 
         Debug.Log($"Đang mở trang (canvas): {pageID}");
+    }
+
+    /// <summary>Goes back one page (what the back arrow does). Returns false when there is no earlier page.</summary>
+    public bool GoBack()
+    {
+        if (pageHistory.Count < 2) return false;
+        Navigate(PreviousPage(), true);
+        return true;
+    }
+
+    /// <summary>
+    /// Opens <paramref name="target"/> as if it had been reached straight from <paramref name="anchor"/>: everything
+    /// opened after the anchor is dropped from the history first. Used when a flow ends somewhere the user never was
+    /// (finishing registration lands on Login with Welcome underneath).
+    /// </summary>
+    public void NavigateFrom(PageID anchor, PageID target)
+    {
+        if (pageHistory.Contains(anchor))
+        {
+            while (pageHistory.Peek() != anchor) pageHistory.Pop();
+        }
+
+        Navigate(target);
+    }
+
+    /// <summary>
+    /// Returns to a Canvas page that is already in the history, dropping everything opened after it.
+    /// Used when a flow ends (e.g. password reset back to Login) so Back does not walk through the finished flow.
+    /// </summary>
+    public bool ReturnTo(PageID target)
+    {
+        if (!canvasPageSources.ContainsKey(target) || !pageHistory.Contains(target)) return false;
+
+        UiPage page = ResolveCanvasPage(target);
+        if (page == null) return false;
+
+        while (pageHistory.Peek() != target) pageHistory.Pop();
+        ShowCanvasPage(target, page, true);
+        return true;
     }
 
     private UiPage ResolveCanvasPage(PageID pageID)

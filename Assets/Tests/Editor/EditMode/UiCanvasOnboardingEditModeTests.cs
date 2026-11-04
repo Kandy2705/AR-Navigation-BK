@@ -90,7 +90,7 @@ namespace TestAR.Tests.Editor.EditMode
         }
 
         [Test]
-        public void ShellScene_WhenBuilt_RoutesSplashIntroWelcomeThroughAppCanvas()
+        public void ShellScene_WhenBuilt_RoutesEveryCanvasScreenThroughAppCanvas()
         {
             Scene scene = EditorSceneManager.OpenScene(UiCanvasPaths.ShellScene, OpenSceneMode.Additive);
             try
@@ -106,7 +106,7 @@ namespace TestAR.Tests.Editor.EditMode
 
                 Assert.NotNull(navigation, "NavigationManager in AppShell" + SetupHint);
                 Assert.AreEqual(PageID.SplashPage, navigation.firstPage);
-                Assert.AreEqual(3, navigation.pages.Count);
+                Assert.AreEqual(UiCanvasShellRoutes.All.Length, navigation.pages.Count);
                 foreach (PageRoute route in navigation.pages)
                 {
                     Assert.NotNull(route.canvasPage, "canvas page for " + route.id);

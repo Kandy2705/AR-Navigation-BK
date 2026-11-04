@@ -1,5 +1,8 @@
 #if UNITY_EDITOR
+using System;
+using System.Collections.Generic;
 using System.IO;
+using Game.Features.Auth;
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -28,22 +31,53 @@ namespace Game.Foundation.UI.EditorTools
             }
 
             Directory.CreateDirectory(UiCanvasPaths.PreviewFolder);
-            foreach (string name in new[]
-            {
-                UiCanvasOnboardingBuilder.SplashName,
-                UiCanvasOnboardingBuilder.IntroName,
-                UiCanvasOnboardingBuilder.WelcomeName,
-            })
+            foreach (UiCanvasShellRoutes.Route route in UiCanvasShellRoutes.All)
             {
                 // 812 is the Figma frame; 667 is an iPhone SE / 16:9 screen (width stays 375); 900 is a tall phone.
                 foreach (float height in new[] { 667f, 812f, 900f })
                 {
-                    Render(name, height);
+                    Render(route.Screen, height);
                 }
+            }
+
+            // States that start hidden in the prefab (success card, picker sheet) are shown explicitly.
+            foreach (float height in new[] { 667f, 812f })
+            {
+                Render(UiCanvasAuthBuilder.LoginName, height, ShowOverlay(LoginUI.SuccessTitle, LoginUI.SuccessMessage), "success");
+                Render(UiCanvasAuthBuilder.NewPasswordName, height, ShowOverlay(NewPasswordUI.SuccessTitle, NewPasswordUI.SuccessMessage), "success");
+                Render(UiCanvasRegisterBuilder.CreatePasswordName, height, ShowOverlay(CreatePasswordUI.SuccessTitle, CreatePasswordUI.SuccessMessage), "success");
+                Render(UiCanvasRegisterBuilder.RegisterName, height, ShowGenderSheet, "gender");
+                Render(UiCanvasRegisterBuilder.RegisterName, height, ShowBirthdaySheet, "birthday");
             }
         }
 
-        public static void Render(string screenName, float frameHeight)
+        private static Action<GameObject> ShowOverlay(string title, string message)
+        {
+            return page => page.GetComponentInChildren<UiStatusOverlay>(true).Show(title, message);
+        }
+
+        private static void ShowGenderSheet(GameObject page)
+        {
+            var layout = new List<UiPickerSheet.Column>
+            {
+                new UiPickerSheet.Column { Options = RegisterUI.Genders, Selected = 1 },
+            };
+            page.GetComponentInChildren<UiPickerSheet>(true).Show("Chọn giới tính", layout, null);
+        }
+
+        private static void ShowBirthdaySheet(GameObject page)
+        {
+            List<int> years = BirthdayFormat.Years(DateTime.Today);
+            var layout = new List<UiPickerSheet.Column>
+            {
+                new UiPickerSheet.Column { Options = BirthdayFormat.Days(), Selected = 26 },
+                new UiPickerSheet.Column { Options = BirthdayFormat.Months(), Selected = 4 },
+                new UiPickerSheet.Column { Options = years.ConvertAll(year => year.ToString()), Selected = years.IndexOf(2004) },
+            };
+            page.GetComponentInChildren<UiPickerSheet>(true).Show("Chọn ngày sinh", layout, null);
+        }
+
+        public static void Render(string screenName, float frameHeight, Action<GameObject> prepare = null, string state = null)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(UiCanvasPaths.ScreenPrefab(screenName));
             if (prefab == null)
@@ -79,6 +113,8 @@ namespace Game.Foundation.UI.EditorTools
                 canvasRect.position = Vector3.zero;
 
                 var page = (GameObject)PrefabUtility.InstantiatePrefab(prefab, canvasGo.transform);
+                prepare?.Invoke(page);
+
                 foreach (TMP_Text text in page.GetComponentsInChildren<TMP_Text>(true))
                 {
                     text.ForceMeshUpdate();
@@ -98,9 +134,10 @@ namespace Game.Foundation.UI.EditorTools
                 image.Apply();
                 RenderTexture.active = previous;
 
-                string file = Path.Combine(UiCanvasPaths.PreviewFolder, screenName + "_" + (int)frameHeight + ".png");
+                string suffix = state != null ? "_" + state : string.Empty;
+                string file = Path.Combine(UiCanvasPaths.PreviewFolder, screenName + "_" + (int)frameHeight + suffix + ".png");
                 File.WriteAllBytes(file, image.EncodeToPNG());
-                Object.DestroyImmediate(image);
+                UnityEngine.Object.DestroyImmediate(image);
                 Debug.Log("[UiCanvas] Preview written: " + file);
             }
             finally

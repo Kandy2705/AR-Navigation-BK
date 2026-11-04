@@ -87,6 +87,15 @@ namespace Game.Foundation.UI
             FinishHide();
         }
 
+        /// <summary>Back arrow behaviour: previous page in the navigation history, if there is one.</summary>
+        protected void GoBack()
+        {
+            if (Navigation != null)
+            {
+                Navigation.GoBack();
+            }
+        }
+
         protected virtual void OnShow() { }
 
         protected virtual void OnHide() { }

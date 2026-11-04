@@ -26,10 +26,10 @@ namespace Game.Foundation.UI.EditorTools
             importer.filterMode = FilterMode.Bilinear;
             importer.spritePixelsPerUnit = 100f;
 
-            if (assetPath == UiCanvasPaths.RoundedSprite)
+            int border = UiCanvasPaths.NineSliceBorder(System.IO.Path.GetFileName(assetPath));
+            if (border > 0)
             {
-                float corner = UiCanvasPaths.RoundedCornerPixels;
-                importer.spriteBorder = new Vector4(corner, corner, corner, corner);
+                importer.spriteBorder = new Vector4(border, border, border, border);
             }
         }
     }

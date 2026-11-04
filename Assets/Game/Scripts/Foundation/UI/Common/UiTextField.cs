@@ -15,6 +15,9 @@ namespace Game.Foundation.UI
         [SerializeField] private TMP_Text errorLabel;
         [SerializeField] private Image background;
 
+        [Tooltip("Soft keyboard layout on mobile (email, phone pad, ...).")]
+        [SerializeField] private TouchScreenKeyboardType keyboardType = TouchScreenKeyboardType.Default;
+
         [Header("Password toggle (optional)")]
         [SerializeField] private bool isPasswordField;
         [SerializeField] private Button visibilityToggle;
@@ -35,6 +38,7 @@ namespace Game.Foundation.UI
 
         private void Awake()
         {
+            input.keyboardType = keyboardType;
             input.onValueChanged.AddListener(HandleValueChanged);
             input.onSubmit.AddListener(HandleSubmit);
 
@@ -66,6 +70,13 @@ namespace Game.Foundation.UI
         public void ClearError()
         {
             SetError(null);
+        }
+
+        public bool IsEmpty => string.IsNullOrEmpty(input.text);
+
+        public void Focus()
+        {
+            input.ActivateInputField();
         }
 
         public void ToggleVisibility()

@@ -27,6 +27,18 @@ namespace Game.Foundation.UI
         public static readonly Color TextBody = Hex("#C4C4C4");
         public static readonly Color TextSecondary = Hex("#8E8E93");
 
+        // Phase 2 (auth screens), sampled from the Figma login flow frames.
+        public static readonly Color Border = Hex("#1E1E1E");
+        public static readonly Color Divider = Hex("#202020");
+        public static readonly Color Placeholder = Hex("#9A9A9A");
+        public static readonly Color TextSubtitle = Hex("#C5C5C5");
+        public static readonly Color OtpBox = Hex("#0F0F0F");
+        public static readonly Color OtpBoxActive = Hex("#1D1D1E");
+        public static readonly Color OtpDigit = Hex("#BCBCBC");
+
+        /// <summary>Dim layer behind the status card. Figma blurs the page underneath; uGUI cannot, so the page is faded out instead.</summary>
+        public static readonly Color Scrim = new Color(0.059f, 0.055f, 0.067f, 0.9f);
+
         /// <summary>Approximate, read off the "Xóa chỉ đường" / delete swipe in the mockup. Refine when those screens land.</summary>
         public static readonly Color Danger = Hex("#E5484D");
 

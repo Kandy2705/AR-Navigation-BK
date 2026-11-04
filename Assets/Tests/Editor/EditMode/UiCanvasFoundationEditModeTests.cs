@@ -59,6 +59,7 @@ namespace TestAR.Tests.Editor.EditMode
             Assert.NotNull(AssetDatabase.LoadAssetAtPath<Sprite>(UiCanvasPaths.CircleSprite), "ui_circle.png" + SetupHint);
         }
 
+        [TestCase("Light")]
         [TestCase("Regular")]
         [TestCase("Medium")]
         [TestCase("SemiBold")]
@@ -72,6 +73,7 @@ namespace TestAR.Tests.Editor.EditMode
         }
 
         // TextMeshPro/Mobile/Distance Field (TMP's default for Android targets) draws a smeared foot under every glyph.
+        [TestCase("Light")]
         [TestCase("Regular")]
         [TestCase("Medium")]
         [TestCase("SemiBold")]
