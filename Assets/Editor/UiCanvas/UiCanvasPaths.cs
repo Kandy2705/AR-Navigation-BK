@@ -38,7 +38,7 @@ namespace Game.Foundation.UI.EditorTools
         }
 
         /// <summary>Source TTFs imported by the legacy UI Toolkit screens.</summary>
-        public const string PoppinsSourceFolder = "Assets/UI/Fonts";
+        public const string PoppinsSourceFolder = "Assets/Game/Bundles/Fonts/Source";
 
         public const string TmpFallbackFont = "Assets/Plugins/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset";
 
@@ -62,7 +62,7 @@ namespace Game.Foundation.UI.EditorTools
         public const string RoundedR32File = "ui_rounded_r32.png";
         public const string ChevronDownFile = "ui_icon_chevron_down.png";
 
-        // Copied from the legacy UI Toolkit images (Assets/UI/Images) so the Canvas UI owns its icons.
+        // Icons carried over from the former UI Toolkit shell (removed in phase 8); the Canvas UI owns them now.
         public const string UserIconFile = "icon_user.png";
         public const string PenBadgeFile = "icon_pen_badge.png";
         public const string EyeIconFile = "icon_eye.png";

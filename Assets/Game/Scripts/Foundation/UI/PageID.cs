@@ -1,0 +1,24 @@
+public enum PageID
+{
+    Login,
+    Register,
+    None,       
+    HistoryPage,
+    Chatbox,
+    MainSettings,
+    Profile,
+    EmailChange,
+    PasswordChange,
+    SupportCenter,
+    Contact,
+    ARPage,
+    Onboarding,
+    EmailChangeForm,
+    PasswordChangeForm,
+    WelcomePage,
+    OTPPage,
+    PasswordConfirm,
+    SplashPage,     // appended last so serialized values of the existing pages do not shift
+    SearchPage
+
+}
