@@ -11,6 +11,8 @@ public class RegisterReq
     public string cccd;    
     public string role;     
     public string gender; 
+    /// <summary>Registration code mailed by users/register/request-otp; the backend requires it.</summary>
+    public string otpCode;
 
     public RegisterReq()
     {

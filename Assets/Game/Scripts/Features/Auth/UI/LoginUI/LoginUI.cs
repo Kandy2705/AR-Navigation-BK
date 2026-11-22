@@ -54,7 +54,7 @@ namespace Game.Features.Auth
             if (saved.IsRemembered)
             {
                 emailField.Text = saved.Email;
-                passwordField.Text = saved.Password;
+                passwordField.Text = string.Empty;
                 rememberToggle.isOn = true;
             }
         }
@@ -86,7 +86,7 @@ namespace Game.Features.Auth
 
             if (rememberToggle.isOn)
             {
-                saved.Remember(email, password);
+                saved.Remember(email);
             }
             else
             {

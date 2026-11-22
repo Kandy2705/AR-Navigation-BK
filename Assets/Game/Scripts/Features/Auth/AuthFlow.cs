@@ -18,6 +18,9 @@ namespace Game.Features.Auth
         /// <summary>Called by the OTP screen with the entered code; the flow decides the next page.</summary>
         public static Action<string> OnOtpConfirmed { get; private set; }
 
+        /// <summary>Checks the code with the backend before <see cref="OnOtpConfirmed"/> runs; null when the flow has no such check.</summary>
+        public static IOtpVerifier Verifier { get; private set; }
+
         /// <summary>The profile being registered; null when no registration is in progress.</summary>
         public static RegistrationDraft Registration { get; private set; }
 
@@ -31,11 +34,12 @@ namespace Game.Features.Auth
             Registration = null;
         }
 
-        public static void BeginOtp(string email, Action<string> onOtpConfirmed)
+        public static void BeginOtp(string email, Action<string> onOtpConfirmed, IOtpVerifier verifier = null)
         {
             Email = email ?? string.Empty;
             Otp = string.Empty;
             OnOtpConfirmed = onOtpConfirmed;
+            Verifier = verifier;
         }
 
         public static void ConfirmOtp(string code)
@@ -49,6 +53,7 @@ namespace Game.Features.Auth
             Email = string.Empty;
             Otp = string.Empty;
             OnOtpConfirmed = null;
+            Verifier = null;
             Registration = null;
         }
     }

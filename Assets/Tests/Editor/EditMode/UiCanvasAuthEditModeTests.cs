@@ -111,15 +111,24 @@ namespace TestAR.Tests.Editor.EditMode
             var saved = new SavedCredentials(KeyPrefix);
             Assert.IsFalse(saved.IsRemembered);
 
-            saved.Remember("a@b.com", "secret");
+            saved.Remember("a@b.com");
             Assert.IsTrue(saved.IsRemembered);
             Assert.AreEqual("a@b.com", saved.Email);
-            Assert.AreEqual("secret", saved.Password);
 
             saved.Forget();
             Assert.IsFalse(saved.IsRemembered);
             Assert.AreEqual(string.Empty, saved.Email);
-            Assert.AreEqual(string.Empty, saved.Password);
+        }
+
+        [Test]
+        public void SavedCredentials_WhenRemembering_DeletesAPasswordLeftByAnOlderVersion()
+        {
+            string legacyKey = KeyPrefix + SavedCredentials.LegacyPasswordKey;
+            PlayerPrefs.SetString(legacyKey, "plain-text");
+
+            new SavedCredentials(KeyPrefix).Remember("a@b.com");
+
+            Assert.IsFalse(PlayerPrefs.HasKey(legacyKey), "the old plain-text password is gone");
         }
 
         [Test]
@@ -229,6 +238,7 @@ namespace TestAR.Tests.Editor.EditMode
                 Assert.AreEqual("secret", startedPassword);
                 Assert.IsTrue(harness.Saved.IsRemembered);
                 Assert.AreEqual("a@b.com", harness.Saved.Email);
+                Assert.IsFalse(PlayerPrefs.HasKey(KeyPrefix + SavedCredentials.LegacyPasswordKey), "the password is not stored");
                 Assert.IsTrue(harness.Overlay.IsVisible, "success card");
                 Assert.AreEqual(LoginUI.SuccessTitle, harness.Find<TMP_Text>("StatusOverlay/Card/Title").text);
                 Assert.AreEqual(string.Empty, harness.ErrorText);
@@ -240,7 +250,7 @@ namespace TestAR.Tests.Editor.EditMode
         {
             using (var harness = new PageHarness(UiCanvasAuthBuilder.LoginName, KeyPrefix))
             {
-                harness.Saved.Remember("old@b.com", "old");
+                harness.Saved.Remember("old@b.com");
                 var api = new FakeLoginApi { Result = new LoginRes { accessToken = "AAA" } };
                 harness.Open<LoginUI>(api: api, session: (res, password) => { });
 
@@ -275,15 +285,15 @@ namespace TestAR.Tests.Editor.EditMode
         }
 
         [Test]
-        public void Login_WhenOpenedWithARememberedLogin_FillsTheForm()
+        public void Login_WhenOpenedWithARememberedLogin_FillsOnlyTheEmail()
         {
             using (var harness = new PageHarness(UiCanvasAuthBuilder.LoginName, KeyPrefix))
             {
-                harness.Saved.Remember("a@b.com", "secret");
+                harness.Saved.Remember("a@b.com");
                 harness.Open<LoginUI>(api: new FakeLoginApi());
 
                 Assert.AreEqual("a@b.com", harness.Find<UiTextField>("Content/Card/EmailField").Text);
-                Assert.AreEqual("secret", harness.Find<UiTextField>("Content/Card/PasswordField").Text);
+                Assert.AreEqual(string.Empty, harness.Find<UiTextField>("Content/Card/PasswordField").Text);
                 Assert.IsTrue(harness.Find<Toggle>("Content/RememberToggle").isOn);
             }
         }
@@ -370,6 +380,95 @@ namespace TestAR.Tests.Editor.EditMode
                 Assert.AreEqual("1234", received);
                 Assert.AreEqual("1234", AuthFlow.Otp);
             }
+        }
+
+        [Test]
+        public void Otp_WhenTheBackendAcceptsTheCode_HandsItToTheFlow()
+        {
+            using (var harness = new PageHarness(UiCanvasAuthBuilder.OtpName, KeyPrefix))
+            {
+                string received = null;
+                var verifier = new FakeVerifier { Valid = true };
+                AuthFlow.BeginOtp("a@b.com", code => received = code, verifier);
+                harness.Open<OtpUI>();
+
+                harness.SetDigits("4821");
+                harness.Click("Content/ConfirmButton");
+
+                CollectionAssert.AreEqual(new[] { "a@b.com|4821" }, verifier.Checks);
+                Assert.AreEqual("4821", received);
+            }
+        }
+
+        [Test]
+        public void Otp_WhenTheBackendRejectsTheCode_StaysAndShowsTheMessage()
+        {
+            using (var harness = new PageHarness(UiCanvasAuthBuilder.OtpName, KeyPrefix))
+            {
+                string received = null;
+                AuthFlow.BeginOtp("a@b.com", code => received = code, new FakeVerifier { Valid = false });
+                harness.Open<OtpUI>();
+
+                harness.SetDigits("0000");
+                harness.Click("Content/ConfirmButton");
+
+                Assert.IsNull(received, "the flow does not move on");
+                Assert.AreEqual(OtpUI.WrongCodeMessage, harness.ErrorText);
+                Assert.IsTrue(harness.Find<Button>("Content/ConfirmButton").interactable, "the user can try again");
+            }
+        }
+
+        [Test]
+        public void Otp_WhenTheCheckFails_ShowsTheReason()
+        {
+            using (var harness = new PageHarness(UiCanvasAuthBuilder.OtpName, KeyPrefix))
+            {
+                string received = null;
+                AuthFlow.BeginOtp("a@b.com", code => received = code, new FakeVerifier { Error = "Mất kết nối" });
+                harness.Open<OtpUI>();
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Warning, "[OtpUI] Could not check the code: Mất kết nối");
+
+                harness.SetDigits("1234");
+                harness.Click("Content/ConfirmButton");
+
+                Assert.IsNull(received);
+                Assert.AreEqual("Mất kết nối", harness.ErrorText);
+            }
+        }
+
+        [Test]
+        public void ForgotEmail_WithTheRealApi_ChecksTheCodeOnTheOtpScreen()
+        {
+            using (var harness = new PageHarness(UiCanvasAuthBuilder.ForgotEmailName, KeyPrefix))
+            {
+                var forgot = new FakeVerifyingForgotApi();
+                AuthServices.ForgotPassword = forgot;
+                harness.Open<ForgotEmailUI>();
+
+                harness.Type("Content/Card/EmailField", "a@b.com");
+                harness.Click("Content/ContinueButton");
+
+                Assert.AreSame(forgot, AuthFlow.Verifier, "an API that can check codes is handed to the OTP screen");
+            }
+        }
+
+        [Test]
+        public void RegisterRequest_CarriesTheConfirmedCode()
+        {
+            var draft = new RegistrationDraft { Name = "SV", Phone = "0900", Email = "a@b.com", Gender = "Nữ" };
+            RegisterReq body = RestRegisterApi.BuildRequest(draft, "secret123", "4821");
+
+            Assert.AreEqual("4821", body.otpCode);
+            Assert.AreEqual("a@b.com", body.email);
+            Assert.AreEqual("secret123", body.password);
+        }
+
+        [Test]
+        public void ApiError_WhenTheBackendExplains_UsesItsMessage()
+        {
+            var error = new Proyecto26.RequestException(null, "HTTP/1.1 409 Conflict", true, false, 409,
+                "{\"success\":false,\"message\":\"Email đã được sử dụng.\",\"errorCode\":\"CONFLICT\"}");
+            Assert.AreEqual("Email đã được sử dụng.", ApiError.Describe(error));
         }
 
         [Test]
@@ -506,6 +605,35 @@ namespace TestAR.Tests.Editor.EditMode
                     onError(Error ?? "failed");
                 }
             }
+        }
+
+        private sealed class FakeVerifier : IOtpVerifier
+        {
+            public readonly List<string> Checks = new List<string>();
+            public bool Valid;
+            public string Error;
+
+            public void VerifyOtp(string email, string code, Action<bool> onResult, Action<string> onError)
+            {
+                Checks.Add(email + "|" + code);
+                if (Error != null)
+                {
+                    onError(Error);
+                }
+                else
+                {
+                    onResult(Valid);
+                }
+            }
+        }
+
+        private sealed class FakeVerifyingForgotApi : IForgotPasswordApi, IOtpVerifier
+        {
+            public void RequestOtp(string email, Action onSuccess, Action<string> onError) => onSuccess();
+
+            public void ResetPassword(string email, string otp, string newPassword, Action onSuccess, Action<string> onError) => onSuccess();
+
+            public void VerifyOtp(string email, string code, Action<bool> onResult, Action<string> onError) => onResult(true);
         }
 
         private sealed class FakeForgotApi : IForgotPasswordApi

@@ -8,20 +8,10 @@ namespace Game.Features.Settings
     /// <summary>What is stored about the signed-in user, and how it is dropped on logout.</summary>
     public static class AccountSession
     {
-        private const string PasswordKey = "PASSWORD";
+        private const string PasswordKey = LoginSession.LegacyPasswordKey; // only deleted: the app no longer stores it
         private const string AccessTokenKey = "ACCESS_TOKEN";
         private const string RefreshTokenKey = "REFRESH_TOKEN";
 
-        /// <summary>The password typed at login, kept to check the "old password" locally. Empty when none was stored.</summary>
-        public static string SavedPassword
-        {
-            get => PlayerPrefs.GetString(PasswordKey, string.Empty);
-            set
-            {
-                PlayerPrefs.SetString(PasswordKey, value ?? string.Empty);
-                PlayerPrefs.Save();
-            }
-        }
 
         /// <summary>Forgets the user: cached profile, tokens, request header, open chat and any half-finished auth flow. "Remember me" stays.</summary>
         public static void SignOut()

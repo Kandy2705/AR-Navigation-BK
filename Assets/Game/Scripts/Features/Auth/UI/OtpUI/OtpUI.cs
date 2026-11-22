@@ -12,12 +12,15 @@ namespace Game.Features.Auth
     public class OtpUI : UiPage
     {
         public const string IncompleteMessage = "Vui lòng nhập đủ 4 số";
+        public const string WrongCodeMessage = "Mã OTP không đúng hoặc đã hết hạn";
 
         [SerializeField] private Button backButton;
         [SerializeField] private TMP_Text subtitleLabel;
         [SerializeField] private UiOtpInput otpInput;
         [SerializeField] private Button confirmButton;
         [SerializeField] private TMP_Text errorLabel;
+
+        private bool busy;
 
         public static string SubtitleFor(string email)
         {
@@ -33,6 +36,7 @@ namespace Game.Features.Auth
 
         protected override void OnShow()
         {
+            SetBusy(false);
             subtitleLabel.text = SubtitleFor(AuthFlow.Email);
             errorLabel.ShowMessage(null);
             otpInput.Clear();
@@ -41,13 +45,51 @@ namespace Game.Features.Auth
 
         private void HandleConfirm()
         {
+            if (busy)
+            {
+                return;
+            }
+
             if (!otpInput.IsComplete)
             {
                 errorLabel.ShowMessage(IncompleteMessage);
                 return;
             }
 
-            AuthFlow.ConfirmOtp(otpInput.Code);
+            string code = otpInput.Code;
+            IOtpVerifier verifier = AuthFlow.Verifier;
+            if (verifier == null)
+            {
+                AuthFlow.ConfirmOtp(code);
+                return;
+            }
+
+            // Ask the backend first so a mistyped code is reported here, not after the next form.
+            SetBusy(true);
+            verifier.VerifyOtp(AuthFlow.Email, code, valid =>
+            {
+                SetBusy(false);
+                if (valid)
+                {
+                    AuthFlow.ConfirmOtp(code);
+                    return;
+                }
+
+                otpInput.Clear();
+                otpInput.FocusFirst();
+                errorLabel.ShowMessage(WrongCodeMessage);
+            }, reason =>
+            {
+                SetBusy(false);
+                Debug.LogWarning("[OtpUI] Could not check the code: " + reason);
+                errorLabel.ShowMessage(reason);
+            });
+        }
+
+        private void SetBusy(bool value)
+        {
+            busy = value;
+            confirmButton.interactable = !value;
         }
     }
 }

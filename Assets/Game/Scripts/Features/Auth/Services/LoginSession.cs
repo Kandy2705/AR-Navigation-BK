@@ -4,17 +4,25 @@ using UnityEngine;
 namespace Game.Features.Auth
 {
     /// <summary>
-    /// What the app does once a login succeeds: remember the tokens (same PlayerPrefs keys the rest of the
-    /// app reads), authorize later requests, and cache the user profile.
+    /// What the app does once a login (or a token refresh) succeeds: remember the tokens (same PlayerPrefs keys
+    /// the rest of the app reads), authorize later requests, and cache the user profile. The password is never
+    /// stored; staying signed in relies on the refresh token (<see cref="SessionRestorer"/>).
     /// </summary>
     public static class LoginSession
     {
+        public const string AccessTokenKey = "ACCESS_TOKEN";
+        public const string RefreshTokenKey = "REFRESH_TOKEN";
+
+        /// <summary>Plain-text password written by earlier versions; deleted on every sign-in.</summary>
+        public const string LegacyPasswordKey = "PASSWORD";
+
+        /// <param name="password">Ignored; kept so existing callers and tests need no change.</param>
         public static void Start(LoginRes login, string password)
         {
             RestClient.DefaultRequestHeaders["Authorization"] = "Bearer " + login.accessToken;
-            PlayerPrefs.SetString("PASSWORD", password);
-            PlayerPrefs.SetString("REFRESH_TOKEN", login.refreshToken ?? string.Empty);
-            PlayerPrefs.SetString("ACCESS_TOKEN", login.accessToken);
+            PlayerPrefs.DeleteKey(LegacyPasswordKey);
+            PlayerPrefs.SetString(RefreshTokenKey, login.refreshToken ?? string.Empty);
+            PlayerPrefs.SetString(AccessTokenKey, login.accessToken);
             PlayerPrefs.Save();
 
             var profiles = new ProfileService();

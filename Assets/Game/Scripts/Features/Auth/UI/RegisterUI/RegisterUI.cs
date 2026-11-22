@@ -112,7 +112,7 @@ namespace Game.Features.Auth
         private void OtpSent(string email)
         {
             SetBusy(false);
-            AuthFlow.BeginOtp(email, _ => Open(PageID.PasswordConfirm));
+            AuthFlow.BeginOtp(email, _ => Open(PageID.PasswordConfirm), AuthServices.Register as IOtpVerifier);
             Open(PageID.OTPPage);
         }
 

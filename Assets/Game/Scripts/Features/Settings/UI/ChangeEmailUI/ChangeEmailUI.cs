@@ -15,6 +15,7 @@ namespace Game.Features.Settings
         public const string InvalidEmailMessage = "Email không hợp lệ";
         public const string SameEmailMessage = "Email mới trùng với email hiện tại";
         public const string FailedMessage = "Đổi email thất bại, vui lòng thử lại";
+        public const string TakenMessage = "Email này đã được sử dụng cho tài khoản khác";
         public const string SuccessTitle = "Đổi email thành công!";
         public const string SuccessMessage = "Email của bạn đã được cập nhật.";
 
@@ -113,7 +114,8 @@ namespace Game.Features.Settings
         {
             SetBusy(false);
             Debug.LogWarning("[ChangeEmailUI] Could not change the email: " + reason);
-            errorLabel.ShowMessage(FailedMessage);
+            bool taken = reason != null && reason.IndexOf("đã được sử dụng", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            errorLabel.ShowMessage(taken ? TakenMessage : FailedMessage);
         }
 
         private void SetBusy(bool value)

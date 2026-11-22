@@ -5,9 +5,9 @@ using UnityEngine;
 namespace Game.Features.Settings
 {
     /// <summary>
-    /// Password change through users/request-password-change and users/change-password. The backend has no
-    /// endpoint for changing the email yet, so those two steps only log a warning and succeed, exactly like the
-    /// UI Toolkit flow did; replace them through <see cref="AccountServices.Api"/> once the endpoint exists.
+    /// Password change through users/request-password-change and users/change-password (the backend checks the
+    /// old password); email change through users/request-email-change and users/change-email, which mail the
+    /// code to the new address and need the signed-in user's bearer token.
     /// </summary>
     public sealed class RestAccountApi : IAccountApi
     {
@@ -33,38 +33,31 @@ namespace Game.Features.Settings
                 .Catch(error => onError(Describe(error)));
         }
 
+        private const string RequestEmailEndpoint = AppConst.BASE_API + "/users/request-email-change";
+        private const string ChangeEmailEndpoint = AppConst.BASE_API + "/users/change-email";
+
         public void RequestEmailOtp(string newEmail, Action onSuccess, Action<string> onError)
         {
-            Debug.LogWarning("[Account] No backend endpoint wired yet: no OTP was sent to " + newEmail);
-            onSuccess();
+            RestClient.Post(RequestEmailEndpoint, new EmailChangeReq { newEmail = newEmail })
+                .Then(_ => onSuccess())
+                .Catch(error => onError(Describe(error)));
         }
 
         public void ChangeEmail(string newEmail, string otp, Action onSuccess, Action<string> onError)
         {
-            Debug.LogWarning("[Account] No backend endpoint wired yet: the email was not changed on the server.");
-            onSuccess();
+            RestClient.Post(ChangeEmailEndpoint, new EmailChangeReq { newEmail = newEmail, otpCode = otp })
+                .Then(_ => onSuccess())
+                .Catch(error => onError(Describe(error)));
         }
 
-        /// <summary>The backend's own message when the response carries one, otherwise the exception text.</summary>
-        public static string Describe(Exception error)
+        [Serializable]
+        private class EmailChangeReq
         {
-            if (error is RequestException request && !string.IsNullOrEmpty(request.Response))
-            {
-                try
-                {
-                    ProfileResponseWrapper body = JsonUtility.FromJson<ProfileResponseWrapper>(request.Response);
-                    if (!string.IsNullOrEmpty(body?.message))
-                    {
-                        return body.message;
-                    }
-                }
-                catch (Exception)
-                {
-                    // Not JSON: fall through to the exception text.
-                }
-            }
-
-            return error.Message;
+            public string newEmail;
+            public string otpCode;
         }
+
+        /// <summary>The backend's own message when the response carries one, otherwise a generic text.</summary>
+        public static string Describe(Exception error) => Game.Features.Auth.ApiError.Describe(error);
     }
 }

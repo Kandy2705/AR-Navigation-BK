@@ -5,7 +5,7 @@ namespace Game.Features.Auth
     {
         public static ILoginApi Login { get; set; } = new RestLoginApi();
 
-        public static IForgotPasswordApi ForgotPassword { get; set; } = new PendingForgotPasswordApi();
+        public static IForgotPasswordApi ForgotPassword { get; set; } = new RestForgotPasswordApi();
 
         public static IRegisterApi Register { get; set; } = new RestRegisterApi();
     }

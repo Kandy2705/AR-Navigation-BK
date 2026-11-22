@@ -107,11 +107,75 @@ namespace TestAR.Tests.Editor.EditMode
         [Test]
         public void SupportContent_WhenFilteringByCategory_ReturnsThatCategoryOnly()
         {
-            Assert.AreEqual(6, SupportContent.For(0).Count, "All");
-            Assert.AreEqual(4, SupportContent.For(1).Count, "Account");
-            Assert.AreEqual(1, SupportContent.For(2).Count, "Billing");
-            Assert.AreEqual(1, SupportContent.For(3).Count, "Prompting");
+            Assert.AreEqual(10, SupportContent.For(0).Count, "Tất cả");
+            Assert.AreEqual(4, SupportContent.For(1).Count, "Tài khoản");
+            Assert.AreEqual(4, SupportContent.For(2).Count, "Dẫn đường AR");
+            Assert.AreEqual(2, SupportContent.For(3).Count, "Trợ lý AI");
             Assert.AreEqual(SupportContent.Entries.Length, SupportContent.For(-1).Count);
+            Assert.AreEqual(4, SupportContent.Categories.Length, "one chip per category plus Tất cả");
+        }
+
+        // ------------------------------------------------------------------ session restore (refresh token)
+
+        [Test]
+        public void SessionRestorer_WithoutASavedToken_DoesNotCallTheBackend()
+        {
+            var refresh = new FakeRefreshApi();
+            using (new RestorerScope(refresh, (_, __) => Assert.Fail("no session")))
+            {
+                bool? result = null;
+                SessionRestorer.TryRestore(value => result = value);
+
+                Assert.AreEqual(false, result);
+                Assert.AreEqual(0, refresh.Calls);
+            }
+        }
+
+        [Test]
+        public void SessionRestorer_WhenTheTokenIsAccepted_StartsTheNewSession()
+        {
+            PlayerPrefs.SetString("REFRESH_TOKEN", "old-refresh");
+            var refresh = new FakeRefreshApi { Result = new LoginRes { accessToken = "new-access", refreshToken = "new-refresh" } };
+            LoginRes started = null;
+            using (new RestorerScope(refresh, (session, _) => started = session))
+            {
+                bool? result = null;
+                SessionRestorer.TryRestore(value => result = value);
+
+                Assert.AreEqual(true, result);
+                Assert.AreEqual("old-refresh", refresh.LastToken);
+                Assert.AreEqual("new-access", started.accessToken);
+            }
+        }
+
+        [Test]
+        public void SessionRestorer_WhenTheTokenIsRejected_ForgetsIt()
+        {
+            PlayerPrefs.SetString("REFRESH_TOKEN", "revoked");
+            PlayerPrefs.SetString("ACCESS_TOKEN", "expired");
+            using (new RestorerScope(new FakeRefreshApi { Rejected = true }, (_, __) => Assert.Fail("no session")))
+            {
+                bool? result = null;
+                SessionRestorer.TryRestore(value => result = value);
+
+                Assert.AreEqual(false, result);
+                Assert.IsFalse(PlayerPrefs.HasKey("REFRESH_TOKEN"));
+                Assert.IsFalse(PlayerPrefs.HasKey("ACCESS_TOKEN"));
+            }
+        }
+
+        [Test]
+        public void SessionRestorer_WhenTheServerIsUnreachable_KeepsTheTokenForNextTime()
+        {
+            PlayerPrefs.SetString("REFRESH_TOKEN", "still-valid");
+            using (new RestorerScope(new FakeRefreshApi(), (_, __) => Assert.Fail("no session")))
+            {
+                bool? result = null;
+                SessionRestorer.TryRestore(value => result = value);
+
+                Assert.AreEqual(false, result);
+                Assert.AreEqual("still-valid", PlayerPrefs.GetString("REFRESH_TOKEN"));
+            }
         }
 
         // ------------------------------------------------------------------ prefabs
@@ -267,19 +331,13 @@ namespace TestAR.Tests.Editor.EditMode
             using (var harness = new PageHarness(UiCanvasSettingsBuilder.ChangePasswordName, KeyPrefix))
             {
                 PlayerPrefs.SetString(AppConst.KEY_CACHE, ProfileJson);
-                AccountSession.SavedPassword = "oldpass1";
                 harness.Open<ChangePasswordUI>();
 
                 harness.Click("Content/ChangeButton");
                 Assert.AreEqual(ChangePasswordUI.EmptyMessage, harness.ErrorText);
 
-                harness.Type("Content/Card/OldField", "wrongpass1");
-                harness.Type("Content/Card/NewField", "newpass12");
-                harness.Type("Content/Card/ConfirmField", "newpass12");
-                harness.Click("Content/ChangeButton");
-                Assert.AreEqual(ChangePasswordUI.WrongOldMessage, harness.ErrorText);
-
                 harness.Type("Content/Card/OldField", "oldpass1");
+                harness.Type("Content/Card/NewField", "newpass12");
                 harness.Type("Content/Card/ConfirmField", "different1");
                 harness.Click("Content/ChangeButton");
                 Assert.AreEqual(ChangePasswordUI.MismatchMessage, harness.ErrorText);
@@ -363,7 +421,7 @@ namespace TestAR.Tests.Editor.EditMode
                 CollectionAssert.AreEqual(new[] { "kandy@example.com|oldpass1|newpass12|1234" }, api.PasswordChanges);
                 Assert.IsTrue(harness.Overlay.IsVisible);
                 Assert.AreEqual(ChangePasswordUI.SuccessTitle, harness.Find<TMP_Text>("StatusOverlay/Card/Title").text);
-                Assert.AreEqual("newpass12", AccountSession.SavedPassword, "the next change checks against the new password");
+                Assert.IsFalse(PlayerPrefs.HasKey("PASSWORD"), "the app never stores the password");
                 Assert.AreEqual(string.Empty, AuthFlow.Email, "the flow is finished");
             }
         }
@@ -479,14 +537,14 @@ namespace TestAR.Tests.Editor.EditMode
                 var chips = harness.Find<UiChipRow>("Content/CategoryChips");
 
                 chips.Select(1, true);
-                Assert.AreEqual(4, page.Items.Count, "Account");
+                Assert.AreEqual(4, page.Items.Count, "Tài khoản");
 
-                chips.Select(2, true);
-                Assert.AreEqual(1, page.Items.Count, "Billing");
+                chips.Select(3, true);
+                Assert.AreEqual(2, page.Items.Count, "Trợ lý AI");
 
-                chips.Select(2, true);
-                Assert.AreEqual(0, chips.Selected - 2, "the chosen chip stays chosen: one category is always active");
-                Assert.AreEqual(1, page.Items.Count);
+                chips.Select(3, true);
+                Assert.AreEqual(0, chips.Selected - 3, "the chosen chip stays chosen: one category is always active");
+                Assert.AreEqual(2, page.Items.Count);
 
                 chips.Select(0, true);
                 Assert.AreEqual(SupportContent.Entries.Length, page.Items.Count, "back to All");
@@ -554,6 +612,65 @@ namespace TestAR.Tests.Editor.EditMode
             harness.Type("Content/Card/OldField", oldPassword);
             harness.Type("Content/Card/NewField", newPassword);
             harness.Type("Content/Card/ConfirmField", newPassword);
+        }
+
+        [Test]
+        public void ChangePassword_WhenTheBackendSaysTheOldPasswordIsWrong_ShowsThatMessage()
+        {
+            using (var harness = new PageHarness(UiCanvasSettingsBuilder.ChangePasswordName, KeyPrefix))
+            {
+                PlayerPrefs.SetString(AppConst.KEY_CACHE, ProfileJson);
+                api.ChangeError = "Mật khẩu cũ không chính xác. Vui lòng thử lại.";
+                var page = harness.Open<ChangePasswordUI>();
+                FillPasswordForm(harness, "typo-old1", "newpass12");
+                harness.Click("Content/ChangeButton");
+                AuthFlow.ConfirmOtp("1234");
+                LogAssert.Expect(LogType.Warning, "[ChangePasswordUI] Could not change the password: " + api.ChangeError);
+
+                page.Show();
+
+                Assert.AreEqual(ChangePasswordUI.WrongOldMessage, harness.ErrorText);
+            }
+        }
+
+        private sealed class RestorerScope : IDisposable
+        {
+            private readonly ISessionRefreshApi previousApi = SessionRestorer.Api;
+            private readonly Action<LoginRes, string> previousStart = SessionRestorer.StartSession;
+
+            public RestorerScope(ISessionRefreshApi api, Action<LoginRes, string> start)
+            {
+                SessionRestorer.Api = api;
+                SessionRestorer.StartSession = start;
+            }
+
+            public void Dispose()
+            {
+                SessionRestorer.Api = previousApi;
+                SessionRestorer.StartSession = previousStart;
+            }
+        }
+
+        private sealed class FakeRefreshApi : ISessionRefreshApi
+        {
+            public int Calls;
+            public string LastToken;
+            public LoginRes Result;
+            public bool Rejected;
+
+            public void Refresh(string refreshToken, Action<LoginRes> onSuccess, Action<bool> onError)
+            {
+                Calls++;
+                LastToken = refreshToken;
+                if (Result != null)
+                {
+                    onSuccess(Result);
+                }
+                else
+                {
+                    onError(Rejected);
+                }
+            }
         }
 
         private sealed class FakeAccountApi : IAccountApi

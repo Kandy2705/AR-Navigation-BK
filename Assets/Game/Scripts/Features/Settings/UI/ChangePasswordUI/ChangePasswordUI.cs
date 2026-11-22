@@ -107,12 +107,6 @@ namespace Game.Features.Settings
                 return EmptyMessage;
             }
 
-            string saved = AccountSession.SavedPassword;
-            if (saved.Length > 0 && oldPassword != saved)
-            {
-                return WrongOldMessage;
-            }
-
             if (!AuthValidation.PasswordsMatch(newPassword, confirmField.Text))
             {
                 return MismatchMessage;
@@ -146,7 +140,6 @@ namespace Game.Features.Settings
             AccountServices.Api.ChangePassword(email, oldField.Text, newPassword, otp, () =>
             {
                 SetBusy(false);
-                AccountSession.SavedPassword = newPassword;
                 AuthFlow.Clear();
                 successOverlay.ShowThen(SuccessTitle, SuccessMessage, 1.6f, Finish);
             }, Fail);
@@ -171,7 +164,9 @@ namespace Game.Features.Settings
         {
             SetBusy(false);
             Debug.LogWarning("[ChangePasswordUI] Could not change the password: " + reason);
-            errorLabel.ShowMessage(FailedMessage);
+            // The backend checks the old password (the app no longer keeps it) and says so in its message.
+            bool wrongOld = reason != null && reason.IndexOf("Mật khẩu cũ", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            errorLabel.ShowMessage(wrongOld ? WrongOldMessage : FailedMessage);
         }
 
         private void SetBusy(bool value)

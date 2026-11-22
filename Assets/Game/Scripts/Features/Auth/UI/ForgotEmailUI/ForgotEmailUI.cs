@@ -52,7 +52,7 @@ namespace Game.Features.Auth
         private void OtpSent(string email)
         {
             SetBusy(false);
-            AuthFlow.BeginOtp(email, _ => OpenNewPassword());
+            AuthFlow.BeginOtp(email, _ => OpenNewPassword(), AuthServices.ForgotPassword as IOtpVerifier);
             Open(PageID.OTPPage);
         }
 
