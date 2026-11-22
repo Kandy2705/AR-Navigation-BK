@@ -6405,8 +6405,8 @@ MonoBehaviour:
   portalsRoot: {fileID: 408109395}
   roomsRoot: {fileID: 1427550861}
   scannedFloorLocalY: -1.6
-  setupStatus: Runtime connected with five shared entrance/exit anchors, B10 room POIs,
-    MultiSet map switching, PDR handover, and dedicated indoor NavMesh.
+  setupStatus: Runtime connected with five shared entrance/exit anchors, B10 room
+    POIs, MultiSet map switching, PDR handover, and dedicated indoor NavMesh.
 --- !u!4 &591453364
 Transform:
   m_ObjectHideFlags: 0
@@ -12456,6 +12456,7 @@ MonoBehaviour:
   indoorRibbon: {fileID: 616125152}
   experimentLogger: {fileID: 793933506}
   rememberSelection: 1
+  adaptivePolicy: {fileID: 0}
 --- !u!4 &1119853727
 Transform:
   m_ObjectHideFlags: 0
@@ -13370,6 +13371,107 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 7.52, y: 4, z: 6.77}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1001 &1247335297
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 103420159629960272, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_Name
+      value: NavigationHudUI
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_Pivot.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_Pivot.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8120121640351854674, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9030638715208996245, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
+      propertyPath: hud
+      value: 
+      objectReference: {fileID: 1970190430}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 6bc64d7cf76f94d258667e0a2ae5ae99, type: 3}
 --- !u!1 &1252712158
 GameObject:
   m_ObjectHideFlags: 0
@@ -17771,6 +17873,7 @@ MonoBehaviour:
   - {fileID: 1491465714}
   - {fileID: 529911167}
   b10Entrances: {fileID: 408109396}
+  b10Building: {fileID: 0}
   schoolGroundNavMesh: {fileID: 647751775}
   ribbonRenderer: {fileID: 1309318413}
   selectedRoomId: B9-104
@@ -20906,7 +21009,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1970190432}
-  - component: {fileID: 1970190431}
   - component: {fileID: 1970190430}
   m_Layer: 0
   m_Name: B9 Navigation HUD
@@ -20927,7 +21029,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7552ad9b1429b47cd9f33580a7ace550, type: 3}
   m_Name: 
   m_EditorClassIdentifier: ARNav.B9V2.Runtime::ARNavB9V2.UI.B9NavigationHud
-  document: {fileID: 1970190431}
   building: {fileID: 11400000, guid: e2717c802647348a28f3d28025b9ff38, type: 2}
   campusDestinations: {fileID: 11400000, guid: 186a397be734c423d9ef157e460c00f0, type: 2}
   locationProvider: {fileID: 1641562030}
@@ -20941,29 +21042,7 @@ MonoBehaviour:
   logExporter: {fileID: 1889002489}
   reliabilityController: {fileID: 2078052975}
   harmonyExperiment: {fileID: 1119853726}
---- !u!114 &1970190431
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1970190429}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 11400000, guid: 16875a5362bb24887be0450909cbb932, type: 2}
-  m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 0}
-  m_SortingOrder: 100
-  m_Position: 0
-  m_WorldSpaceSizeMode: 1
-  m_WorldSpaceWidth: 1920
-  m_WorldSpaceHeight: 1080
-  m_PivotReferenceSize: 0
-  m_Pivot: 0
-  m_WorldSpaceCollider: {fileID: 0}
+  b10Building: {fileID: 0}
 --- !u!4 &1970190432
 Transform:
   m_ObjectHideFlags: 0
@@ -23161,3 +23240,4 @@ SceneRoots:
   - {fileID: 1026455658}
   - {fileID: 1119853727}
   - {fileID: 591453364}
+  - {fileID: 1247335297}

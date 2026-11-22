@@ -10,7 +10,7 @@ namespace Game.Features.Home
     /// <summary>
     /// The overlay on the camera view: "Lịch sử/Cài đặt" at the top, "Xóa chỉ đường" while a route is active,
     /// and the assistant with its search bar at the bottom. The page background is transparent so the AR scene
-    /// shows through; the navigation scene drives the route through <see cref="SetDestination"/>.
+    /// shows through. The B9 navigation scene underneath reports the route through <see cref="ArNavigationBridge"/>.
     /// </summary>
     public class ArHudUI : UiPage
     {
@@ -39,7 +39,20 @@ namespace Game.Features.Home
             menuButton.onClick.AddListener(OpenHistory);
             clearRouteButton.onClick.AddListener(ClearRoute);
             searchBar.onClick.AddListener(OpenChat);
+
+            // The guidance overlay in the navigation scene reports the route here and hides while this page is away.
+            Hidden += OnPageHidden;
+            ArNavigationBridge.DestinationChanged += OnNavigationDestination;
+            ArNavigationBridge.AttachShell();
+            Destination = ArNavigationBridge.Destination;
             Render();
+        }
+
+        private void OnDestroy()
+        {
+            Hidden -= OnPageHidden;
+            ArNavigationBridge.DestinationChanged -= OnNavigationDestination;
+            ArNavigationBridge.DetachShell();
         }
 
         protected override void OnShow()
@@ -47,6 +60,12 @@ namespace Game.Features.Home
             opening = false;
             busy.Hide();
             Render();
+            ArNavigationBridge.SetArPageVisible(true);
+        }
+
+        protected override void OnHide()
+        {
+            ArNavigationBridge.SetArPageVisible(false);
         }
 
         /// <summary>Shows the destination in the bar and the prompt ("Đến B4"), and offers "Xóa chỉ đường".</summary>
@@ -61,6 +80,17 @@ namespace Game.Features.Home
             Destination = string.Empty;
             Render();
             RouteCleared?.Invoke();
+            ArNavigationBridge.RequestClearRoute();
+        }
+
+        private void OnNavigationDestination(string name)
+        {
+            SetDestination(name);
+        }
+
+        private void OnPageHidden(UiPage page)
+        {
+            ArNavigationBridge.SetArPageVisible(false);
         }
 
         public static string PromptFor(string destination)

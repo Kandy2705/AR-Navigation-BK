@@ -23,6 +23,12 @@ namespace TestAR.Tests.Editor.EditMode
             "errorLabel", "background", "visibilityToggle", "visibilityIcon", "iconHidden", "iconShown",
         };
 
+        // Scene references a prefab cannot hold: NavigationHudUI finds the navigation scene's HUD logic at start.
+        private static readonly System.Collections.Generic.HashSet<string> SceneReferences = new System.Collections.Generic.HashSet<string>
+        {
+            "NavigationHudUI.hud",
+        };
+
         /// <summary>Every serialized object reference (and array element) on every script under <paramref name="root"/> is assigned.</summary>
         public static void AssertAllReferencesWired(GameObject root, string label)
         {
@@ -39,6 +45,11 @@ namespace TestAR.Tests.Editor.EditMode
                 {
                     enter = false;
                     if (behaviour is UiTextField && OptionalTextFieldReferences.Contains(property.name))
+                    {
+                        continue;
+                    }
+
+                    if (SceneReferences.Contains(behaviour.GetType().Name + "." + property.name))
                     {
                         continue;
                     }

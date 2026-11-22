@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
 using System.IO;
+using Game.Features.Home;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -8,8 +9,8 @@ using UnityEngine;
 namespace Game.Foundation.UI.EditorTools
 {
     /// <summary>
-    /// Builds the AppShell scene: camera, AppCanvas and a NavigationManager that routes to every Canvas screen
-    /// whose prefab exists. Screens are tried in <see cref="UiCanvasShellRoutes.All"/> order and the first one is the start page.
+    /// Builds the AppShell scene: camera, AppCanvas, a NavigationManager that routes to every Canvas screen
+    /// whose prefab exists, and the loader that brings in the B9 navigation scene under the AR page. Screens are tried in <see cref="UiCanvasShellRoutes.All"/> order and the first one is the start page.
     /// </summary>
     public static class UiCanvasShellSceneBuilder
     {
@@ -59,6 +60,13 @@ namespace Game.Foundation.UI.EditorTools
             serialized.FindProperty("canvasRoot").objectReferenceValue = canvas;
             serialized.FindProperty("canvasPageContainer").objectReferenceValue = pages;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // The AR page loads the B9 navigation scene underneath it the first time it opens.
+            var loaderGo = new GameObject("ArNavigationSceneLoader");
+            var loader = loaderGo.AddComponent<ArNavigationSceneLoader>();
+            var loaderSerialized = new SerializedObject(loader);
+            loaderSerialized.FindProperty("shellCamera").objectReferenceValue = camera;
+            loaderSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             Directory.CreateDirectory(Path.GetDirectoryName(UiCanvasPaths.ShellScene));
             EditorSceneManager.SaveScene(scene, UiCanvasPaths.ShellScene);

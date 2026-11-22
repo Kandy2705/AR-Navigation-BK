@@ -7,6 +7,22 @@ namespace Game.Foundation.UI.EditorTools
     /// <summary>One-click regeneration of the Canvas UI assets; every step is idempotent.</summary>
     public static class UiCanvasSetupMenu
     {
+        [MenuItem("Tools/UI Canvas/Run Navigation HUD Setup")]
+        public static void RunNavigationHud()
+        {
+            if (IsPlaying("navigation HUD setup"))
+            {
+                return;
+            }
+
+            // Icons first (the HUD loads them), then the prefab, the B9 scene that hosts it, and the shell with its loader.
+            UiCanvasIconGenerator.Generate();
+            UiCanvasNavigationHudBuilder.Build();
+            UiCanvasNavigationSceneInstaller.Install();
+            UiCanvasShellSceneBuilder.Build();
+            UiCanvasPreviewRenderer.RenderNavigationHud();
+        }
+
         [MenuItem("Tools/UI Canvas/Run Phase 4-7 Setup")]
         public static void RunPhase4To7()
         {

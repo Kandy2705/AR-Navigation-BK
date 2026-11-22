@@ -12,6 +12,12 @@ namespace Game.Foundation.UI
     {
         private void Awake()
         {
+            // Edit-mode previews and tests wake prefabs by hand; they must not add an EventSystem to the open scene.
+            if (!Application.isPlaying)
+            {
+                return;
+            }
+
             if (EventSystem.current != null || FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include) != null)
             {
                 return;

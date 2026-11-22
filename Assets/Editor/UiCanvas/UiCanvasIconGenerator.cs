@@ -28,6 +28,15 @@ namespace Game.Foundation.UI.EditorTools
         public const string Pin = "ui_icon_pin.png";
         public const string Handset = "ui_icon_handset.png";
 
+        // Navigation HUD (the B9 guidance overlay).
+        public const string Refresh = "ui_icon_refresh.png";
+        public const string ExitDoor = "ui_icon_exit_door.png";
+        public const string Flag = "ui_icon_flag.png";
+        public const string Record = "ui_icon_record.png";
+        public const string Download = "ui_icon_download.png";
+        public const string Flask = "ui_icon_flask.png";
+        public const string Navigate = "ui_icon_navigate.png";
+
         private const int Size = 48;
         private const float Grid = 24f;
         private const float HalfStroke = 1.1f;
@@ -57,6 +66,18 @@ namespace Game.Foundation.UI.EditorTools
             Write(Handset, Lines(
                 (5, 4, 9, 4), (9, 4, 10.5f, 8.5f), (10.5f, 8.5f, 8, 10), (8, 10, 14, 16), (14, 16, 15.5f, 13.5f),
                 (15.5f, 13.5f, 20, 15), (20, 15, 20, 19), (20, 19, 16, 20), (16, 20, 5, 9), (5, 9, 5, 4)));
+
+            Write(Refresh, Min(Arc(12, 12, 7.5f, 50f, 330f), ArrowHead(12, 12, 7.5f, 50f)));
+            Write(ExitDoor, Lines(
+                (13, 7, 13, 3), (13, 3, 4, 3), (4, 3, 4, 21), (4, 21, 13, 21), (13, 21, 13, 17),
+                (9, 12, 21, 12), (17, 8, 21, 12), (21, 12, 17, 16)));
+            Write(Flag, Lines((6, 21, 6, 3), (6, 4, 18, 4), (18, 4, 15, 8), (15, 8, 18, 12), (18, 12, 6, 12)));
+            Write(Record, Min(Ring(12, 12, 8.5f), Disk(12, 12, 4.5f)));
+            Write(Download, Lines((12, 3, 12, 15), (7, 10, 12, 15), (17, 10, 12, 15), (4, 17, 4, 20), (4, 20, 20, 20), (20, 20, 20, 17)));
+            Write(Flask, Lines(
+                (9, 3, 15, 3), (10, 3, 10, 9), (14, 3, 14, 9), (10, 9, 4.5f, 19), (14, 9, 19.5f, 19),
+                (4.5f, 19, 5.5f, 21), (5.5f, 21, 18.5f, 21), (18.5f, 21, 19.5f, 19), (7, 15, 17, 15)));
+            Write(Navigate, Lines((12, 3, 19, 20), (19, 20, 12, 16), (12, 16, 5, 20), (5, 20, 12, 3)));
 
             AssetDatabase.Refresh();
             Debug.Log("[UiCanvas] Icon sprites generated in " + UiCanvasPaths.CommonArts);
@@ -103,6 +124,51 @@ namespace Game.Foundation.UI.EditorTools
         private static Distance Ring(float cx, float cy, float radius)
         {
             return (x, y) => Mathf.Abs(new Vector2(x - cx, y - cy).magnitude - radius);
+        }
+
+        /// <summary>Filled circle: inside counts as on the stroke.</summary>
+        private static Distance Disk(float cx, float cy, float radius)
+        {
+            return (x, y) => Mathf.Max(0f, new Vector2(x - cx, y - cy).magnitude - radius + HalfStroke);
+        }
+
+        /// <summary>Part of a circle from <paramref name="fromDegrees"/> to <paramref name="toDegrees"/> (clockwise on screen, 0 = right).</summary>
+        private static Distance Arc(float cx, float cy, float radius, float fromDegrees, float toDegrees)
+        {
+            return (x, y) =>
+            {
+                float angle = Mathf.Atan2(y - cy, x - cx) * Mathf.Rad2Deg;
+                if (angle < 0f)
+                {
+                    angle += 360f;
+                }
+
+                if (angle >= fromDegrees && angle <= toDegrees)
+                {
+                    return Mathf.Abs(new Vector2(x - cx, y - cy).magnitude - radius);
+                }
+
+                return Mathf.Min(ToPoint(x, y, cx, cy, radius, fromDegrees), ToPoint(x, y, cx, cy, radius, toDegrees));
+            };
+        }
+
+        /// <summary>Arrow tip at the start of an <see cref="Arc"/>, pointing against the arc's direction.</summary>
+        private static Distance ArrowHead(float cx, float cy, float radius, float atDegrees)
+        {
+            float a = atDegrees * Mathf.Deg2Rad;
+            var tip = new Vector2(cx + Mathf.Cos(a) * radius, cy + Mathf.Sin(a) * radius);
+            var tangent = new Vector2(Mathf.Sin(a), -Mathf.Cos(a)); // towards smaller angles
+            var normal = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+            Vector2 back = tip - tangent * 4f;
+            Vector2 left = back + normal * 3.5f;
+            Vector2 right = back - normal * 3.5f;
+            return Lines((tip.x, tip.y, left.x, left.y), (tip.x, tip.y, right.x, right.y));
+        }
+
+        private static float ToPoint(float x, float y, float cx, float cy, float radius, float degrees)
+        {
+            float a = degrees * Mathf.Deg2Rad;
+            return new Vector2(x - (cx + Mathf.Cos(a) * radius), y - (cy + Mathf.Sin(a) * radius)).magnitude;
         }
 
         /// <summary>Short radial strokes around a center (the teeth of a gear).</summary>

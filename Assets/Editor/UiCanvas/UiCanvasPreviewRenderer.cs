@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using ARNavB9V2.UI;
 using Game.Features.Auth;
 using Game.Features.Chat;
 using Game.Features.Home;
@@ -97,6 +98,191 @@ namespace Game.Foundation.UI.EditorTools
                     page.GetComponentsInChildren<UiAccordionItem>()[1].SetOpen(true)), "open");
                 Render(UiCanvasSettingsBuilder.ChangePasswordName, height, ShowOverlay(ChangePasswordUI.SuccessTitle, ChangePasswordUI.SuccessMessage), "success");
             }
+
+            RenderNavigationHud();
+        }
+
+        /// <summary>
+        /// The B9 guidance overlay with sample states: on its own (B9 scene alone), under the AR page (app shell),
+        /// with the minimap expanded, inside a building, after a failed VPS scan, and with the research panel open.
+        /// </summary>
+        [MenuItem("Tools/UI Canvas/Render Navigation HUD Previews")]
+        public static void RenderNavigationHud()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                Debug.LogError("[UiCanvas] Stop Play mode before rendering previews.");
+                return;
+            }
+
+            Directory.CreateDirectory(UiCanvasPaths.PreviewFolder);
+            string name = UiCanvasNavigationHudBuilder.HudName;
+            try
+            {
+                foreach (float height in new[] { 667f, 812f, 900f })
+                {
+                    ArNavigationBridge.Reset();
+                    Render(name, height, Hud(SampleNavigationModel.Outdoor()), "standalone");
+                    Render(name, height, Shell(SampleNavigationModel.Outdoor()), "shell");
+                }
+
+                foreach (float height in new[] { 667f, 812f })
+                {
+                    Render(name, height, Shell(SampleNavigationModel.Expanded()), "expanded");
+                    Render(name, height, Shell(SampleNavigationModel.Indoor()), "indoor");
+                    Render(name, height, Shell(SampleNavigationModel.VpsFailed()), "vps-failed");
+                    Render(name, height, Shell(SampleNavigationModel.Outdoor(), hud => hud.OpenResearch()), "research");
+                    Render(name, height, Shell(SampleNavigationModel.Outdoor(), hud => hud.OpenPicker()), "picker");
+                }
+            }
+            finally
+            {
+                ArNavigationBridge.Reset();
+            }
+        }
+
+        private static Action<GameObject> Hud(SampleNavigationModel model, Action<NavigationHudUI> extra = null)
+        {
+            return root =>
+            {
+                ArNavigationBridge.Reset();
+                FitNestedCanvas(root);
+                WakeAll(root);
+                var hud = root.GetComponent<NavigationHudUI>();
+                hud.Bind(model);
+                extra?.Invoke(hud);
+            };
+        }
+
+        /// <summary>The HUD under the AR page, as the app shows it: ArHudUI's buttons on top, the assistant at the bottom.</summary>
+        private static Action<GameObject> Shell(SampleNavigationModel model, Action<NavigationHudUI> extra = null)
+        {
+            return root =>
+            {
+                ArNavigationBridge.Reset();
+                var arPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(UiCanvasPaths.ScreenPrefab(UiCanvasHomeBuilder.ArHudName));
+                var arPage = (GameObject)PrefabUtility.InstantiatePrefab(arPrefab, root.transform.parent);
+                WakeAll(arPage);
+                arPage.GetComponent<ArHudUI>().Show();
+                FitNestedCanvas(root);
+                WakeAll(root);
+                var hud = root.GetComponent<NavigationHudUI>();
+                hud.Bind(model);
+                extra?.Invoke(hud);
+                // The research panel and picker cover the AR page in the app (the HUD canvas sits under AppCanvas only
+                // for touches); draw them over it here too.
+                if (extra != null)
+                {
+                    arPage.transform.SetAsFirstSibling();
+                }
+            };
+        }
+
+        /// <summary>
+        /// The HUD prefab's root is a screen-space canvas, whose transform Unity drives (saved with scale 0 in batch mode).
+        /// Nested in the preview canvas it has to be stretched over the frame by hand.
+        /// </summary>
+        public static void FitNestedCanvas(GameObject root)
+        {
+            var rect = (RectTransform)root.transform;
+            rect.localScale = Vector3.one;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.localPosition = Vector3.zero;
+        }
+
+        private static void WakeAll(GameObject root)
+        {
+            foreach (MonoBehaviour behaviour in root.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (behaviour != null && behaviour.GetType().Namespace != null && behaviour.GetType().Namespace.StartsWith("Game."))
+                {
+                    MethodInfo awake = behaviour.GetType().GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                    awake?.Invoke(behaviour, null);
+                }
+            }
+        }
+
+        /// <summary>Stand-in for the scene's B9NavigationHud: fixed texts, no controllers.</summary>
+        private sealed class SampleNavigationModel : IB9NavigationHudModel
+        {
+            private static readonly string[] Choices =
+            {
+                "[Trong] B9 · B9-101", "[Trong] B9 · B9-104", "[Trong] B9 · B9-201", "[Trong] B10 · B10-305", "[Ngoài] Thư viện", "[Ngoài] Tòa A4",
+            };
+
+            private static readonly string[] Versions = { "V1", "V2", "V3", "V4", "V5", "BQ", "BT", "TF", "V6" };
+
+            public B9NavigationHudState State { get; } = new B9NavigationHudState();
+            public IReadOnlyList<string> DestinationChoices => Choices;
+            public string SelectedDestination { get; private set; } = Choices[1];
+            public IReadOnlyList<string> HarmonyVersionCodes => Versions;
+            public Texture MinimapTexture => null;
+
+            public event Action Changed { add { } remove { } }
+
+            public static SampleNavigationModel Outdoor()
+            {
+                var model = new SampleNavigationModel();
+                B9NavigationHudState s = model.State;
+                s.Status = "Đi theo mũi tên tới cửa B9";
+                s.Detail = "GPS ±4 m · còn 126 m";
+                s.Summary = "Đang đi tới cửa B9 trước · đích cuối: B9-104";
+                s.HarmonyProfile = "HARMONY V5 · Full HARMONY  Q✓ D✓ M✓ R✓ A–";
+                s.ActiveVersionCode = "V5";
+                s.Experiment = "LOG · ĐANG GHI 02:14 · 671 mẫu";
+                s.ExperimentToggleLabel = B9NavigationHudState.SaveTrialLabel;
+                s.StartVisible = true;
+                s.CancelVisible = true;
+                s.ActiveDestination = "B9-104";
+                return model;
+            }
+
+            public static SampleNavigationModel Expanded()
+            {
+                SampleNavigationModel model = Outdoor();
+                model.State.MinimapExpanded = true;
+                model.State.MinimapHint = B9NavigationHudState.ExpandedMinimapHint;
+                return model;
+            }
+
+            public static SampleNavigationModel Indoor()
+            {
+                SampleNavigationModel model = Outdoor();
+                B9NavigationHudState s = model.State;
+                s.Status = "Đi theo mũi tên tới B9-104";
+                s.Detail = "Trong B9 · Tầng 1 · còn 18.4 m · VPS đã căn chỉnh · 212 bước · AR";
+                s.Summary = "Đang dẫn đường bên trong tới B9-104";
+                s.StartVisible = false;
+                s.ExitVisible = true;
+                return model;
+            }
+
+            public static SampleNavigationModel VpsFailed()
+            {
+                SampleNavigationModel model = Outdoor();
+                B9NavigationHudState s = model.State;
+                s.Status = "Quét VPS chưa thành công";
+                s.Detail = "Hãy hướng camera quanh sảnh rồi quét lại";
+                s.Summary = "Giữ nguyên đích B9-104 · nhấn Quét lại VPS";
+                s.StartVisible = false;
+                s.RetryVisible = true;
+                return model;
+            }
+
+            public void SelectDestination(string choice) => SelectedDestination = choice;
+            public void StartNavigation() { }
+            public void CancelNavigation() { }
+            public void ExitBuilding() { }
+            public void RetryVps() { }
+            public void ToggleMinimap() { }
+            public void SelectHarmonyVersion(string versionCode) { }
+            public void AddResearchMarker() { }
+            public void ToggleTrial() { }
+            public void ExportLogs() { }
         }
 
         private static bool IsLive(string screen)

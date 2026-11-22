@@ -12,7 +12,6 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
-using UnityEngine.UIElements;
 
 namespace ARNavB9V2.Editor
 {
@@ -26,7 +25,6 @@ namespace ARNavB9V2.Editor
         private const string OutdoorDefinitionPath = "Assets/ARNavB9V2/Data/Buildings/B9OutdoorMapDefinition.asset";
         private const string SchoolGroundPrefabPath = "Assets/ARNavB9V2/Art/Outdoor/SchoolGroundV2.prefab";
         private const string SchoolGroundNavMeshPath = "Assets/ARNavB9V2/Data/Outdoor/NavMesh-SchoolGround.asset";
-        private const string PanelSettingsPath = "Assets/ARNavB9V2/UI/B9NavigationPanelSettings.asset";
         private const string MinimapTexturePath = "Assets/ARNavB9V2/Art/Outdoor/B9OutdoorMinimap.renderTexture";
         private const string LegacyChevronTexturePath = "Assets/ARNavB9V2/Art/Outdoor/Line 1.png";
         private const string Step2RootName = "[B9 V2] Outdoor Step 2";
@@ -272,9 +270,11 @@ namespace ARNavB9V2.Editor
             minimap.ConfigureInteraction(22f, 105f, 0.22f);
 
             ConfigureArCameraLayers(foundation.ArCamera);
-            UIDocument uiDocument = CreateHudDocument(root.transform);
-            B9NavigationHud hud = uiDocument.gameObject.AddComponent<B9NavigationHud>();
-            hud.Configure(uiDocument, building, location, route, minimap);
+            // The HUD logic lives here; the Canvas prefab NavigationHudUI draws it (Tools/UI Canvas/Install Navigation HUD).
+            var hudObject = new GameObject("B9 Navigation HUD");
+            hudObject.transform.SetParent(root.transform, false);
+            B9NavigationHud hud = hudObject.AddComponent<B9NavigationHud>();
+            hud.Configure(building, location, route, minimap);
 
             context.Configure(
                 outdoorDefinition,
@@ -338,27 +338,6 @@ namespace ARNavB9V2.Editor
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
-        }
-
-        private static UIDocument CreateHudDocument(Transform parent)
-        {
-            PanelSettings settings = AssetDatabase.LoadAssetAtPath<PanelSettings>(PanelSettingsPath);
-            if (settings == null)
-            {
-                settings = ScriptableObject.CreateInstance<PanelSettings>();
-                settings.name = "B9 Navigation Panel Settings";
-                settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
-                settings.referenceResolution = new Vector2Int(1170, 2532);
-                settings.match = 0.5f;
-                AssetDatabase.CreateAsset(settings, PanelSettingsPath);
-            }
-
-            GameObject go = new GameObject("B9 Navigation HUD");
-            go.transform.SetParent(parent, false);
-            UIDocument document = go.AddComponent<UIDocument>();
-            document.panelSettings = settings;
-            document.sortingOrder = 100;
-            return document;
         }
 
         private static RenderTexture CreateOrLoadRenderTexture()

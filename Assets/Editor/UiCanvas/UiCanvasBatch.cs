@@ -13,6 +13,24 @@ namespace Game.Foundation.UI.EditorTools
             UiCanvasSettingsBuilder.Build();
             UiCanvasShellSceneBuilder.Build();
         }
+
+        /// <summary>
+        /// <c>-executeMethod Game.Foundation.UI.EditorTools.UiCanvasBatch.BuildNavigationHud</c>: the B9 guidance overlay,
+        /// its installation in the navigation scene and the shell's scene loader. Previews render when a GPU is available
+        /// (batch mode without -nographics).
+        /// </summary>
+        public static void BuildNavigationHud()
+        {
+            UiCanvasIconGenerator.Generate();
+            UnityEditor.AssetDatabase.Refresh();
+            UiCanvasNavigationHudBuilder.Build();
+            UiCanvasNavigationSceneInstaller.Install();
+            UiCanvasShellSceneBuilder.Build();
+            if (UnityEngine.SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null)
+            {
+                UiCanvasPreviewRenderer.RenderNavigationHud();
+            }
+        }
     }
 }
 #endif

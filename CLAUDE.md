@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Unity 6000.3.11f1 AR campus-navigation app (Android, with an iOS runtime guard). The navigation core is **`Assets/ARNavB9V2`**: outdoor GPS guidance that hands over to MultiSet VPS visual localization inside buildings B9 and B10. The single scene in the build is `Assets/ARNavB9V2/Scenes/B9NavigationV2.unity`.
+Unity 6000.3.11f1 AR campus-navigation app (Android, with an iOS runtime guard). The navigation core is **`Assets/ARNavB9V2`**: outdoor GPS guidance that hands over to MultiSet VPS visual localization inside buildings B9 and B10. The build starts with the app shell `Assets/Game/Bundles/Scenes/AppShell.unity`; the navigation scene `Assets/ARNavB9V2/Scenes/B9NavigationV2.unity` (second in the build) is loaded additively under the AR page. Untick AppShell in the build settings to run the navigation scene on its own.
 
 The earlier hybrid indoor/outdoor system (`Assets/Code`, `Hybrid Navigation.unity`, the `HybridModeController` flow, many test scenes) was removed from this branch. It is preserved at the git tag `paper-b9-snapshot` (and branch `paper/merge-indoor-and-outdoor`) if anything has to be recovered.
 
@@ -41,7 +41,7 @@ Three assemblies, all referencing packages only (never project code): `ARNav.B9V
 | `Runtime/Experiment` | Research logger, exporter and experiment profile for the paper (three-file CSV bundle). |
 | `Runtime/Data`, `Data/Buildings` | ScriptableObject definitions: B9/B10 buildings, outdoor map calibration, destination catalog, indoor NavMesh data. |
 | `Runtime/Scene` | Scene context components, `B9MapVisibility`, `B9IosRuntimeGuard`. |
-| `Runtime/UI`, `UI` | `B9NavigationHud` (UI Toolkit) with `B9NavigationPanelSettings.asset` and its stylesheet `UI Login.uss`. |
+| `Runtime/UI` | `B9NavigationHud`: the HUD logic (status texts, which buttons show, destination list, button commands) behind `IB9NavigationHudModel` / `B9NavigationHudState`. It draws nothing; the Canvas prefab `NavigationHudUI` (app side) renders it. The app has no UI Toolkit left at runtime (only the editor-side `PixelPerfectOverlay` uses it). |
 
 MultiSet map data (`MAP_*`, `B10_MAP_*` prefabs) lives in `Assets/MultiSet/MapData`. The builders under `Tools/AR Navigation V2/Maps` create and validate the B9/B10 map prefabs, so prefer re-running them over hand edits.
 
@@ -53,12 +53,12 @@ The whole app shell is Unity Canvas (uGUI); the UI Toolkit shell (`Assets/UI`: U
 
 - `Scripts/Foundation/UI/NavigationManager.cs` is the router (global class): history stack, `Navigate`, `GoBack`, `NavigateFrom`, `ReturnTo`, `ResetTo`. `PageID.cs` lists the pages. `UiPage` is the base of every screen; `Common/` holds the shared widgets (namespace `Game.Foundation.UI`).
 - `Scripts/Features/<Feature>`: `Auth` (login, forgot password, OTP, register), `Onboarding`, `Home` (`ArHudUI`, the overlay for the AR page), `Chat` (history, search, chat), `Settings` (settings, profile, change email/password, support, contact). Backend access is behind interfaces held in static holders (`AuthServices`, `ChatServices`, `AccountServices`) so tests swap them. `Scripts/Foundation/Net/ApiHelper.cs` and `Assets/RestClient` are the HTTP layer.
-- The AppShell scene is not in the build yet: the AR page (`ArHudUI`) is a transparent overlay, but nothing loads `B9NavigationV2` underneath it or hides the UI Toolkit `B9NavigationHud`. That integration needs a device run.
+- AR page integration: `ArHudUI` (transparent overlay) and `NavigationHudUI` (prefab instance in the B9 scene, own canvas sorted 50 under AppCanvas 100, raised to 150 while its picker or research panel is open) talk through the static `ArNavigationBridge` (destination, clear route, HUD hidden while another page covers the camera). `ArNavigationSceneLoader` in AppShell loads the B9 scene the first time the AR page opens and turns the shell camera off. Not yet run on a device.
 
 ### Editor tooling
 
 - `Tools/AR Navigation V2/*` builders create and update the B9 scene step by step (foundation, outdoor route, VPS handover, indoor navigation, MultiSet UX, reliability, maps). `Step 1`, `Step 2` and `Sync MapB9 + POIs From HybridGPSMap` read the removed reference scene `Assets/Scenes/HybridGPSMap.unity`, so they only run after restoring it from `paper-b9-snapshot`.
-- `Tools/UI Canvas/*` (`Assets/Editor/UiCanvas`) generates the sprites, icons, fonts and every screen prefab and the AppShell scene; `Run Phase N Setup` runs a stage and renders previews to `Logs/UiPreview`. Do not re-run an earlier phase unless that screen has to change: a rebuild renumbers every fileID in its prefabs. `UiCanvasBatch.BuildAll` is the batch-mode entry (no previews: they need a GPU).
+- `Tools/UI Canvas/*` (`Assets/Editor/UiCanvas`) generates the sprites, icons, fonts and every screen prefab and the AppShell scene; `Run Phase N Setup` runs a stage and renders previews to `Logs/UiPreview`. Do not re-run an earlier phase unless that screen has to change: a rebuild renumbers every fileID in its prefabs. `UiCanvasBatch.BuildAll` is the batch-mode entry (no previews: they need a GPU). `Run Navigation HUD Setup` (batch: `UiCanvasBatch.BuildNavigationHud`) builds `NavigationHudUI`, installs it in the B9 scene (`Install Navigation HUD In B9 Scene`) and rebuilds AppShell with its scene loader. Previews re-bake the dynamic font atlases: revert `Assets/Game/Bundles/Fonts/Game` afterwards unless glyphs were added on purpose.
 - `Tools/Indoor/*` bakes the B9 NavMesh and fixes map mesh tags; `Tools/Fix AR/*` removes duplicate AR Sessions.
 - `Assets/Editor/PixelPerfectOverlay.cs` overlays a design PNG on a uGUI Canvas in the Scene view (key `1`).
 

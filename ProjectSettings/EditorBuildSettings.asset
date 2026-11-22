@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Game/Bundles/Scenes/AppShell.unity
+    guid: 87e652c87e46d4d8da5e72dad466df48
+  - enabled: 1
     path: Assets/ARNavB9V2/Scenes/B9NavigationV2.unity
     guid: c3eb5c61b82bc483283d83e4c0a15bee
   m_configObjects:

@@ -34,6 +34,7 @@ namespace TestAR.Tests.Editor.EditMode
             ChatServices.Api = api;
             ChatState.Clear();
             NavigationManager.pageHistory.Clear();
+            ArNavigationBridge.Reset();
         }
 
         [TearDown]
@@ -42,6 +43,7 @@ namespace TestAR.Tests.Editor.EditMode
             ChatServices.Api = originalApi;
             ChatState.Clear();
             NavigationManager.pageHistory.Clear();
+            ArNavigationBridge.Reset();
         }
 
         // ------------------------------------------------------------------ history filter
