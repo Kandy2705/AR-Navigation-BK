@@ -270,6 +270,7 @@ namespace TestAR.Tests.Editor.EditMode
 
                 Assert.IsNull(ChatState.Current);
                 Assert.AreEqual(string.Empty, AuthFlow.Email);
+                Assert.AreEqual(PageID.WelcomePage, SettingsUI.AfterLogoutPage, "logging out offers both sign-in and sign-up");
             }
         }
 

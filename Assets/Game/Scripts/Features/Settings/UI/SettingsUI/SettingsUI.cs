@@ -9,6 +9,9 @@ namespace Game.Features.Settings
     public class SettingsUI : UiPage
     {
         public const string LogoutTitle = "Đăng xuất";
+
+        /// <summary>Where logging out lands: the welcome screen, which offers both "Đăng nhập" and "Đăng ký".</summary>
+        public const PageID AfterLogoutPage = PageID.WelcomePage;
         public const string LogoutMessage = "Bạn có chắc chắn muốn đăng xuất ra khỏi tài khoản này";
 
         [SerializeField] private Button profileButton;
@@ -45,7 +48,7 @@ namespace Game.Features.Settings
             AccountSession.SignOut();
             if (Navigation != null)
             {
-                Navigation.ResetTo(PageID.Login);
+                Navigation.ResetTo(AfterLogoutPage);
             }
         }
     }
