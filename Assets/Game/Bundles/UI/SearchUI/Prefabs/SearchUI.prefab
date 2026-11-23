@@ -1352,7 +1352,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Chat.SearchUI
   pageId: 19
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   backButton: {fileID: 4030216184299577504}
   queryInput: {fileID: 6956276055020820473}
   listContent: {fileID: 6617417230799137113}

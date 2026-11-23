@@ -276,7 +276,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Auth.OtpUI
   pageId: 16
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   backButton: {fileID: 687364185724411794}
   subtitleLabel: {fileID: 2326635387739172899}
   otpInput: {fileID: 3751491978499941829}

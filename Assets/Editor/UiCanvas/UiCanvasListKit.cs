@@ -429,6 +429,7 @@ namespace Game.Foundation.UI.EditorTools
             SetReference(modal, "cancelButton", cancel);
             SetReference(modal, "cancelLabel", cancel.GetComponentInChildren<TextMeshProUGUI>());
             SetReference(modal, "backdropButton", backdrop);
+            SetReference(modal, "panel", panel);
             SavePrefab(root.gameObject, ConfirmSheetPrefab, true);
         }
 

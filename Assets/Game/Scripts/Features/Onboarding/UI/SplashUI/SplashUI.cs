@@ -62,7 +62,7 @@ namespace Game.Features.Onboarding
             }
             else
             {
-                Navigation.Navigate(PageID.Onboarding);
+                Navigation.Navigate(PageID.Onboarding, false, PageTransition.Fade);
             }
         }
 

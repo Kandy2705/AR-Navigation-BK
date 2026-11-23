@@ -641,6 +641,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Foundation.UI.UiStatusOverlay
   titleLabel: {fileID: 9123308678983350353}
   messageLabel: {fileID: 1578739264469626058}
+  card: {fileID: 2215075322579949572}
 --- !u!1 &4543269952105342197
 GameObject:
   m_ObjectHideFlags: 0

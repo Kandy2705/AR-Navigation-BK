@@ -216,7 +216,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Settings.SettingsUI
   pageId: 5
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   profileButton: {fileID: 8054669728302740287}
   supportButton: {fileID: 5554541285394838653}
   contactButton: {fileID: 4589038457046413903}

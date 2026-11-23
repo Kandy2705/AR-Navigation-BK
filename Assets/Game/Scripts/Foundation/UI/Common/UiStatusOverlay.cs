@@ -13,10 +13,13 @@ namespace Game.Foundation.UI
     {
         [SerializeField] private TMP_Text titleLabel;
         [SerializeField] private TMP_Text messageLabel;
+        [Tooltip("The centered card that pops in.")]
+        [SerializeField] private RectTransform card;
 
         private Coroutine pending;
+        private UiOverlayMotion motion;
 
-        public bool IsVisible => gameObject.activeSelf;
+        public bool IsVisible => gameObject.activeSelf && (motion == null || motion.Visible);
 
         public void Show(string title, string message)
         {
@@ -32,6 +35,7 @@ namespace Game.Foundation.UI
             }
 
             gameObject.SetActive(true);
+            Motion.Show();
         }
 
         /// <summary>Shows the card, then calls <paramref name="onDone"/> after <paramref name="seconds"/> (real time).</summary>
@@ -47,8 +51,10 @@ namespace Game.Foundation.UI
         public void Hide()
         {
             StopPending();
-            gameObject.SetActive(false);
+            Motion.Hide(() => gameObject.SetActive(false));
         }
+
+        private UiOverlayMotion Motion => motion ??= new UiOverlayMotion(this, OverlayStyle.Pop, card);
 
         private IEnumerator Wait(float seconds, Action onDone)
         {

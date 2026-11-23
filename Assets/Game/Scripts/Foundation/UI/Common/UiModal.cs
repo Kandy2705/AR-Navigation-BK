@@ -18,6 +18,10 @@ namespace Game.Foundation.UI
         [SerializeField] private Button cancelButton;
         [SerializeField] private TMP_Text cancelLabel;
         [SerializeField] private Button backdropButton;
+        [Tooltip("The sheet that rises from the bottom edge.")]
+        [SerializeField] private RectTransform panel;
+
+        private UiOverlayMotion motion;
 
         public event Action Confirmed;
         public event Action Cancelled;
@@ -53,6 +57,7 @@ namespace Game.Foundation.UI
             }
 
             gameObject.SetActive(true);
+            Motion.Show();
         }
 
         /// <summary>Colors the title (red for "Đăng xuất"); reset to the theme title color by passing null.</summary>
@@ -64,12 +69,15 @@ namespace Game.Foundation.UI
             }
         }
 
-        public bool IsVisible => gameObject.activeSelf;
+        public bool IsVisible => gameObject.activeSelf && (motion == null || motion.Visible);
 
         public void Hide()
         {
-            gameObject.SetActive(false);
+            Motion.Hide(() => gameObject.SetActive(false));
         }
+
+        private UiOverlayMotion Motion => motion ??= new UiOverlayMotion(
+            this, OverlayStyle.SlideUp, panel, backdropButton != null ? backdropButton.targetGraphic : null);
 
         private void HandleConfirm()
         {

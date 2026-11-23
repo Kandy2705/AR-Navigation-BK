@@ -3189,7 +3189,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Auth.LoginUI
   pageId: 0
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   backButton: {fileID: 1308227749150812472}
   emailField: {fileID: 6445099731281083692}
   passwordField: {fileID: 2746868337617019791}

@@ -574,7 +574,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Home.ArHudUI
   pageId: 11
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   menuButton: {fileID: 1632201060268532439}
   clearRouteButton: {fileID: 2920856615347789367}
   searchBar: {fileID: 6767220000790513172}

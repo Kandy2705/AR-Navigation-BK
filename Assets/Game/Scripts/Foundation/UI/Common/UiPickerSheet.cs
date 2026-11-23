@@ -22,11 +22,15 @@ namespace Game.Foundation.UI
         [SerializeField] private UiOptionColumn[] columns;
         [SerializeField] private Button doneButton;
         [SerializeField] private Button scrimButton;
+        [Tooltip("The sheet that rises from the bottom edge.")]
+        [SerializeField] private RectTransform panel;
+
+        private UiOverlayMotion motion;
 
         private Action<int[]> onDone;
         private int activeColumns;
 
-        public bool IsVisible => gameObject.activeSelf;
+        public bool IsVisible => gameObject.activeSelf && (motion == null || motion.Visible);
 
         public int MaxColumns => columns.Length;
 
@@ -44,6 +48,7 @@ namespace Game.Foundation.UI
 
             // Columns are filled after the sheet is active so their viewports have a size to scroll against.
             gameObject.SetActive(true);
+            Motion.Show();
             for (int i = 0; i < columns.Length; i++)
             {
                 bool used = i < activeColumns;
@@ -58,8 +63,11 @@ namespace Game.Foundation.UI
         public void Hide()
         {
             onDone = null;
-            gameObject.SetActive(false);
+            Motion.Hide(() => gameObject.SetActive(false));
         }
+
+        private UiOverlayMotion Motion => motion ??= new UiOverlayMotion(
+            this, OverlayStyle.SlideUp, panel, scrimButton != null ? scrimButton.targetGraphic : null);
 
         private void Done()
         {

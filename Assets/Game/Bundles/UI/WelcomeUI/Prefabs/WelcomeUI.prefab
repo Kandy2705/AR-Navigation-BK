@@ -713,7 +713,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Onboarding.WelcomeUI
   pageId: 15
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   loginButton: {fileID: 43414427124039260}
   registerButton: {fileID: 4813831555885309024}
 --- !u!1 &4695335918181748788

@@ -890,7 +890,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Settings.SupportCenterUI
   pageId: 9
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   backButton: {fileID: 4652261728165110550}
   categoryChips: {fileID: 3677220942615622154}
   listContent: {fileID: 522927063343234806}

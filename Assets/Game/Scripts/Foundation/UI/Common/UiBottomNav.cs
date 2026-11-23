@@ -47,9 +47,9 @@ namespace Game.Foundation.UI
 
             if (tab == ArTab)
             {
-                if (!navigation.ReturnTo(PageID.ARPage))
+                if (!navigation.ReturnTo(PageID.ARPage, PageTransition.Fade))
                 {
-                    navigation.Navigate(PageID.ARPage, true);
+                    navigation.Navigate(PageID.ARPage, true, PageTransition.Fade);
                 }
 
                 return;

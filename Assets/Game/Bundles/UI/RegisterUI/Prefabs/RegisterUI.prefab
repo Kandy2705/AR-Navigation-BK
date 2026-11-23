@@ -410,7 +410,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Auth.RegisterUI
   pageId: 1
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   backButton: {fileID: 1267384007426351300}
   nameField: {fileID: 1037004052556060408}
   phoneField: {fileID: 3730995555229257797}

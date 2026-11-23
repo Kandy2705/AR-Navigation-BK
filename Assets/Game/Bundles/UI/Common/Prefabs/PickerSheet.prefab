@@ -2018,6 +2018,7 @@ MonoBehaviour:
   - {fileID: 6899293772291055124}
   doneButton: {fileID: 8380260457580535116}
   scrimButton: {fileID: 1991419939882759733}
+  panel: {fileID: 2469400204180926149}
 --- !u!1 &8429279340085517060
 GameObject:
   m_ObjectHideFlags: 0

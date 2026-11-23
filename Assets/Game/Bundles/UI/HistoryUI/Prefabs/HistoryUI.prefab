@@ -2059,7 +2059,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Chat.HistoryUI
   pageId: 3
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   backButton: {fileID: 3921940804136576874}
   searchButton: {fileID: 1752797262502907405}
   clearAllButton: {fileID: 7082576452713349949}

@@ -2099,7 +2099,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Settings.ContactUI
   pageId: 10
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   backButton: {fileID: 3736640201170778097}
   addressLabel: {fileID: 9194315254163949103}
   phoneLabel: {fileID: 3281839842183709875}

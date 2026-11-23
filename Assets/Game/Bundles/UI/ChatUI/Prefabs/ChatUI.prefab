@@ -2193,7 +2193,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Chat.ChatUI
   pageId: 4
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   backButton: {fileID: 3776317950512435072}
   titleLabel: {fileID: 6433100035240528232}
   scroll: {fileID: 862369743419346719}

@@ -170,6 +170,7 @@ namespace Game.Foundation.UI.EditorTools
             SetReference(sheet, "titleLabel", title);
             SetReference(sheet, "doneButton", done);
             SetReference(sheet, "scrimButton", scrimButton);
+            SetReference(sheet, "panel", panel);
             var serialized = new SerializedObject(sheet);
             SerializedProperty list = serialized.FindProperty("columns");
             list.arraySize = columnCount;

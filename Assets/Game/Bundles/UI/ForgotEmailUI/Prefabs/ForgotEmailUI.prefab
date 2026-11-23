@@ -1128,7 +1128,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Auth.ForgotEmailUI
   pageId: 13
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   backButton: {fileID: 7828346779145484808}
   emailField: {fileID: 6126935992050433860}
   continueButton: {fileID: 8056073502835962651}

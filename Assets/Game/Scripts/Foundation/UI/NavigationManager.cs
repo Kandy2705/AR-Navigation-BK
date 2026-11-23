@@ -16,7 +16,8 @@ public struct PageRoute
 
 /// <summary>
 /// The app's screen router. Pages are Canvas (uGUI) prefabs registered per <see cref="PageID"/>; the router
-/// keeps a history stack so Back works, and shows one page at a time with a slide transition.
+/// keeps a history stack so Back works, and shows one page at a time: forward and back slide (<see cref="PageTransition.Push"/>,
+/// <see cref="PageTransition.Pop"/>), tabs, login and the end of a flow fade (<see cref="PageTransition.Fade"/>).
 /// </summary>
 public class NavigationManager : MonoBehaviour
 {
@@ -85,8 +86,14 @@ public class NavigationManager : MonoBehaviour
         return pageHistory.Count == 1 ? pageHistory.Peek() : PageID.None;
     }
 
-    /// <param name="isBack">True when going back: the history loses its top entry and the page slides in from the left.</param>
+    /// <param name="isBack">True when going back: the history loses its top entry and the current page slides away.</param>
     public void Navigate(PageID pageID, bool isBack = false)
+    {
+        Navigate(pageID, isBack, isBack ? PageTransition.Pop : PageTransition.Push);
+    }
+
+    /// <summary>Like <see cref="Navigate(PageID, bool)"/> with a chosen animation.</summary>
+    public void Navigate(PageID pageID, bool isBack, PageTransition transition)
     {
         if (!pageSources.ContainsKey(pageID))
         {
@@ -101,14 +108,14 @@ public class NavigationManager : MonoBehaviour
         }
 
         UpdateHistory(pageID, isBack);
-        Show(pageID, page, isBack);
+        Show(pageID, page, transition);
     }
 
     /// <summary>Forgets every page opened so far and opens <paramref name="target"/> as the only one (after login or logout).</summary>
     public void ResetTo(PageID target)
     {
         pageHistory.Clear();
-        Navigate(target);
+        Navigate(target, false, PageTransition.Fade);
     }
 
     /// <summary>Goes back one page (what the back arrow does). Returns false when there is no earlier page.</summary>
@@ -138,14 +145,14 @@ public class NavigationManager : MonoBehaviour
             }
         }
 
-        Navigate(target);
+        Navigate(target, false, PageTransition.Fade);
     }
 
     /// <summary>
     /// Returns to a page that is already in the history, dropping everything opened after it.
     /// Used when a flow ends (e.g. password reset back to Login) so Back does not walk through the finished flow.
     /// </summary>
-    public bool ReturnTo(PageID target)
+    public bool ReturnTo(PageID target, PageTransition transition = PageTransition.Pop)
     {
         if (!pageSources.ContainsKey(target) || !pageHistory.Contains(target))
         {
@@ -163,7 +170,7 @@ public class NavigationManager : MonoBehaviour
             pageHistory.Pop();
         }
 
-        Show(target, page, true);
+        Show(target, page, transition);
         return true;
     }
 
@@ -182,14 +189,26 @@ public class NavigationManager : MonoBehaviour
         }
     }
 
-    private void Show(PageID pageID, UiPage page, bool isBack)
+    private void Show(PageID pageID, UiPage page, PageTransition transition)
     {
-        if (currentPage != null && currentPage != page)
+        UiPage previous = currentPage != page ? currentPage : null;
+        if (previous != null)
         {
-            currentPage.Hide(isBack);
+            previous.Hide(transition);
         }
 
-        page.Show(isBack);
+        page.Show(transition);
+
+        // The moving page is drawn on top: the arriving one on push and fade, the leaving one on back.
+        if (previous != null && transition == PageTransition.Pop)
+        {
+            previous.transform.SetAsLastSibling();
+        }
+        else
+        {
+            page.transform.SetAsLastSibling();
+        }
+
         currentPage = page;
         Debug.Log($"[NavigationManager] Opened {pageID}");
     }

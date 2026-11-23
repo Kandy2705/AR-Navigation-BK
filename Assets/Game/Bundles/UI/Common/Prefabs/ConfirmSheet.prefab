@@ -985,6 +985,7 @@ MonoBehaviour:
   cancelButton: {fileID: 6662195509920339388}
   cancelLabel: {fileID: 4912218540775800534}
   backdropButton: {fileID: 4543583780360650839}
+  panel: {fileID: 6904314285965685718}
 --- !u!1 &9028440568820158375
 GameObject:
   m_ObjectHideFlags: 0

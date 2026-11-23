@@ -206,6 +206,7 @@ namespace Game.Foundation.UI.EditorTools
 
             SetReference(overlay, "titleLabel", title);
             SetReference(overlay, "messageLabel", message);
+            SetReference(overlay, "card", card);
 
             root.SetActive(false);
             Directory.CreateDirectory(UiCanvasPaths.CommonPrefabs);

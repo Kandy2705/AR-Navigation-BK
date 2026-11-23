@@ -55,6 +55,27 @@ namespace TestAR.Tests.Editor.EditMode
         }
 
         [Test]
+        public void Navigate_DrawsTheMovingPageOnTop()
+        {
+            navigation.Navigate(PageID.ARPage);
+            Transform ar = container.GetChild(container.childCount - 1);
+            navigation.Navigate(PageID.HistoryPage);
+            Transform history = container.GetChild(container.childCount - 1);
+            Assert.AreNotEqual(ar, history);
+            ar.SetAsLastSibling(); // make the order wrong on purpose: the next push must fix it
+            navigation.Navigate(PageID.Chatbox);
+            navigation.Navigate(PageID.HistoryPage);
+            Assert.Greater(history.GetSiblingIndex(), ar.GetSiblingIndex(), "a pushed page slides in over the old one");
+
+            navigation.Navigate(PageID.ARPage, true);
+            Assert.Greater(history.GetSiblingIndex(), ar.GetSiblingIndex(), "going back, the leaving page slides off on top");
+
+            navigation.Navigate(PageID.HistoryPage);
+            navigation.ResetTo(PageID.ARPage);
+            Assert.Greater(ar.GetSiblingIndex(), history.GetSiblingIndex(), "a fading page settles in on top");
+        }
+
+        [Test]
         public void GoBack_WhenReturningToTheHistoryPage_PopsExactlyOnePage()
         {
             // The UI Toolkit router pushed instead of popped when Back landed on the history page, so the stack grew.

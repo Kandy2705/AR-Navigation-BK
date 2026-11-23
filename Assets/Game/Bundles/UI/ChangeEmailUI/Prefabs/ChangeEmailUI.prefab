@@ -1135,7 +1135,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Settings.ChangeEmailUI
   pageId: 7
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   backButton: {fileID: 2778629508826281961}
   emailField: {fileID: 7807899190134851259}
   continueButton: {fileID: 4397080907077557556}

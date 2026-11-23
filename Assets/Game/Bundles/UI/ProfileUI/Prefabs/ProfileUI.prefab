@@ -738,7 +738,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Settings.ProfileUI
   pageId: 6
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   backButton: {fileID: 7921263499556660684}
   nameField: {fileID: 2864518490394169052}
   phoneField: {fileID: 4260277216479717225}

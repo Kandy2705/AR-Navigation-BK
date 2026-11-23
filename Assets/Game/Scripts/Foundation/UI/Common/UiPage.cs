@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Game.Foundation.UI
 {
@@ -14,12 +15,13 @@ namespace Game.Foundation.UI
     {
         [SerializeField] private PageID pageId = PageID.None;
 
-        [Tooltip("Slide + fade duration. 0 disables the transition.")]
-        [SerializeField, Min(0f)] private float transitionSeconds = 0.25f;
+        [Tooltip("Length of a slide (push/back) transition; fades take a little less. 0 disables transitions.")]
+        [SerializeField, Min(0f)] private float transitionSeconds = UiMotion.PushSeconds;
 
         private RectTransform rectTransform;
         private CanvasGroup canvasGroup;
         private Coroutine transition;
+        private Image dimLayer;
 
         public PageID Id => pageId;
         public NavigationManager Navigation { get; private set; }
@@ -33,8 +35,13 @@ namespace Game.Foundation.UI
             Navigation = navigation;
         }
 
-        /// <param name="fromLeft">True when navigating back: the page enters from the left.</param>
+        /// <param name="fromLeft">True when navigating back: the page is uncovered instead of sliding in.</param>
         public void Show(bool fromLeft = false)
+        {
+            Show(fromLeft ? PageTransition.Pop : PageTransition.Push);
+        }
+
+        public void Show(PageTransition kind)
         {
             CacheComponents();
             StopTransition();
@@ -45,17 +52,22 @@ namespace Game.Foundation.UI
 
             if (!CanAnimate())
             {
-                ApplyPose(0f, 1f);
-                canvasGroup.interactable = true;
+                ApplyPose(PagePose.Rest);
+                SetInput(true, true);
                 return;
             }
 
-            float width = rectTransform.rect.width;
-            transition = StartCoroutine(Animate(fromLeft ? -width : width, 0f, 0f, 1f, hideWhenDone: false));
+            UiPressFeedback.AttachTo(transform);
+            transition = StartCoroutine(Animate(kind, true));
         }
 
-        /// <param name="toRight">True when navigating back: the page leaves to the right.</param>
+        /// <param name="toRight">True when navigating back: the page slides out to the right.</param>
         public void Hide(bool toRight = false)
+        {
+            Hide(toRight ? PageTransition.Pop : PageTransition.Push);
+        }
+
+        public void Hide(PageTransition kind)
         {
             CacheComponents();
             if (!gameObject.activeSelf)
@@ -74,8 +86,7 @@ namespace Game.Foundation.UI
                 return;
             }
 
-            float width = rectTransform.rect.width;
-            transition = StartCoroutine(Animate(0f, toRight ? width : -width, 1f, 0f, hideWhenDone: true));
+            transition = StartCoroutine(Animate(kind, false));
         }
 
         /// <summary>Hides without animation and without calling <see cref="OnHide"/>; used when resetting the whole UI.</summary>
@@ -85,6 +96,13 @@ namespace Game.Foundation.UI
             StopTransition();
             IsVisible = false;
             FinishHide();
+        }
+
+        /// <summary>Freezes the page at one frame of a transition; used by the motion preview renders.</summary>
+        public void ApplyTransitionPose(PagePose pose)
+        {
+            CacheComponents();
+            ApplyPose(pose);
         }
 
         /// <summary>Back arrow behaviour: previous page in the navigation history, if there is one.</summary>
@@ -123,43 +141,81 @@ namespace Game.Foundation.UI
             return transitionSeconds > 0f && Application.isPlaying && gameObject.activeInHierarchy;
         }
 
-        private IEnumerator Animate(float fromX, float toX, float fromAlpha, float toAlpha, bool hideWhenDone)
+        private IEnumerator Animate(PageTransition kind, bool entering)
         {
-            canvasGroup.interactable = false;
-            ApplyPose(fromX, fromAlpha);
-
-            float elapsed = 0f;
-            while (elapsed < transitionSeconds)
-            {
-                elapsed += Time.unscaledDeltaTime;
-                float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / transitionSeconds));
-                ApplyPose(Mathf.Lerp(fromX, toX, k), Mathf.Lerp(fromAlpha, toAlpha, k));
-                yield return null;
-            }
+            // The arriving page takes the taps straight away; the leaving one lets them through.
+            SetInput(false, entering);
+            float width = rectTransform.rect.width;
+            float seconds = transitionSeconds * UiMotion.Duration(kind) / UiMotion.PushSeconds;
+            yield return UiMotion.Run(seconds, t => ApplyPose(UiMotion.Page(kind, entering, t, width)));
 
             transition = null;
-            if (hideWhenDone)
+            if (!entering)
             {
                 FinishHide();
                 yield break;
             }
 
-            ApplyPose(toX, toAlpha);
-            canvasGroup.interactable = true;
+            ApplyPose(PagePose.Rest);
+            SetInput(true, true);
         }
 
         private void FinishHide()
         {
-            ApplyPose(0f, 1f);
-            canvasGroup.interactable = true;
+            ApplyPose(PagePose.Rest);
+            SetInput(true, true);
             gameObject.SetActive(false);
             Hidden?.Invoke(this);
         }
 
-        private void ApplyPose(float x, float alpha)
+        private void ApplyPose(PagePose pose)
         {
-            rectTransform.anchoredPosition = new Vector2(x, rectTransform.anchoredPosition.y);
-            canvasGroup.alpha = alpha;
+            rectTransform.anchoredPosition = new Vector2(pose.X, rectTransform.anchoredPosition.y);
+            rectTransform.localScale = new Vector3(pose.Scale, pose.Scale, 1f);
+            canvasGroup.alpha = pose.Alpha;
+            SetDim(pose.Dim);
+        }
+
+        private void SetInput(bool interactable, bool blocksRaycasts)
+        {
+            canvasGroup.interactable = interactable;
+            canvasGroup.blocksRaycasts = blocksRaycasts;
+        }
+
+        /// <summary>Dark layer over the whole page, used while another page covers it.</summary>
+        private void SetDim(float strength)
+        {
+            if (strength <= 0.001f)
+            {
+                if (dimLayer != null && dimLayer.gameObject.activeSelf)
+                {
+                    dimLayer.gameObject.SetActive(false);
+                }
+
+                return;
+            }
+
+            if (dimLayer == null)
+            {
+                var layer = new GameObject("TransitionDim", typeof(RectTransform));
+                var rect = (RectTransform)layer.transform;
+                rect.SetParent(transform, false);
+                rect.anchorMin = Vector2.zero;
+                rect.anchorMax = Vector2.one;
+                rect.offsetMin = Vector2.zero;
+                rect.offsetMax = Vector2.zero;
+                dimLayer = layer.AddComponent<Image>();
+                dimLayer.raycastTarget = false;
+                layer.SetActive(false);
+            }
+
+            if (!dimLayer.gameObject.activeSelf)
+            {
+                dimLayer.transform.SetAsLastSibling();
+                dimLayer.gameObject.SetActive(true);
+            }
+
+            dimLayer.color = new Color(0f, 0f, 0f, strength);
         }
 
         private void StopTransition()

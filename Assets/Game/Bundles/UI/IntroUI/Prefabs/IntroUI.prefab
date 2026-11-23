@@ -65,7 +65,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Features.Onboarding.IntroUI
   pageId: 12
-  transitionSeconds: 0.25
+  transitionSeconds: 0.38
   continueButton: {fileID: 2004028981876273122}
 --- !u!1 &581424755282077883
 GameObject:
